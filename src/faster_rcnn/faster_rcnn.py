@@ -33,7 +33,7 @@ class RPN(nn.Module):
     _feat_stride = [16, ]
     anchor_scales = [8, 16, 32]
 
-    def __init__(self):
+    def __init__(self, is_cuda=True):
         super(RPN, self).__init__()
 
         self.features = VGG16(bn=False)
@@ -45,12 +45,15 @@ class RPN(nn.Module):
         self.cross_entropy = None
         self.los_box = None
 
+        # enable/disable cuda
+        self.is_cuda = is_cuda
+
     @property
     def loss(self):
         return self.cross_entropy + self.loss_box * 10
 
     def forward(self, im_data, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
-        im_data = network.np_to_variable(im_data, is_cuda=True)
+        im_data = network.np_to_variable(im_data, is_cuda=self.is_cuda)
         im_data = im_data.permute(0, 3, 1, 2)
         features = self.features(im_data)
 
@@ -68,7 +71,7 @@ class RPN(nn.Module):
         # proposal layer
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info,
-                                   cfg_key, self._feat_stride, self.anchor_scales)
+                                   cfg_key, self._feat_stride, self.anchor_scales, self.is_cuda)
 
         # generating training labels and build the rpn loss
         if self.training:
@@ -84,7 +87,11 @@ class RPN(nn.Module):
         rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(-1, 2)
         rpn_label = rpn_data[0].view(-1)
 
-        rpn_keep = Variable(rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
+        if self.is_cuda:
+            rpn_keep = Variable(rpn_label.data.ne(-1).nonzero().squeeze()).cuda()
+        else:
+            rpn_keep = Variable(rpn_label.data.ne(-1).nonzero().squeeze())
+
         rpn_cls_score = torch.index_select(rpn_cls_score, 0, rpn_keep)
         rpn_label = torch.index_select(rpn_label, 0, rpn_keep)
 
@@ -116,11 +123,11 @@ class RPN(nn.Module):
         return x
 
     @staticmethod
-    def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales):
+    def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales, is_cuda):
         rpn_cls_prob_reshape = rpn_cls_prob_reshape.data.cpu().numpy()
         rpn_bbox_pred = rpn_bbox_pred.data.cpu().numpy()
         x = proposal_layer_py(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales)
-        x = network.np_to_variable(x, is_cuda=True)
+        x = network.np_to_variable(x, is_cuda=is_cuda)
         return x.view(-1, 5)
 
     @staticmethod
@@ -182,14 +189,14 @@ class FasterRCNN(nn.Module):
     SCALES = (600,)
     MAX_SIZE = 1000
 
-    def __init__(self, classes=None, debug=False):
+    def __init__(self, classes=None, debug=False, is_cuda=True):
         super(FasterRCNN, self).__init__()
 
         if classes is not None:
             self.classes = classes
             self.n_classes = len(classes)
 
-        self.rpn = RPN()
+        self.rpn = RPN(is_cuda)
         self.roi_pool = RoIPool(7, 7, 1.0/16)
         self.fc6 = FC(512 * 7 * 7, 4096)
         self.fc7 = FC(4096, 4096)
@@ -203,6 +210,9 @@ class FasterRCNN(nn.Module):
         # for log
         self.debug = debug
 
+        # enable/disable cuda
+        self.is_cuda = is_cuda
+
     @property
     def loss(self):
         # print self.cross_entropy
@@ -215,7 +225,7 @@ class FasterRCNN(nn.Module):
         features, rois = self.rpn(im_data, im_info, gt_boxes, gt_ishard, dontcare_areas)
 
         if self.training:
-            roi_data = self.proposal_target_layer(rois, gt_boxes, gt_ishard, dontcare_areas, self.n_classes)
+            roi_data = self.proposal_target_layer(rois, gt_boxes, gt_ishard, dontcare_areas, self.n_classes, self.is_cuda)
             rois = roi_data[0]
 
         # roi pool
@@ -251,7 +261,10 @@ class FasterRCNN(nn.Module):
 
         ce_weights = torch.ones(cls_score.size()[1])
         ce_weights[0] = float(fg_cnt) / bg_cnt
-        ce_weights = ce_weights.cuda()
+
+        if self.is_cuda:
+            ce_weights = ce_weights.cuda()
+
         cross_entropy = F.cross_entropy(cls_score, label, weight=ce_weights)
 
         # bounding box regression L1 loss
@@ -264,7 +277,7 @@ class FasterRCNN(nn.Module):
         return cross_entropy, loss_box
 
     @staticmethod
-    def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, num_classes):
+    def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, num_classes, is_cuda):
         """
         ----------
         rpn_rois:  (1 x H x W x A, 5) [0, x1, y1, x2, y2]
@@ -285,11 +298,11 @@ class FasterRCNN(nn.Module):
         rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = \
             proposal_target_layer_py(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, num_classes)
         # print labels.shape, bbox_targets.shape, bbox_inside_weights.shape
-        rois = network.np_to_variable(rois, is_cuda=True)
-        labels = network.np_to_variable(labels, is_cuda=True, dtype=torch.LongTensor)
-        bbox_targets = network.np_to_variable(bbox_targets, is_cuda=True)
-        bbox_inside_weights = network.np_to_variable(bbox_inside_weights, is_cuda=True)
-        bbox_outside_weights = network.np_to_variable(bbox_outside_weights, is_cuda=True)
+        rois = network.np_to_variable(rois, is_cuda=is_cuda)
+        labels = network.np_to_variable(labels, is_cuda=is_cuda, dtype=torch.LongTensor)
+        bbox_targets = network.np_to_variable(bbox_targets, is_cuda=is_cuda)
+        bbox_inside_weights = network.np_to_variable(bbox_inside_weights, is_cuda=is_cuda)
+        bbox_outside_weights = network.np_to_variable(bbox_outside_weights, is_cuda=is_cuda)
 
         return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
