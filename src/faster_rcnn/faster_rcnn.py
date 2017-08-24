@@ -23,7 +23,7 @@ from vgg16 import VGG16
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None, is_cuda=True):
     dets = np.hstack((pred_boxes,
                       scores[:, np.newaxis])).astype(np.float32)
-    keep = nms(dets, nms_thresh, force_cpu=is_cuda)
+    keep = nms(dets, nms_thresh, force_cpu= not is_cuda)
     if inds is None:
         return pred_boxes[keep], scores[keep]
     return pred_boxes[keep], scores[keep], inds[keep]
@@ -126,7 +126,7 @@ class RPN(nn.Module):
     def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales, is_cuda):
         rpn_cls_prob_reshape = rpn_cls_prob_reshape.data.cpu().numpy()
         rpn_bbox_pred = rpn_bbox_pred.data.cpu().numpy()
-        x = proposal_layer_py(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales)
+        x = proposal_layer_py(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales, is_cuda=is_cuda)
         x = network.np_to_variable(x, is_cuda=is_cuda)
         return x.view(-1, 5)
 

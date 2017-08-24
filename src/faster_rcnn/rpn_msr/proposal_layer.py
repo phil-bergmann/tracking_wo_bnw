@@ -27,7 +27,7 @@ transformations to a set of regular boxes (called "anchors").
 
 
 def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride=[16, ],
-                   anchor_scales=[8, 16, 32]):
+                   anchor_scales=[8, 16, 32], is_cuda):
     """
     Parameters
     ----------
@@ -155,7 +155,7 @@ def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_
     # 6. apply nms (e.g. threshold = 0.7)
     # 7. take after_nms_topN (e.g. 300)
     # 8. return the top proposals (-> RoIs top)
-    keep = nms(np.hstack((proposals, scores)), nms_thresh)
+    keep = nms(np.hstack((proposals, scores)), nms_thresh, force_cpu = not is_cuda)
     if post_nms_topN > 0:
         keep = keep[:post_nms_topN]
     proposals = proposals[keep, :]
