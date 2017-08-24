@@ -1,0 +1,17 @@
+
+# C/C++ compiler
+*.so
+*.a
+*.o
+*.out
+*.obj
+
+# C Extensions
+*.so
+
+# Python
+*.py[cod]
+*$py.class
+
+# MacOSX
+.DS_Store
