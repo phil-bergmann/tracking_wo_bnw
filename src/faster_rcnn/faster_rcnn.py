@@ -20,10 +20,10 @@ from roi_pooling.modules.roi_pool import RoIPool
 from vgg16 import VGG16
 
 
-def nms_detections(pred_boxes, scores, nms_thresh, inds=None):
+def nms_detections(pred_boxes, scores, nms_thresh, inds=None, is_cuda=True):
     dets = np.hstack((pred_boxes,
                       scores[:, np.newaxis])).astype(np.float32)
-    keep = nms(dets, nms_thresh)
+    keep = nms(dets, nms_thresh, force_cpu=is_cuda)
     if inds is None:
         return pred_boxes[keep], scores[keep]
     return pred_boxes[keep], scores[keep], inds[keep]
@@ -327,7 +327,7 @@ class FasterRCNN(nn.Module):
 
         # nms
         if nms and pred_boxes.shape[0] > 0:
-            pred_boxes, scores, inds = nms_detections(pred_boxes, scores, 0.3, inds=inds)
+            pred_boxes, scores, inds = nms_detections(pred_boxes, scores, 0.3, inds=inds, is_cuda=self.is_cuda)
 
         return pred_boxes, scores, self.classes[inds]
 
