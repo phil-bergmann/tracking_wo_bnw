@@ -12,6 +12,8 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
+from Cython.Build import cythonize
+
 
 def find_in_path(name, path):
     "Find a file in a search path"
@@ -107,7 +109,7 @@ ext_modules = [
 
 setup(
     name='fast_rcnn',
-    ext_modules=ext_modules,
+    ext_modules=cythonize(ext_modules),
     # inject our custom trigger
-    cmdclass={'build_ext': custom_build_ext},
+    # cmdclass={'build_ext': build_ext2},
 )
