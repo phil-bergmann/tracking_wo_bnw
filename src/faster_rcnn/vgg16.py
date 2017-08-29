@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-from utils.blob import im_list_to_blob
-from network import Conv2d
-import network
+from .utils.blob import im_list_to_blob
+from .network import Conv2d
+from . import network
 
 
 class VGG16(nn.Module):
@@ -52,7 +52,7 @@ class VGG16(nn.Module):
     def load_from_npz(self, params):
         # params = np.load(npz_file)
         own_dict = self.state_dict()
-        for name, val in own_dict.items():
+        for name, val in list(own_dict.items()):
             i, j = int(name[4]), int(name[6]) + 1
             ptype = 'weights' if name[-1] == 't' else 'biases'
             key = 'conv{}_{}/{}:0'.format(i, j, ptype)

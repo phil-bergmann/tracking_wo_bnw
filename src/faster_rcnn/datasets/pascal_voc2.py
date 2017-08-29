@@ -12,7 +12,7 @@ import PIL
 import numpy as np
 import scipy.sparse
 import subprocess
-import cPickle
+import pickle
 import math
 import glob
 import uuid
@@ -46,7 +46,7 @@ class pascal_voc(imdb):
                          'cow', 'diningtable', 'dog', 'horse',
                          'motorbike', 'person', 'pottedplant',
                          'sheep', 'sofa', 'train', 'tvmonitor')
-        self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
+        self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
         # Default to roidb handler
@@ -130,8 +130,8 @@ class pascal_voc(imdb):
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} gt roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} gt roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         gt_roidb = [self._load_pascal_subcategory_exemplar_annotation(index)
@@ -139,14 +139,14 @@ class pascal_voc(imdb):
 
         if cfg.IS_RPN:
             # print out recall
-            for i in xrange(1, self.num_classes):
-                print '{}: Total number of boxes {:d}'.format(self.classes[i], self._num_boxes_all[i])
-                print '{}: Number of boxes covered {:d}'.format(self.classes[i], self._num_boxes_covered[i])
-                print '{}: Recall {:f}'.format(self.classes[i], float(self._num_boxes_covered[i]) / float(self._num_boxes_all[i]))
+            for i in range(1, self.num_classes):
+                print('{}: Total number of boxes {:d}'.format(self.classes[i], self._num_boxes_all[i]))
+                print('{}: Number of boxes covered {:d}'.format(self.classes[i], self._num_boxes_covered[i]))
+                print('{}: Recall {:f}'.format(self.classes[i], float(self._num_boxes_covered[i]) / float(self._num_boxes_all[i])))
 
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote gt roidb to {}'.format(cache_file)
+            pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote gt roidb to {}'.format(cache_file))
 
         return gt_roidb
 
@@ -210,14 +210,14 @@ class pascal_voc(imdb):
         
                 # check how many gt boxes are covered by grids
                 if num_objs != 0:
-                    index = np.tile(range(num_objs), len(cfg.TRAIN.SCALES))
+                    index = np.tile(list(range(num_objs)), len(cfg.TRAIN.SCALES))
                     max_overlaps = overlaps_grid.max(axis = 0)
                     fg_inds = []
-                    for k in xrange(1, self.num_classes):
+                    for k in range(1, self.num_classes):
                         fg_inds.extend(np.where((gt_classes_all == k) & (max_overlaps >= cfg.TRAIN.FG_THRESH[k-1]))[0])
                     index_covered = np.unique(index[fg_inds])
 
-                    for i in xrange(self.num_classes):
+                    for i in range(self.num_classes):
                         self._num_boxes_all[i] += len(np.where(gt_classes == i)[0])
                         self._num_boxes_covered[i] += len(np.where(gt_classes[index_covered] == i)[0])
             else:
@@ -267,10 +267,10 @@ class pascal_voc(imdb):
                 if num_objs != 0:
                     max_overlaps = overlaps_grid.max(axis = 0)
                     fg_inds = []
-                    for k in xrange(1, self.num_classes):
+                    for k in range(1, self.num_classes):
                         fg_inds.extend(np.where((gt_classes == k) & (max_overlaps >= cfg.TRAIN.FG_THRESH[k-1]))[0])
 
-                    for i in xrange(self.num_classes):
+                    for i in range(self.num_classes):
                         self._num_boxes_all[i] += len(np.where(gt_classes == i)[0])
                         self._num_boxes_covered[i] += len(np.where(gt_classes[fg_inds] == i)[0])
 
@@ -361,14 +361,14 @@ class pascal_voc(imdb):
         
                 # check how many gt boxes are covered by grids
                 if num_objs != 0:
-                    index = np.tile(range(num_objs), len(cfg.TRAIN.SCALES))
+                    index = np.tile(list(range(num_objs)), len(cfg.TRAIN.SCALES))
                     max_overlaps = overlaps_grid.max(axis = 0)
                     fg_inds = []
-                    for k in xrange(1, self.num_classes):
+                    for k in range(1, self.num_classes):
                         fg_inds.extend(np.where((gt_classes_all == k) & (max_overlaps >= cfg.TRAIN.FG_THRESH[k-1]))[0])
                     index_covered = np.unique(index[fg_inds])
 
-                    for i in xrange(self.num_classes):
+                    for i in range(self.num_classes):
                         self._num_boxes_all[i] += len(np.where(gt_classes == i)[0])
                         self._num_boxes_covered[i] += len(np.where(gt_classes[index_covered] == i)[0])
             else:
@@ -421,10 +421,10 @@ class pascal_voc(imdb):
                 if num_objs != 0:
                     max_overlaps = overlaps_grid.max(axis = 0)
                     fg_inds = []
-                    for k in xrange(1, self.num_classes):
+                    for k in range(1, self.num_classes):
                         fg_inds.extend(np.where((gt_classes == k) & (max_overlaps >= cfg.TRAIN.FG_THRESH[k-1]))[0])
 
-                    for i in xrange(self.num_classes):
+                    for i in range(self.num_classes):
                         self._num_boxes_all[i] += len(np.where(gt_classes == i)[0])
                         self._num_boxes_covered[i] += len(np.where(gt_classes[fg_inds] == i)[0])
 
@@ -449,29 +449,29 @@ class pascal_voc(imdb):
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         if self._image_set != 'test':
             gt_roidb = self.gt_roidb()
 
-            print 'Loading region proposal network boxes...'
+            print('Loading region proposal network boxes...')
             model = cfg.REGION_PROPOSAL
             rpn_roidb = self._load_rpn_roidb(gt_roidb, model)
-            print 'Region proposal network boxes loaded'
+            print('Region proposal network boxes loaded')
             roidb = imdb.merge_roidbs(rpn_roidb, gt_roidb)
         else:
-            print 'Loading region proposal network boxes...'
+            print('Loading region proposal network boxes...')
             model = cfg.REGION_PROPOSAL
             roidb = self._load_rpn_roidb(None, model)
-            print 'Region proposal network boxes loaded'
+            print('Region proposal network boxes loaded')
 
-        print '{} region proposals per image'.format(self._num_boxes_proposal / len(self.image_index))
+        print('{} region proposals per image'.format(self._num_boxes_proposal / len(self.image_index)))
 
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote roidb to {}'.format(cache_file)
+            pickle.dump(roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote roidb to {}'.format(cache_file))
 
         return roidb
 
@@ -519,8 +519,8 @@ class pascal_voc(imdb):
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} ss roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} ss roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         if int(self._year) == 2007 or self._image_set != 'test':
@@ -530,8 +530,8 @@ class pascal_voc(imdb):
         else:
             roidb = self._load_selective_search_roidb(None)
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote ss roidb to {}'.format(cache_file)
+            pickle.dump(roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote ss roidb to {}'.format(cache_file))
 
         return roidb
 
@@ -544,7 +544,7 @@ class pascal_voc(imdb):
         raw_data = sio.loadmat(filename)['boxes'].ravel()
 
         box_list = []
-        for i in xrange(raw_data.shape[0]):
+        for i in range(raw_data.shape[0]):
             box_list.append(raw_data[i][:, (1, 0, 3, 2)] - 1)
 
         return self.create_roidb_from_box_list(box_list, gt_roidb)
@@ -562,16 +562,16 @@ class pascal_voc(imdb):
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} ss roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} ss roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         gt_roidb = self.gt_roidb()
         ss_roidb = self._load_selective_search_IJCV_roidb(gt_roidb)
         roidb = imdb.merge_roidbs(gt_roidb, ss_roidb)
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote ss roidb to {}'.format(cache_file)
+            pickle.dump(roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote ss roidb to {}'.format(cache_file))
 
         return roidb
 
@@ -584,7 +584,7 @@ class pascal_voc(imdb):
 
         top_k = self.config['top_k']
         box_list = []
-        for i in xrange(self.num_images):
+        for i in range(self.num_images):
             filename = os.path.join(IJCV_path, self.image_index[i] + '.mat')
             raw_data = sio.loadmat(filename)
             box_list.append((raw_data['boxes'][:top_k, :]-1).astype(np.uint16))
@@ -604,16 +604,16 @@ class pascal_voc(imdb):
         for cls_ind, cls in enumerate(self.classes):
             if cls == '__background__':
                 continue
-            print 'Writing {} VOC results file'.format(cls)
+            print('Writing {} VOC results file'.format(cls))
             filename = path + 'det_' + self._image_set + '_' + cls + '.txt'
-            print filename
+            print(filename)
             with open(filename, 'wt') as f:
                 for im_ind, index in enumerate(self.image_index):
                     dets = all_boxes[cls_ind][im_ind]
                     if dets == []:
                         continue
                     # the VOCdevkit expects 1-based indices
-                    for k in xrange(dets.shape[0]):
+                    for k in range(dets.shape[0]):
                         f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.
                                 format(index, dets[k, 4],
                                        dets[k, 0] + 1, dets[k, 1] + 1,
@@ -631,7 +631,7 @@ class pascal_voc(imdb):
         cmd += 'voc_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\',{:d}); quit;"' \
                .format(self._pascal_path + '/VOCdevkit' + self._year, comp_id,
                        self._image_set, output_dir, int(rm_results))
-        print('Running:\n{}'.format(cmd))
+        print(('Running:\n{}'.format(cmd)))
         status = subprocess.call(cmd, shell=True)
 
     # evaluate detection results
@@ -643,7 +643,7 @@ class pascal_voc(imdb):
         # for each image
         for im_ind, index in enumerate(self.image_index):
             filename = os.path.join(output_dir, index + '.txt')
-            print 'Writing PASCAL results to file ' + filename
+            print('Writing PASCAL results to file ' + filename)
             with open(filename, 'wt') as f:
                 # for each class
                 for cls_ind, cls in enumerate(self.classes):
@@ -652,7 +652,7 @@ class pascal_voc(imdb):
                     dets = all_boxes[cls_ind][im_ind]
                     if dets == []:
                         continue
-                    for k in xrange(dets.shape[0]):
+                    for k in range(dets.shape[0]):
                         f.write('{:f} {:f} {:f} {:f} {:.32f}\n'.format(\
                                  dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3], dets[k, 4]))
 
@@ -660,12 +660,12 @@ class pascal_voc(imdb):
         # for each image
         for im_ind, index in enumerate(self.image_index):
             filename = os.path.join(output_dir, index + '.txt')
-            print 'Writing PASCAL results to file ' + filename
+            print('Writing PASCAL results to file ' + filename)
             with open(filename, 'wt') as f:
                 dets = all_boxes[im_ind]
                 if dets == []:
                     continue
-                for k in xrange(dets.shape[0]):
+                for k in range(dets.shape[0]):
                     f.write('{:f} {:f} {:f} {:f} {:.32f}\n'.format(dets[k, 0], dets[k, 1], dets[k, 2], dets[k, 3], dets[k, 4]))
 
 

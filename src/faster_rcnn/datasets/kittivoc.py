@@ -12,7 +12,7 @@ import os
 import numpy as np
 import scipy.sparse
 import subprocess
-import cPickle
+import pickle
 import math
 import glob
 import uuid
@@ -21,7 +21,7 @@ import xml.etree.ElementTree as ET
 
 from .imdb import imdb
 from .imdb import ROOT_DIR
-import ds_utils
+from . import ds_utils
 from .voc_eval import voc_eval
 
 # TODO: make fast_rcnn irrelevant
@@ -39,7 +39,7 @@ class kittivoc(imdb):
         self._data_path = self._devkit_path
         self._classes = ('__background__', # always index 0
                          'pedestrian', 'car', 'cyclist')
-        self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
+        self._class_to_ind = dict(list(zip(self.classes, list(range(self.num_classes)))))
         self._image_ext = '.jpg'
         self._image_index = self._load_image_set_index()
         self._remove_empty_samples()
@@ -108,15 +108,15 @@ class kittivoc(imdb):
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} gt roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} gt roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         gt_roidb = [self._load_pascal_annotation(index)
                     for index in self.image_index]
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote gt roidb to {}'.format(cache_file)
+            pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote gt roidb to {}'.format(cache_file))
 
         return gt_roidb
 
@@ -132,8 +132,8 @@ class kittivoc(imdb):
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
-                roidb = cPickle.load(fid)
-            print '{} ss roidb loaded from {}'.format(self.name, cache_file)
+                roidb = pickle.load(fid)
+            print('{} ss roidb loaded from {}'.format(self.name, cache_file))
             return roidb
 
         if self._image_set != 'test':
@@ -143,8 +143,8 @@ class kittivoc(imdb):
         else:
             roidb = self._load_selective_search_roidb(None)
         with open(cache_file, 'wb') as fid:
-            cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote ss roidb to {}'.format(cache_file)
+            pickle.dump(roidb, fid, pickle.HIGHEST_PROTOCOL)
+        print('wrote ss roidb to {}'.format(cache_file))
 
         return roidb
 
@@ -160,11 +160,11 @@ class kittivoc(imdb):
 
     def _load_rpn_roidb(self, gt_roidb):
         filename = self.config['rpn_file']
-        print 'loading {}'.format(filename)
+        print('loading {}'.format(filename))
         assert os.path.exists(filename), \
                'rpn data not found at: {}'.format(filename)
         with open(filename, 'rb') as f:
-            box_list = cPickle.load(f)
+            box_list = pickle.load(f)
         return self.create_roidb_from_box_list(box_list, gt_roidb)
 
     def _load_selective_search_roidb(self, gt_roidb):
@@ -176,7 +176,7 @@ class kittivoc(imdb):
         raw_data = sio.loadmat(filename)['boxes'].ravel()
 
         box_list = []
-        for i in xrange(raw_data.shape[0]):
+        for i in range(raw_data.shape[0]):
             boxes = raw_data[i][:, (1, 0, 3, 2)] - 1
             keep = ds_utils.unique_boxes(boxes)
             boxes = boxes[keep, :]
@@ -190,7 +190,7 @@ class kittivoc(imdb):
         """
         Remove images with zero annotation ()
         """
-        print 'Remove empty annotations: ',
+        print('Remove empty annotations: ', end=' ')
         for i in range(len(self._image_index)-1, -1, -1):
             index = self._image_index[i]
             filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
@@ -201,9 +201,9 @@ class kittivoc(imdb):
                     int(obj.find('difficult').text) == 0 and obj.find('name').text.lower().strip() != 'dontcare']
             num_objs = len(non_diff_objs)
             if num_objs == 0:
-                print index,
+                print(index, end=' ')
                 self._image_index.pop(i)
-        print 'Done. '
+        print('Done. ')
 
     def _load_pascal_annotation(self, index):
         """
@@ -293,7 +293,7 @@ class kittivoc(imdb):
         for cls_ind, cls in enumerate(self.classes):
             if cls == '__background__':
                 continue
-            print 'Writing {} VOC results file'.format(cls)
+            print('Writing {} VOC results file'.format(cls))
             filename = self._get_voc_results_file_template().format(cls)
             with open(filename, 'wt') as f:
                 for im_ind, index in enumerate(self.image_index):
@@ -301,7 +301,7 @@ class kittivoc(imdb):
                     if dets == []:
                         continue
                     # the VOCdevkit expects 1-based indices
-                    for k in xrange(dets.shape[0]):
+                    for k in range(dets.shape[0]):
                         f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.
                             format(index, dets[k, -1],              # filename(stem), score
                                    dets[k, 0] + 1, dets[k, 1] + 1,  # x1, y1, x2, y2
@@ -319,7 +319,7 @@ class kittivoc(imdb):
         aps = []
         # The PASCAL VOC metric changed in 2010
         use_07_metric = False
-        print 'VOC07 metric? ' + ('Yes' if use_07_metric else 'No')
+        print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
         for i, cls in enumerate(self._classes):
@@ -329,15 +329,15 @@ class kittivoc(imdb):
             rec, prec, ap = voc_eval(filename, annopath, imagesetfile, cls, cachedir,
                                      ovthresh=0.5, use_07_metric = use_07_metric)
             aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
+            print(('AP for {} = {:.4f}'.format(cls, ap)))
             with open(os.path.join(output_dir, cls + '_pr.pkl'), 'w') as f:
-                cPickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
-        print('Mean AP = {:.4f}'.format(np.mean(aps)))
+                pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+        print(('Mean AP = {:.4f}'.format(np.mean(aps))))
         print('~~~~~~~~')
         print('Results:')
         for ap in aps:
-            print('{:.3f}'.format(ap))
-        print('{:.3f}'.format(np.mean(aps)))
+            print(('{:.3f}'.format(ap)))
+        print(('{:.3f}'.format(np.mean(aps))))
         print('~~~~~~~~')
         print('')
         print('--------------------------------------------------------------')
@@ -348,9 +348,9 @@ class kittivoc(imdb):
         print('--------------------------------------------------------------')
 
     def _do_matlab_eval(self, output_dir='output'):
-        print '-----------------------------------------------------'
-        print 'Computing results with the official MATLAB eval code.'
-        print '-----------------------------------------------------'
+        print('-----------------------------------------------------')
+        print('Computing results with the official MATLAB eval code.')
+        print('-----------------------------------------------------')
         path = os.path.join(cfg.ROOT_DIR, 'lib', 'datasets',
                             'VOCdevkit-matlab-wrapper')
         cmd = 'cd {} && '.format(path)
@@ -359,7 +359,7 @@ class kittivoc(imdb):
         cmd += 'voc_eval(\'{:s}\',\'{:s}\',\'{:s}\',\'{:s}\'); quit;"' \
                .format(self._devkit_path, self._get_comp_id(),
                        self._image_set, output_dir)
-        print('Running:\n{}'.format(cmd))
+        print(('Running:\n{}'.format(cmd)))
         status = subprocess.call(cmd, shell=True)
 
 
