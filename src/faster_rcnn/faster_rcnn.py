@@ -5,19 +5,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from utils.timer import Timer
-from utils.blob import im_list_to_blob
-from fast_rcnn.nms_wrapper import nms
-from rpn_msr.proposal_layer import proposal_layer as proposal_layer_py
-from rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
-from rpn_msr.proposal_target_layer import proposal_target_layer as proposal_target_layer_py
-from fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
+from .utils.timer import Timer
+from .utils.blob import im_list_to_blob
+from .fast_rcnn.nms_wrapper import nms
+from .rpn_msr.proposal_layer import proposal_layer as proposal_layer_py
+from .rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
+from .rpn_msr.proposal_target_layer import proposal_target_layer as proposal_target_layer_py
+from .fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
 
-import network
-from network import Conv2d, FC
+from . import network
+from .network import Conv2d, FC
 # from roi_pooling.modules.roi_pool_py import RoIPool
-from roi_pooling.modules.roi_pool import RoIPool
-from vgg16 import VGG16
+from .roi_pooling.modules.roi_pool import RoIPool
+from .vgg16 import VGG16
 
 
 def nms_detections(pred_boxes, scores, nms_thresh, inds=None, is_cuda=True):
@@ -71,7 +71,7 @@ class RPN(nn.Module):
         # proposal layer
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info,
-                                   cfg_key, self._feat_stride, self.anchor_scales, self.is_cuda)
+                                   cfg_key, self.is_cuda, self._feat_stride, self.anchor_scales)
 
         # generating training labels and build the rpn loss
         if self.training:
@@ -123,10 +123,10 @@ class RPN(nn.Module):
         return x
 
     @staticmethod
-    def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales, is_cuda):
+    def proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, is_cuda, _feat_stride, anchor_scales):
         rpn_cls_prob_reshape = rpn_cls_prob_reshape.data.cpu().numpy()
         rpn_bbox_pred = rpn_bbox_pred.data.cpu().numpy()
-        x = proposal_layer_py(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride, anchor_scales, is_cuda=is_cuda)
+        x = proposal_layer_py(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, is_cuda, _feat_stride, anchor_scales)
         x = network.np_to_variable(x, is_cuda=is_cuda)
         return x.view(-1, 5)
 
@@ -167,7 +167,7 @@ class RPN(nn.Module):
 
         pairs = {'conv1.conv': 'rpn_conv/3x3', 'score_conv.conv': 'rpn_cls_score', 'bbox_conv.conv': 'rpn_bbox_pred'}
         own_dict = self.state_dict()
-        for k, v in pairs.items():
+        for k, v in list(pairs.items()):
             key = '{}.weight'.format(k)
             param = torch.from_numpy(params['{}/weights:0'.format(v)]).permute(3, 2, 0, 1)
             own_dict[key].copy_(param)
@@ -392,7 +392,7 @@ class FasterRCNN(nn.Module):
 
         pairs = {'fc6.fc': 'fc6', 'fc7.fc': 'fc7', 'score_fc.fc': 'cls_score', 'bbox_fc.fc': 'bbox_pred'}
         own_dict = self.state_dict()
-        for k, v in pairs.items():
+        for k, v in list(pairs.items()):
             key = '{}.weight'.format(k)
             param = torch.from_numpy(params['{}/weights:0'.format(v)]).permute(1, 0)
             own_dict[key].copy_(param)

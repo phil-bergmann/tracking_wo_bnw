@@ -1,7 +1,7 @@
 import os
 import torch
 import cv2
-import cPickle
+import pickle
 import numpy as np
 
 from faster_rcnn import network
@@ -87,8 +87,8 @@ def test_net(name, net, imdb, max_per_image=300, thresh=0.05, vis=False):
     # all detections are collected into:
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
-    all_boxes = [[[] for _ in xrange(num_images)]
-                 for _ in xrange(imdb.num_classes)]
+    all_boxes = [[[] for _ in range(num_images)]
+                 for _ in range(imdb.num_classes)]
 
     output_dir = get_output_dir(imdb, name)
 
@@ -109,7 +109,7 @@ def test_net(name, net, imdb, max_per_image=300, thresh=0.05, vis=False):
             im2show = np.copy(im)
 
         # skip j = 0, because it's the background class
-        for j in xrange(1, imdb.num_classes):
+        for j in range(1, imdb.num_classes):
             inds = np.where(scores[:, j] > thresh)[0]
             cls_scores = scores[inds, j]
             cls_boxes = boxes[inds, j * 4:(j + 1) * 4]
@@ -124,25 +124,25 @@ def test_net(name, net, imdb, max_per_image=300, thresh=0.05, vis=False):
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:
             image_scores = np.hstack([all_boxes[j][i][:, -1]
-                                      for j in xrange(1, imdb.num_classes)])
+                                      for j in range(1, imdb.num_classes)])
             if len(image_scores) > max_per_image:
                 image_thresh = np.sort(image_scores)[-max_per_image]
-                for j in xrange(1, imdb.num_classes):
+                for j in range(1, imdb.num_classes):
                     keep = np.where(all_boxes[j][i][:, -1] >= image_thresh)[0]
                     all_boxes[j][i] = all_boxes[j][i][keep, :]
         nms_time = _t['misc'].toc(average=False)
 
-        print 'im_detect: {:d}/{:d} {:.3f}s {:.3f}s' \
-            .format(i + 1, num_images, detect_time, nms_time)
+        print('im_detect: {:d}/{:d} {:.3f}s {:.3f}s' \
+            .format(i + 1, num_images, detect_time, nms_time))
 
         if vis:
             cv2.imshow('test', im2show)
             cv2.waitKey(1)
 
     with open(det_file, 'wb') as f:
-        cPickle.dump(all_boxes, f, cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
 
-    print 'Evaluating detections'
+    print('Evaluating detections')
     imdb.evaluate_detections(all_boxes, output_dir)
 
 

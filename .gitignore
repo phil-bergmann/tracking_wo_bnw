@@ -1,4 +1,3 @@
-
 # C/C++ compiler
 *.so
 *.a
@@ -12,6 +11,9 @@
 # Python
 *.py[cod]
 *$py.class
+.python-version
 
 # MacOSX
 .DS_Store
+
+*.h5

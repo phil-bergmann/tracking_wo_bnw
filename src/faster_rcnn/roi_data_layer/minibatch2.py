@@ -59,7 +59,7 @@ def get_minibatch(roidb, num_classes):
         bbox_inside_blob = np.zeros(bbox_targets_blob.shape, dtype=np.float32)
 
         # all_overlaps = []
-        for im_i in xrange(num_images):
+        for im_i in range(num_images):
             labels, overlaps, im_rois, bbox_targets, bbox_inside_weights, sublabels \
                     = _sample_rois(roidb[im_i], fg_rois_per_image, rois_per_image, num_classes)
 
@@ -110,7 +110,7 @@ def _sample_rois(roidb, fg_rois_per_image, rois_per_image, num_classes):
 
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = []
-    for i in xrange(1, num_classes):
+    for i in range(1, num_classes):
         fg_inds.extend(np.where((labels == i) & (overlaps >= cfg.TRAIN.FG_THRESH))[0])
     fg_inds = np.array(fg_inds)
 
@@ -125,12 +125,12 @@ def _sample_rois(roidb, fg_rois_per_image, rois_per_image, num_classes):
     bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
     bg_inds = []
-    for i in xrange(1, num_classes):
+    for i in range(1, num_classes):
         bg_inds.extend( np.where((labels == i) & (overlaps < cfg.TRAIN.BG_THRESH_HI) &
                         (overlaps >= cfg.TRAIN.BG_THRESH_LO))[0] )
 
     if len(bg_inds) < bg_rois_per_this_image:
-        for i in xrange(1, num_classes):
+        for i in range(1, num_classes):
             bg_inds.extend( np.where((labels == i) & (overlaps < cfg.TRAIN.BG_THRESH_HI))[0] )
 
     if len(bg_inds) < bg_rois_per_this_image:
@@ -177,7 +177,7 @@ def _get_image_blob(roidb, scale_inds):
     num_images = len(roidb)
     processed_ims = []
     im_scales = []
-    for i in xrange(num_images):
+    for i in range(num_images):
         im = cv2.imread(roidb[i]['image'])
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
@@ -204,7 +204,7 @@ def _get_image_blob_multiscale(roidb):
     processed_ims = []
     im_scales = []
     scales = cfg.TRAIN.SCALES_BASE
-    for i in xrange(num_images):
+    for i in range(num_images):
         im = cv2.imread(roidb[i]['image'])
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
@@ -314,7 +314,7 @@ def _vis_minibatch(im_blob, rois_blob, labels_blob, overlaps, sublabels_blob, vi
     """Visualize a mini-batch for debugging."""
     import matplotlib.pyplot as plt
     import math
-    for i in xrange(min(rois_blob.shape[0], 10)):
+    for i in range(min(rois_blob.shape[0], 10)):
         rois = rois_blob[i, :]
         im_ind = rois[0]
         roi = rois[1:]
@@ -325,7 +325,7 @@ def _vis_minibatch(im_blob, rois_blob, labels_blob, overlaps, sublabels_blob, vi
         cls = labels_blob[i]
         subcls = sublabels_blob[i]
         plt.imshow(im)
-        print 'class: ', cls, ' subclass: ', subcls, ' overlap: ', overlaps[i]
+        print('class: ', cls, ' subclass: ', subcls, ' overlap: ', overlaps[i])
 
         start = 3 * cls
         end = start + 3
