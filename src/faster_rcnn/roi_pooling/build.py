@@ -2,6 +2,7 @@ import os
 import torch
 from torch.utils.ffi import create_extension
 
+
 sources = ['src/roi_pooling.c']
 headers = ['src/roi_pooling.h']
 defines = []
