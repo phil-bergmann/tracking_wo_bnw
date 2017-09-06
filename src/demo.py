@@ -15,9 +15,9 @@ def test():
     model_file = 'models/VGGnet_fast_rcnn_iter_70000.h5'
     # model_file = '/media/longc/Data/models/faster_rcnn_pytorch3/faster_rcnn_100000.h5'
     # model_file = '/media/longc/Data/models/faster_rcnn_pytorch2/faster_rcnn_2000.h5'
-    detector = FasterRCNN(is_cuda=False)
+    detector = FasterRCNN(is_cuda=True)
     network.load_net(model_file, detector)
-    # detector.cuda()
+    detector.cuda()
     detector.eval()
     print('load model successfully!')
 
