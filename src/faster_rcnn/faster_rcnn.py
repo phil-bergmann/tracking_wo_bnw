@@ -77,7 +77,7 @@ class RPN(nn.Module):
         if self.training:
             assert gt_boxes is not None
             rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas,
-                                                im_info, self._feat_stride, self.anchor_scales)
+                                                im_info, self._feat_stride, self.anchor_scales, self.is_cuda)
             self.cross_entropy, self.loss_box = self.build_loss(rpn_cls_score_reshape, rpn_bbox_pred, rpn_data)
 
         return features, rois
@@ -131,7 +131,7 @@ class RPN(nn.Module):
         return x.view(-1, 5)
 
     @staticmethod
-    def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride, anchor_scales):
+    def anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride, anchor_scales, is_cuda):
         """
         rpn_cls_score: for pytorch (1, Ax2, H, W) bg/fg scores of previous conv layer
         gt_boxes: (G, 5) vstack of [x1, y1, x2, y2, class]
@@ -154,10 +154,10 @@ class RPN(nn.Module):
         rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = \
             anchor_target_layer_py(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas, im_info, _feat_stride, anchor_scales)
 
-        rpn_labels = network.np_to_variable(rpn_labels, is_cuda=True, dtype=torch.LongTensor)
-        rpn_bbox_targets = network.np_to_variable(rpn_bbox_targets, is_cuda=True)
-        rpn_bbox_inside_weights = network.np_to_variable(rpn_bbox_inside_weights, is_cuda=True)
-        rpn_bbox_outside_weights = network.np_to_variable(rpn_bbox_outside_weights, is_cuda=True)
+        rpn_labels = network.np_to_variable(rpn_labels, is_cuda=is_cuda, dtype=torch.LongTensor)
+        rpn_bbox_targets = network.np_to_variable(rpn_bbox_targets, is_cuda=is_cuda)
+        rpn_bbox_inside_weights = network.np_to_variable(rpn_bbox_inside_weights, is_cuda=is_cuda)
+        rpn_bbox_outside_weights = network.np_to_variable(rpn_bbox_outside_weights, is_cuda=is_cuda)
 
         return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
 
