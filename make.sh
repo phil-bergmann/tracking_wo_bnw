@@ -23,4 +23,4 @@ done
 # Build faster RCNN
 echo "[*] Building Faster RCNN"
 cd src/faster_rcnn/
-./make.sh+$CUDA
+./make.sh $CUDA
