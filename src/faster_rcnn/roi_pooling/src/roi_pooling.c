@@ -20,11 +20,11 @@ int roi_pooling_forward(int pooled_height, int pooled_width, float spatial_scale
         return 0;
     }
     // data height
-    int data_height = THFloatTensor_size(features, 2);
+    int data_height = THFloatTensor_size(features, 1);
     // data width
-    int data_width = THFloatTensor_size(features, 3);
+    int data_width = THFloatTensor_size(features, 2);
     // Number of channels
-    int num_channels = THFloatTensor_size(features, 1);
+    int num_channels = THFloatTensor_size(features, 3);
 
     // Set all element of the output tensor to -inf.
     THFloatStorage_fill(THFloatTensor_storage(output), -1);
