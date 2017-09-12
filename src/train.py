@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime
 
 from faster_rcnn import network
-from faster_rcnn.faster_rcnn import FasterRCNN, RPN
+from faster_rcnn.faster_rcnn import FasterRCNN
 from faster_rcnn.utils.timer import Timer
 
 import faster_rcnn.roi_data_layer.roidb as rdl_roidb
@@ -16,11 +16,6 @@ try:
     from termcolor import cprint
 except ImportError:
     cprint = None
-
-try:
-    from pycrayon import CrayonClient
-except ImportError:
-    CrayonClient = None
 
 
 def log_print(text, color=None, on_color=None, attrs=None):
@@ -34,8 +29,8 @@ def log_print(text, color=None, on_color=None, attrs=None):
 # hyper-parameters
 # ------------
 imdb_name = 'voc_2007_trainval'
-cfg_file = 'experiments/cfgs/faster_rcnn_end2end.yml'
-pretrained_model = 'data/pretrained_model/VGG_imagenet.npy'
+cfg_file = 'cfg/faster_rcnn_end2end.yml'
+pretrained_model = 'models/VGG_imagenet.npy'
 output_dir = 'models/saved_model3'
 
 start_step = 0
@@ -45,7 +40,7 @@ lr_decay = 1./10
 
 rand_seed = 1024
 _DEBUG = True
-use_tensorboard = True
+use_tensorboard = False
 remove_all_log = False   # remove all historical experiments in TensorBoard
 exp_name = None # the previous experiment name in TensorBoard
 
@@ -71,36 +66,16 @@ data_layer = RoIDataLayer(roidb, imdb.num_classes)
 # load net
 net = FasterRCNN(classes=imdb.classes, debug=_DEBUG)
 network.weights_normal_init(net, dev=0.01)
-network.load_pretrained_npy(net, pretrained_model)
-# model_file = '/media/longc/Data/models/VGGnet_fast_rcnn_iter_70000.h5'
-# model_file = 'models/saved_model3/faster_rcnn_60000.h5'
-# network.load_net(model_file, net)
-# exp_name = 'vgg16_02-19_13-24'
-# start_step = 60001
-# lr /= 10.
-# network.weights_normal_init([net.bbox_fc, net.score_fc, net.fc6, net.fc7], dev=0.01)
+network.load_pretrained_npy(net, pretrained_model, encoding='latin1')
 
 net.cuda()
 net.train()
 
 params = list(net.parameters())
-# optimizer = torch.optim.Adam(params[-8:], lr=lr)
 optimizer = torch.optim.SGD(params[8:], lr=lr, momentum=momentum, weight_decay=weight_decay)
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
-
-# tensorboad
-use_tensorboard = use_tensorboard and CrayonClient is not None
-if use_tensorboard:
-    cc = CrayonClient(hostname='127.0.0.1')
-    if remove_all_log:
-        cc.remove_all_experiments()
-    if exp_name is None:
-        exp_name = datetime.now().strftime('vgg16_%m-%d_%H-%M')
-        exp = cc.create_experiment(exp_name)
-    else:
-        exp = cc.open_experiment(exp_name)
 
 # training
 train_loss = 0
