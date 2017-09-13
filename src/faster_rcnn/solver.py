@@ -20,7 +20,6 @@ try:
 except ImportError:
     cprint = None
 
-
 def log_print(text, color=None, on_color=None, attrs=None):
     if cprint is not None:
         cprint(text, color=color, on_color=on_color, attrs=attrs)
@@ -30,29 +29,26 @@ def log_print(text, color=None, on_color=None, attrs=None):
 class Solver(object):
 
     def __init__(self):
+        pass
 
-        self.pretrained_model = 'models/VGG_imagenet.npy'
-        self.cfg_file = 'cfg/faster_rcnn_end2end.yml'
-        self.output_dir = 'models/saved_model3'
-
-    def train(self, imdb_name = 'voc_2007_trainval'):
+    def train(self, imdb_name='voc_2007_trainval', end_step=100000, lr_decay_steps={60000, 80000},
+        output_dir='models/faster_rcnn', pretrained_model = 'models/VGG_imagenet.npy',
+        cfg_file = 'cfg/faster_rcnn_end2end.yml'):
         """
         Train a given model with the provided data.
-
+        
         """
 
         # hyper-parameters
         # ------------
         start_step = 0
-        end_step = 100000
-        lr_decay_steps = {60000, 80000}
         lr_decay = 1./10
         # ------------
 
         np.random.seed(1024)
 
         # load config
-        cfg_from_file(self.cfg_file)
+        cfg_from_file(cfg_file)
         lr = cfg.TRAIN.LEARNING_RATE
         momentum = cfg.TRAIN.MOMENTUM
         weight_decay = cfg.TRAIN.WEIGHT_DECAY
@@ -68,7 +64,7 @@ class Solver(object):
         # load net
         net = FasterRCNN(classes=imdb.classes)
         network.weights_normal_init(net, dev=0.01)
-        network.load_pretrained_npy(net, self.pretrained_model, encoding='latin1')
+        network.load_pretrained_npy(net, pretrained_model, encoding='latin1')
 
         net.cuda()
         net.train()
@@ -76,14 +72,14 @@ class Solver(object):
         params = list(net.parameters())
         optimizer = torch.optim.SGD(params[8:], lr=lr, momentum=momentum, weight_decay=weight_decay)
 
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         
         print('START TRAIN.')
 
         # training
         train_loss = 0
-        tp, tf, fg, bg = 0., 0., 0, 0
+        #tp, tf, fg, bg = 0., 0., 0, 0
         step_cnt = 0
         re_cnt = False
         t = Timer()
@@ -122,7 +118,7 @@ class Solver(object):
                 re_cnt = True
 
             if (step % 10000 == 0) and step > 0:
-                save_name = os.path.join(self.output_dir, 'faster_rcnn_{}.h5'.format(step))
+                save_name = os.path.join(self.output_dir, 'faster_rcnn_{}_{}.h5'.format(imdb_name, step))
                 network.save_net(save_name, net)
                 print(('save model: {}'.format(save_name)))
 
@@ -131,10 +127,45 @@ class Solver(object):
                 optimizer = torch.optim.SGD(params[8:], lr=lr, momentum=momentum, weight_decay=weight_decay)
 
             if re_cnt:
-                tp, tf, fg, bg = 0., 0., 0, 0
+                #tp, tf, fg, bg = 0., 0., 0, 0
                 train_loss = 0
                 step_cnt = 0
                 t.tic()
                 re_cnt = False
             
         print('FINISH.')
+
+    def test(self, imdb_name='voc_2007_test', trained_model = 'models/VGGnet_fast_rcnn_iter_70000.h5'):
+        pass
+
+    def demo(self, imdb_name='voc_2007_test', trained_model = 'models/VGGnet_fast_rcnn_iter_70000.h5', im_file = 'data/004545.jpg'):
+        import cv2
+
+        image = cv2.imread(im_file)
+
+        # load image db for classes
+        imdb = get_imdb(imdb_name)
+
+        #detector = FasterRCNN(classes=imdb.classes)
+        detector = FasterRCNN()
+        network.load_net(trained_model, detector)
+        detector.cuda()
+        detector.eval()
+        print('load model successfully!')
+
+        t = Timer()
+        t.tic()
+
+        dets, scores, classes = detector.detect(image, 0.7)
+        
+        runtime = t.toc()
+        print(('total spend: {}s'.format(runtime)))
+
+        im2show = np.copy(image)
+        for i, det in enumerate(dets):
+            det = tuple(int(x) for x in det)
+            cv2.rectangle(im2show, det[0:2], det[2:4], (255, 205, 51), 2)
+            cv2.putText(im2show, '%s: %.3f' % (classes[i], scores[i]), (det[0], det[1] + 15), cv2.FONT_HERSHEY_PLAIN,
+                    1.0, (0, 0, 255), thickness=1)
+        
+        cv2.imwrite('out.jpg', im2show)
