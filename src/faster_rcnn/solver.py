@@ -118,7 +118,7 @@ class Solver(object):
                 re_cnt = True
 
             if (step % 10000 == 0) and step > 0:
-                save_name = os.path.join(self.output_dir, 'faster_rcnn_{}_{}.h5'.format(imdb_name, step))
+                save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}.h5'.format(imdb_name, step))
                 network.save_net(save_name, net)
                 print(('save model: {}'.format(save_name)))
 
