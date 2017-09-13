@@ -70,7 +70,7 @@ def proposal_target_layer(rpn_rois, gt_boxes, gt_ishard, dontcare_areas, _num_cl
         'Only single item batches are supported'
 
     num_images = 1
-    rois_per_image = cfg.TRAIN.BATCH_SIZE / num_images
+    rois_per_image = cfg.TRAIN.BATCH_SIZE // num_images
     fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))
 
     # Sample rois with classification labels and bounding box regression
@@ -171,7 +171,7 @@ def _sample_rois(all_rois, gt_boxes, gt_ishard, dontcare_areas, fg_rois_per_imag
     bg_rois_per_this_image = min(bg_rois_per_this_image, bg_inds.size)
     # Sample background regions without replacement
     if bg_inds.size > 0:
-        bg_inds = npr.choice(bg_inds, size=int(bg_rois_per_this_image), replace=False)
+        bg_inds = npr.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
 
     # The indices that we're selecting (both fg and bg)
     keep_inds = np.append(fg_inds, bg_inds)
