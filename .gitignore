@@ -19,3 +19,6 @@ docs
 .DS_Store
 
 *.h5
+
+data/*
+models/*
