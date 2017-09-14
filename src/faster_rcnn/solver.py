@@ -85,7 +85,7 @@ class Solver(object):
         t = Timer()
         t.tic()
 
-        for step in range(end_step):
+        for step in range(1, end_step+1):
             # get one batch
             blobs = data_layer.forward()
             im_data = blobs['data']
