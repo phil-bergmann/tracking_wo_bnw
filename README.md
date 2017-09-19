@@ -7,3 +7,5 @@ is_cuda as command line argument
     add switch to FasterRCNN.anchor_target_layer
 
 sacred - experiment framework
+
+Pretrain Faster RCNN on VOC
