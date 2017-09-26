@@ -14,6 +14,7 @@ fix gitignore data/*
 
 
 tensorboard
+change bounding box handeling to ignore if it extends the image (for now)
 write score function (ratio of TP / (TP+FP).)
 
 make installable (use pip install -e for development)
