@@ -1,4 +1,5 @@
 docs
+output
 
 # C/C++ compiler
 *.so
@@ -14,13 +15,7 @@ docs
 *.py[cod]
 *$py.class
 .python-version
+__pycache__
 
 # MacOSX
 .DS_Store
-
-*.h5
-
-data
-models
-output
-tensorboard
