@@ -1,6 +1,3 @@
-docs
-output
-
 # C/C++ compiler
 *.so
 *.a
