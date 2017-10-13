@@ -1,0 +1,12 @@
+ROI or Crop polling mode?
+At the moment using Crop mode
+
+Split trainig set into first 50% train and last 25% val
+
+Use VGG16 as it doen't overfit so easy
+
+L2 regularisation in train_val.py 129+131
+
+train MOTdet with pretrained from VOC -> not much difference
+
+Bounding boxes that go outside of picture are ignored at the moment
