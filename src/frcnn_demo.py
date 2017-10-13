@@ -93,7 +93,7 @@ def demo(net, image_name, imdb, output_dir):
 
     # Visualize detections for each class
     CONF_THRESH = 0.8
-    NMS_THRESH = 0.3
+    NMS_THRESH = cfg.TEST.NMS
     for cls_ind, cls in enumerate(imdb.classes[1:]):
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
