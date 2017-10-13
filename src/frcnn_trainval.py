@@ -86,7 +86,8 @@ def frcnn_trainval(args):
   # also add the validation set, but with no flipping images
   orgflip = cfg.TRAIN.USE_FLIPPED
   cfg.TRAIN.USE_FLIPPED = False
-  _, valroidb = combined_roidb(args['imdbval_name'])
+  #-, valroidb = combined_roidb(args['imdbval_name'])
+  valimdb, valroidb = combined_roidb(args['imdbval_name'])
   print('{:d} validation roidb entries'.format(len(valroidb)))
   cfg.TRAIN.USE_FLIPPED = orgflip
 
@@ -105,6 +106,6 @@ def frcnn_trainval(args):
     raise NotImplementedError
 
     
-  train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
+  train_net(net, imdb, roidb, valimdb, valroidb, output_dir, tb_dir,
             pretrained_model=args['weights'],
-            max_iters=args['max_iters'], basenet=args['basenet'])
+            max_iters=args['max_iters'], basenet=args['basenet'], evaluate=args['eval'])
