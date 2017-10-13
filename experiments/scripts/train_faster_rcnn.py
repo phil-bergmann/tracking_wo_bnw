@@ -19,10 +19,15 @@ ex = Experiment()
 @ex.config
 def default():
 	set_cfgs = None
-	voc_basenet = None
+	basenet = None
 	tag =  datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 	description = ""
 	timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+	evaluate = False
+
+@ex.named_config
+def evaluate():
+	evaluate = True
 
 # Dataset configs
 @ex.named_config
@@ -30,7 +35,10 @@ def small_mot():
 	imdb_name = "mot_2017_small_train"
 	imdbval_name = "mot_2017_small_val"
 	# around same number of epochs as voc 07 trainval (70000/5000=14)
-	# 8000*14 = 112000
+	# 2658*14 = 37212
+	# step size at max_iters/1.4
+	#max_iters = 38000
+	#set_cfgs = ["TRAIN.STEPSIZE", "[27000]"]
 	max_iters = 110000
 	set_cfgs = ["TRAIN.STEPSIZE", "[80000]"]
 
@@ -39,9 +47,9 @@ def mot():
 	imdb_name = "mot_2017_train"
 	imdbval_name = "mot_2017_small_val"
 	# around same number of epochs as voc 07 trainval (70000/5000=14)
-	# 16000*14 = 224000
-	max_iters = 220000
-	set_cfgs = ["TRAIN.STEPSIZE", "[150000]"]
+	# 5316*14 = 74424
+	max_iters = 75000
+	set_cfgs = ["TRAIN.STEPSIZE", "[53000]"]
 
 @ex.named_config
 def voc_basenet():
@@ -62,7 +70,7 @@ def vgg16():
 	
 
 @ex.automain
-def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, weights, basenet, tag, description, _config):
+def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, weights, basenet, tag, description, evaluate, _config):
 
 	args = {'imdb_name':imdb_name,
 			'imdbval_name':imdbval_name,
@@ -72,7 +80,8 @@ def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, wei
 			'set_cfgs':None,
 			'weights':weights,
 			'basenet':basenet,
-			'tag':tag}
+			'tag':tag,
+			'eval':evaluate}
 
 	print('Called with args:')
 	print(args)
@@ -89,7 +98,7 @@ def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, wei
 	sacred_config = osp.join(outdir, 'sacred_config.yaml')
 	if not osp.isfile(sacred_config):
 		# Don't forget to make voc_basenet to None, if not resuming is not possible
-		_config['voc_basenet'] = None
+		_config['basenet'] = None
 		if not os.path.exists(outdir):
 			os.makedirs(outdir)
 		with open(sacred_config, 'w') as outfile:
