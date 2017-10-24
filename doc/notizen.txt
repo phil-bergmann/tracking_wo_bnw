@@ -4,9 +4,50 @@ At the moment using Crop mode
 Split trainig set into first 50% train and last 25% val
 
 Use VGG16 as it doen't overfit so easy
+Try also Res101
 
 L2 regularisation in train_val.py 129+131
 
 train MOTdet with pretrained from VOC -> not much difference
 
-Bounding boxes that go outside of picture are ignored at the moment
+Bounding boxes that go outside of picture are ignored at the moment -> use them and crop them, performance much better
+
+Testing time use NMS or TOP? (See paper of Xinli, states top better) -> TEST.MODE = top does not work at the momoent (Bug in proposal_top_layer.py)
+
+
+MOT17Det:
+
+0) Original FRCNN
+1) VGG16, 110k steps, score >0.05, C&R layer, throw out all BB that are outside of the image
+2) VGG16, 110k steps, score >0.05, C&R layer, crop all BB that are outside of image
+
+#	AP	MODA	MODP	FAF	TP	FP	FN	PREC	REC
+0)	0.72	68.5	78.0	1.7	88,601	10,081	25,963	89.3	77.3
+----------------------------------------------------------------------------
+1)	0.69	59.8	78.6	2.4	82,778	14,270	31,786	85.3	72.3
+2)	0.70	60.3	77.6	3.6	90,529	21,404	24,035	80.9	79.0
+
+
+
+MOT17Det (first half for training, whole training set for evaluation, evaluated locally):
+
+1) VGG16, 110k steps, score >0.05, C&R layer, throw out all BB that are outside of the image
+2) VGG16, 110k steps, score >0.05, C&R layer, crop all BB that are outside of image
+3) VGG16, 110k steps, score >0.05, ROI Pooling, crop all BB that are outside of image
+4) VGG16, 110k steps, score >0.05, C&R layer, include all BB
+5) res101, 110k steps, score >0.05, C&R layer, crop all BB that are outside of image
+6) res101, 110k steps, score >0.05, ROI Pooling, crop all BB that are outside of image
+7) res101, 110k steps, score >0.05, C&R layer, include all BB
+
+#	AP	REC	PREC	FAF	GT	TP	FP	FN	MODA	MODP
+1)	0.7263	77.03	92.29	0.80	66393	51143	4275	15250	70.59	84.18
+2)	0.7922	84.23	84.95	1.86	66393	55920	9902	10473	69.31	85.35	
+3)	0.6952	79.62	74.56	3.39	66393	52862	18035	13531	52.46	78.23
+4)	0.8156	83.84	90.94	1.04	66393	55662	5547	10731	75.48	85.87
+5)	0.7862	84.13	85.71	1.75	66393	55857	9314	10536	70.10	85.72
+6)	0.7598	80.38	72.89	3.73	66393	53365	19852	13028	50.48	78.01
+7)
+
+Anmerkungen:
+- Bei ROI Pooling bleibt der Fehler beim Training auf einem höheren Wert (etwa x2 am Ende, ähnlich res101 ung vgg16)
+- Fehler bei res101 etwas geringer als bei vgg16
