@@ -31,6 +31,8 @@ def default():
 	weights = ""
 	network = ""
 	evaluate = False
+	score_thresh = 0.05
+	clip_bbox = False
 
 # Dataset configs
 @ex.named_config
@@ -44,6 +46,10 @@ def mot():
 @ex.named_config
 def mot_test():
 	imdbtest_name = "mot_2017_test"
+
+@ex.named_config
+def mot_train():
+	imdbtest_name = "mot_2017_train"
 
 #@ex.named_config
 #def res101():
@@ -59,7 +65,11 @@ def mot_test():
 	
 
 @ex.automain
-def my_main(imdb_name, imdbtest_name, network, cfg_file, set_cfgs, tag, comp, max_iters, max_per_image):
+def my_main(imdb_name, imdbtest_name, network, cfg_file, set_cfgs, tag, comp, max_iters, max_per_image, score_thresh, clip_bbox):
+
+	# Clip bboxes after bbox reg to image boundary
+	cfg_from_list(['TEST.BBOX_CLIP', str(clip_bbox)])
+
 
 	# Already set everything here, so the path can be determined correctly
 	if cfg_file:
@@ -83,7 +93,8 @@ def my_main(imdb_name, imdbtest_name, network, cfg_file, set_cfgs, tag, comp, ma
 			'comp_mode':comp,
 			'max_per_image':max_per_image,
 			'output_dir':output_dir,
-			'model':model}
+			'model':model,
+			'score_thresh':score_thresh}
 
 	print('Called with args:')
 	print(args)

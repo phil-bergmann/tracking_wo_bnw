@@ -31,6 +31,7 @@ def default():
 	weights = ""
 	network = ""
 	evaluate = False
+	score_thresh = 0.05
 
 # Image files to take
 @ex.named_config
@@ -41,7 +42,7 @@ def demo():
 				'te-08-000496.jpg', 'te-12-000504.jpg', 'te-14-000509.jpg']
 	
 @ex.automain
-def my_main(imdb_name, network, cfg_file, set_cfgs, tag, max_iters, im_names):
+def my_main(imdb_name, network, cfg_file, set_cfgs, tag, max_iters, im_names, score_thresh):
 
 	# Already set everything here, so the path can be determined correctly
 	if cfg_file:
@@ -63,7 +64,8 @@ def my_main(imdb_name, network, cfg_file, set_cfgs, tag, max_iters, im_names):
 			'tag':tag,
 			'output_dir':output_dir,
 			'model':model,
-			'im_names':im_names}
+			'im_names':im_names,
+			'score_thresh':score_thresh}
 
 	print('Called with args:')
 	print(args)
