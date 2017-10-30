@@ -42,7 +42,9 @@ v5.1) Do not crop BB on testing time to image boundaries
 r1) res101, 110k steps, score >0.05, C&R layer, crop all BB that are outside of image
 r2) res101, 110k steps, score >0.05, ROI Pooling, crop all BB that are outside of image
 r3) res101, 110k steps, score >0.05, C&R layer, include all BB
+r3.1) Do not crop BB on testing time to image boundaries
 r4) res101, 180k steps, score >0.05, C&R layer, include all BB
+r4.1) Do not crop BB on testing time to image boundaries
 
 
 #	AP	REC	PREC	FAF	GT	TP	FP	FN	MODA	MODP
@@ -59,8 +61,10 @@ v5.1)	0.8168	85.13	94.52	0.62	66393	56520	3277	9873	80.19	87.80
 
 r1)	0.7862	84.13	85.71	1.75	66393	55857	9314	10536	70.10	85.72
 r2)	0.7598	80.38	72.89	3.73	66393	53365	19852	13028	50.48	78.01
-r3)
-r4)
+r3)	0.8141	84.50	91.66	0.96	66393	56102	5102	10291	76.82	86.22
+r3.1)	0.8150	85.58	93.62	0.73	66393	56821	3870	9572	79.75	87.75
+r4)	0.8151	83.64	93.99	0.67	66393	55528	3553	10865	78.28	87.14
+r4.1)	0.8157	84.50	95.56	0.49	66393	56105	2606	10288	80.58	88.78
 
 Anmerkungen:
 - Bei ROI Pooling bleibt der Fehler beim Training auf einem höheren Wert (etwa x2 am Ende, ähnlich res101 ung vgg16)
@@ -82,4 +86,21 @@ v5.1)	0.1817	18.70	89.07	0.29	66393	12415	1523	53978	16.41	79.67
 
 r1)	0.1773	18.40	76.30	0.71	66393	12218	3796	54175	12.69	78.04
 r2)	0.1759	17.83	64.94	1.20	66393	11838	6391	54555	8.20	74.50
+r3)	0.1813	18.34	81.89	0.51	66393	12174	2693	54219	14.28	78.76
+r3.1)	0.1813	18.64	85.24	0.40	66393	12373	2143	54020	15.41	80.28
+r4)	0.1814	18.04	86.25	0.36	66393	11976	1909	54417	15.16	79.09
+r4.1)	0.1814	18.29	88.80	0.29	66393	12144	1531	54249	15.99	80.70
+
+
+
+Test score parameter for networt v5.1), Training on first 1/2, evaluation only on last 1/4
+
+#       AP      REC     PREC    FAF     GT      TP      FP      FN      MODA    MODP
+0.05	0.1817	18.70	89.07	0.29	66393	12415	1523	53978	16.41	79.67
+0.10	0.1817	18.56	90.39	0.25	66393	12321	1310	54072	16.58	79.77
+0.20	0.1817	18.40	91.46	0.21	66393	12217	1141	54176	16.68	79.86
+0.30	0.1817	18.30	92.14	0.19	66393	12151	1036	54242	16.74	79.92
+0.40	0.1817	18.20	92.66	0.18	66393	12086	957	54307	16.76	79.97
+0.50	0.1817	18.11	93.10	0.17	66393	12027	892	54366	16.77	80.00
+
 
