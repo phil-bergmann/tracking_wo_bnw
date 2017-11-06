@@ -39,8 +39,8 @@ def small_mot():
 	# step size at max_iters/1.4
 	#max_iters = 38000
 	#set_cfgs = ["TRAIN.STEPSIZE", "[27000]"]
-	max_iters = 110000
-	set_cfgs = ["TRAIN.STEPSIZE", "[80000]"]
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
 @ex.named_config
 def mot():
@@ -48,8 +48,10 @@ def mot():
 	imdbval_name = "mot_2017_small_val"
 	# around same number of epochs as voc 07 trainval (70000/5000=14)
 	# 5316*14 = 74424
-	max_iters = 75000
-	set_cfgs = ["TRAIN.STEPSIZE", "[53000]"]
+	#max_iters = 110000
+	#set_cfgs = ["TRAIN.STEPSIZE", "[80000]"]
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
 @ex.named_config
 def voc_basenet():
@@ -85,7 +87,6 @@ def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, wei
 
 	print('Called with args:')
 	print(args)
-
 
 	# Already set everything here, so the path can be determined correctly
 	if cfg_file:
