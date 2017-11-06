@@ -74,4 +74,4 @@ def frcnn_test(args):
     print('Loaded.')
 
 
-    test_net(net, imdb_test, args['output_dir'], max_per_image=args['max_per_image'])
+    test_net(net, imdb_test, args['output_dir'], max_per_image=args['max_per_image'], thresh=args['score_thresh'])

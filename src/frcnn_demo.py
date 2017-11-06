@@ -67,7 +67,7 @@ def vis_detections(im, class_name, dets, im_output, thresh=0.5):
                 fontsize=14, color='white')
 
     ax.set_title(('{} detections with '
-                  'p({} | box) >= {:.1f}').format(class_name, class_name,
+                  'p({} | box) >= {:.2f}').format(class_name, class_name,
                                                   thresh),
                   fontsize=14)
     plt.axis('off')
@@ -75,7 +75,7 @@ def vis_detections(im, class_name, dets, im_output, thresh=0.5):
     plt.draw()
     plt.savefig(im_output)
 
-def demo(net, image_name, imdb, output_dir):
+def demo(net, image_name, imdb, output_dir, thresh):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
@@ -92,17 +92,15 @@ def demo(net, image_name, imdb, output_dir):
     print('Detection took {:.3f}s for {:d} object proposals'.format(timer.total_time(), boxes.shape[0]))
 
     # Visualize detections for each class
-    CONF_THRESH = 0.8
-    NMS_THRESH = cfg.TEST.NMS
     for cls_ind, cls in enumerate(imdb.classes[1:]):
         cls_ind += 1 # because we skipped background
         cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
         cls_scores = scores[:, cls_ind]
         dets = np.hstack((cls_boxes,
                           cls_scores[:, np.newaxis])).astype(np.float32)
-        keep = nms(torch.from_numpy(dets), NMS_THRESH)
+        keep = nms(torch.from_numpy(dets), cfg.TEST.NMS)
         dets = dets[keep.numpy(), :]
-        vis_detections(im, cls, dets, im_output, thresh=CONF_THRESH)
+        vis_detections(im, cls, dets, im_output, thresh=thresh)
 
 def frcnn_demo(args):
 
@@ -145,6 +143,6 @@ def frcnn_demo(args):
     for im_name in args['im_names']:
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print('Demo for data/demo/{}'.format(im_name))
-        demo(net, im_name, imdb, args['output_dir'])
+        demo(net, im_name, imdb, args['output_dir'], thresh=args['score_thresh'])
 
     #plt.savefig(osp.join(args['output_dir'], 'test.png'))
