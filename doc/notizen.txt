@@ -20,13 +20,15 @@ MOT17Det:
 0) Original FRCNN
 1) VGG16, 110k steps, score >0.05, C&R layer, throw out all BB that are outside of the image
 2) VGG16, 110k steps, score >0.05, C&R layer, crop all BB that are outside of image
+3) VGG16, 180k steps, score >0.10, C&R layer, include all BB, Do not crop BB on testing time to image boundaries
+
 
 #	AP	MODA	MODP	FAF	TP	FP	FN	PREC	REC
 0)	0.72	68.5	78.0	1.7	88,601	10,081	25,963	89.3	77.3
 ----------------------------------------------------------------------------
 1)	0.69	59.8	78.6	2.4	82,778	14,270	31,786	85.3	72.3
 2)	0.70	60.3	77.6	3.6	90,529	21,404	24,035	80.9	79.0
-
+3)	0.72	71.1	79.3	1.6	91,038	9,617	23,526	90.4	79.5
 
 
 MOT17Det (first half for training, whole training set for evaluation, evaluated locally):
@@ -96,11 +98,10 @@ r4.1)	0.1814	18.29	88.80	0.29	66393	12144	1531	54249	15.99	80.70
 Test score parameter for networt v5.1), Training on first 1/2, evaluation only on last 1/4
 
 #       AP      REC     PREC    FAF     GT      TP      FP      FN      MODA    MODP
+0.00	0.1817	19.84	11.17	19.70	66393	13173	104710	53220	-137.87	78.79
 0.05	0.1817	18.70	89.07	0.29	66393	12415	1523	53978	16.41	79.67
 0.10	0.1817	18.56	90.39	0.25	66393	12321	1310	54072	16.58	79.77
 0.20	0.1817	18.40	91.46	0.21	66393	12217	1141	54176	16.68	79.86
 0.30	0.1817	18.30	92.14	0.19	66393	12151	1036	54242	16.74	79.92
 0.40	0.1817	18.20	92.66	0.18	66393	12086	957	54307	16.76	79.97
 0.50	0.1817	18.11	93.10	0.17	66393	12027	892	54366	16.77	80.00
-
-
