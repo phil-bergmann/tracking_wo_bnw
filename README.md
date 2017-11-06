@@ -27,3 +27,9 @@ make installable (use pip install -e for development):
 - add ffi build.py files to setup.py. change paths
 
 change bounding box handling to add padding
+
+
+Devkit:
+https://bitbucket.org/amilan/motchallenge-devkit
+Put into data/motchallenge-devkit
+Build with compile.m
