@@ -41,6 +41,19 @@ __C.TRAIN.SMP_PER_BATCH = 1
 __C.TEST = edict()
 
 
+#
+# LSTM settings
+#
+__C.LSTM = edict()
+
+# number of hidden neurons
+__C.LSTM.HIDDEN_SIZE = 500
+
+# number of layers
+__C.LSTM.LAYERS = 1
+
+
+
 
 # For reproducibility
 __C.RNG_SEED = 3
@@ -50,3 +63,22 @@ __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 
 # Data directory
 __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
+
+# 
+
+
+
+def get_output_dir(module):
+  """Return the directory where experimental artifacts are placed.
+  If the directory does not exist, it is created.
+
+  A canonical path is built using the name from an imdb and a network
+  (if not None).
+  """
+  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', 'tracker', module))
+  #if weights_filename is None:
+  #  weights_filename = 'default'
+  #outdir = osp.join(outdir, weights_filename)
+  if not os.path.exists(outdir):
+    os.makedirs(outdir)
+  return outdir

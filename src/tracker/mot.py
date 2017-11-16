@@ -73,13 +73,12 @@ class MOT(object):
 			# mark all images i where there are good tracks until i+2
 			good_track = []
 			for i in range(1, seqLength-1):
-				if gt[i].keys() == gt[i+1].keys() and gt[i+1].keys() == gt[i+2].keys():
+				if gt[i].keys() == gt[i+1].keys():
 					good_track.append(i)
 
 			for i in good_track:
 				im_path0 = osp.join(_imDir,"{:06d}.jpg".format(i))
 				im_path1 = osp.join(_imDir,"{:06d}.jpg".format(i+1))
-				im_path2 = osp.join(_imDir,"{:06d}.jpg".format(i+2))
 
 				# all should be of same length
 				num_objs = len(gt[i])
@@ -89,10 +88,9 @@ class MOT(object):
 				for j,id in enumerate(gt[i]):
 					tracks[j,0,:] = gt[i][id]
 					tracks[j,1,:] = gt[i+1][id]
-					tracks[j,2,:] = gt[i+2][id]
 
 				d = { 'tracks':tracks,
-					  'im_paths':[im_path0,im_path1,im_path2],
+					  'im_paths':[im_path0,im_path1],
 				}
 				if i <= seqLength*0.5:
 					self._small_train.append(d)

@@ -70,6 +70,7 @@ class DataLayer(object):
 		d['tracks']: Tracks through the 3 images
 		d['blobs']: Another list containing the 3 blob dictionaries
 		d['blobs'][i]: Dictionary containing the blob with keys ['data', 'im_info']
+		d['blobs'][i]['im_info'] = [[im_blob.shape[1], im_blob.shape[2], im_scales[0]]]
 
 		blobs = [ {
 				'tracks': numpy array ((num_tracks,3,4)),
