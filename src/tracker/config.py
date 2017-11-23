@@ -33,6 +33,11 @@ __C.TRAIN.ERROR_AVERAGE_ITERATIONS = 100
 # Samples to use per minibatch
 __C.TRAIN.SMP_PER_BATCH = 1
 
+# Snapshot prefix
+__C.TRAIN.SNAPSHOT_PREFIX = "LSTM_v0.1"
+
+# Make Snapshot every Iters
+__C.TRAIN.SNAPSHOT_ITERS = 1000
 
 
 #
@@ -47,7 +52,7 @@ __C.TEST = edict()
 __C.LSTM = edict()
 
 # number of hidden neurons
-__C.LSTM.HIDDEN_SIZE = 500
+__C.LSTM.HIDDEN_NUM = 500
 
 # number of layers
 __C.LSTM.LAYERS = 1
@@ -82,3 +87,20 @@ def get_output_dir(module):
   if not os.path.exists(outdir):
     os.makedirs(outdir)
   return outdir
+
+def get_tb_dir(module):
+  """Return the directory where experimental artifacts are placed.
+  If the directory does not exist, it is created.
+
+  A canonical path is built using the name from an imdb and a network
+  (if not None).
+  """
+  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', 'tracker', module))
+  #if weights_filename is None:
+  #  weights_filename = 'default'
+  #outdir = osp.join(outdir, weights_filename)
+  if not os.path.exists(outdir):
+    os.makedirs(outdir)
+  return outdir
+
+

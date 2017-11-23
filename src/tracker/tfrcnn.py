@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 
 class tfrcnn(vgg16):
@@ -31,8 +32,8 @@ class tfrcnn(vgg16):
 
 		#######
 		self.cls_score_net = nn.Linear(4096, self._num_classes)
-    	#self.bbox_pred_net = nn.Linear(4096, self._num_classes * 4)
-    	#######
+		#self.bbox_pred_net = nn.Linear(4096, self._num_classes * 4)
+		#######
 
 		self.init_weights()
 
@@ -62,7 +63,7 @@ class tfrcnn(vgg16):
 		# build the anchors for the image
 		self._anchor_component(net_conv.size(2), net_conv.size(3))
 
-   		# rois is a 300x5 vector (img_index,x1,y1,x2,y2), img_index = 0
+		# rois is a 300x5 vector (img_index,x1,y1,x2,y2), img_index = 0
 		rois = self._region_proposal(net_conv)
 		if frcnn_cfg.POOLING_MODE == 'crop':
 			pool5 = self._crop_pool_layer(net_conv, rois)
@@ -84,15 +85,15 @@ class tfrcnn(vgg16):
 		#return rois
 
 	def _region_classification(self, fc7):
-    	cls_score = self.cls_score_net(fc7)
-    	cls_pred = torch.max(cls_score, 1)[1]
-    	cls_prob = F.softmax(cls_score)
-    	#bbox_pred = self.bbox_pred_net(fc7)
+		cls_score = self.cls_score_net(fc7)
+		cls_pred = torch.max(cls_score, 1)[1]
+		cls_prob = F.softmax(cls_score)
+		#bbox_pred = self.bbox_pred_net(fc7)
 
-    	self._predictions["cls_score"] = cls_score
-    	self._predictions["cls_pred"] = cls_pred
-    	self._predictions["cls_prob"] = cls_prob
-    	#self._predictions["bbox_pred"] = bbox_pred
+		self._predictions["cls_score"] = cls_score
+		self._predictions["cls_pred"] = cls_pred
+		self._predictions["cls_prob"] = cls_prob
+		#self._predictions["bbox_pred"] = bbox_pred
 
 	def forward(self, image, im_info, gt_boxes=None, mode='TRAIN'):
 		#self._image_gt_summaries['image'] = image

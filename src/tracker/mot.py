@@ -84,7 +84,7 @@ class MOT(object):
 				num_objs = len(gt[i])
 				# x1,y1,x2,y2
 				# (id,frame,bb)
-				tracks = np.zeros((num_objs,3,4))
+				tracks = np.zeros((num_objs,3,4), dtype=np.float32)
 				for j,id in enumerate(gt[i]):
 					tracks[j,0,:] = gt[i][id]
 					tracks[j,1,:] = gt[i+1][id]
