@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import _init_paths
-import frcnn
+
 from model.config import cfg, cfg_from_list, cfg_from_file
 from frcnn_test import frcnn_test
 
