@@ -49,10 +49,10 @@ class DataLayer(object):
 				blobs, im_scales = _get_blobs(im)
 				im_blob = blobs['data']
 				if i == 0:
-					smp['blobs']['im_info'] = np.array([im_blob.shape[1], im_blob.shape[2], im_scales[0]], dtype=np.float32)
+					smp['blobs']['im_info'] = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
 				smp['blobs']['data'].append(im_blob)
 			# Also add resized tracks to blobs
-			smp['blobs']['tracks'] = smp['tracks'] * smp['blobs']['im_info'][2]
+			smp['blobs']['tracks'] = smp['tracks'] * smp['blobs']['im_info'][0,2]
 
 
 	def _get_next_minibatch(self):
@@ -62,6 +62,7 @@ class DataLayer(object):
 		"""
 		db_inds = self._get_next_minibatch_inds()
 		minibatch_db = [self._db[i] for i in db_inds]
+		# Perhaps don't do that every time?
 		DataLayer._to_blobs(minibatch_db)
 		return minibatch_db
 
@@ -73,7 +74,7 @@ class DataLayer(object):
 		d['im_paths']: Paths to the 2 images
 		d['tracks']: Tracks through the 2 images
 		d['blobs']: Another list containing the 2 blob dictionaries
-		d['blobs']['im_info']: [im_blob.shape[1], im_blob.shape[2], im_scales[0]]
+		d['blobs']['im_info'][0]: [im_blob.shape[1], im_blob.shape[2], im_scales[0]]
 		d['blobs']['data'][i]: blob data
 
 		blobs = [ {
