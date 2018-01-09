@@ -28,9 +28,47 @@ class MOT(object):
 			'Path does not exist: {}'.format(self._mot_test_dir)
 
 
+		if "small" in self._image_set:
+			self.small()
+		# here only one sequence is requested in full, not gt needed
+		elif "MOT" in self._image_set:
+			self.sequence()
+
+
+	def sequence(self):
+		self._db = []
+
+		set_path = osp.join(self._mot_train_dir, self._image_set)
+		config_file = osp.join(set_path, 'seqinfo.ini')
+
+		assert osp.exists(config_file), \
+			'Path does not exist: {}'.format(config_file)
+
+		config = configparser.ConfigParser()
+		config.read(config_file)
+		seqLength = int(config['Sequence']['seqLength'])
+		imWidth = int(config['Sequence']['imWidth'])
+		imHeight = int(config['Sequence']['imHeight'])
+		imExt = config['Sequence']['imExt']
+		imDir = config['Sequence']['imDir']
+
+		_imDir = osp.join(set_path, imDir)
+
+		for i in range(1,seqLength+1):
+			im_path0 = osp.join(_imDir,"{:06d}.jpg".format(i))
+			im_path1 = osp.join(_imDir,"{:06d}.jpg".format(i+1))
+
+			d = { #'tracks':tracks,
+				  'im_paths':[im_path0,im_path1],
+			}
+			self._db.append(d)
+		
+		
+	def small(self):
 		self._small_train = []
 		self._small_val = []
-		
+
+
 		# for now find sequences of length 3 that contain good tracks
 		for f in self._train_folders:
 			sequence = f[:8]
@@ -70,7 +108,7 @@ class MOT(object):
 						bb = [x1,y1,x2,y2]
 						gt[int(row[0])][int(row[1])] = bb
 
-			# mark all images i where there are good tracks until i+2
+			# mark all images i where there are good tracks until i+1
 			good_track = []
 			for i in range(1, seqLength-1):
 				if gt[i].keys() == gt[i+1].keys():
@@ -106,6 +144,58 @@ class MOT(object):
 	def get_data(self):
 		return self._db
 
+	@property
+	def size(self):
+		return len(self._db)
+
+	def image_paths_at(self, i):
+		return self._db[i]['im_paths']
+
+	@property
+	def data(self):
+		return self._db
+
+
+	def _write_results_file(self, all_tracks, output_dir):
+		"""Write the tracks in the format for MOT16/MOT17 sumbission
+
+		all_tracks: list with 1 dictionary for every track with {..., i:np.array([x1,y1,x2,y2]), ...}
+
+		Each file contains these lines:
+		<frame>, <id>, <bb_left>, <bb_top>, <bb_width>, <bb_height>, <conf>, <x>, <y>, <z>
+
+		Files to sumbit:
+		./MOT17-01.txt 
+		./MOT17-02.txt 
+		./MOT17-03.txt 
+		./MOT17-04.txt 
+		./MOT17-05.txt 
+		./MOT17-06.txt 
+		./MOT17-07.txt 
+		./MOT17-08.txt 
+		./MOT17-09.txt 
+		./MOT17-10.txt 
+		./MOT17-11.txt 
+		./MOT17-12.txt 
+		./MOT17-13.txt 
+		./MOT17-14.txt 
+		"""
+
+		#format_str = "{}, -1, {}, {}, {}, {}, {}, -1, -1, -1"
+
+		file = osp.join(output_dir, 'MOT16-'+self._image_set[6:8]+'.txt')
+
+		print("[*] Writing to: {}".format(file))
+
+		with open(file, "w") as of:
+			writer = csv.writer(of, delimiter=',')
+			for i, track in enumerate(all_tracks):
+				for frame, bb in track.items():
+					x1 = bb[0]
+					y1 = bb[1]
+					x2 = bb[2]
+					y2 = bb[3]
+					writer.writerow([frame, i, x1+1, y1+1, x2-x1+1, y2-y1+1, -1, -1, -1, -1])
 
 
 
