@@ -6,6 +6,7 @@ from .config import cfg, get_output_dir
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 from os import path as osp
 import cv2
 import io
@@ -16,7 +17,37 @@ from collections import defaultdict
 
 import torch
 from torch.autograd import Variable
+import torch.nn as nn
 import torch.nn.functional as F
+
+
+# get all colors with
+#colors = []
+#	for name,_ in matplotlib.colors.cnames.items():
+#		colors.append(name)
+colors = ['aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque',
+'black', 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue',
+'chartreuse', 'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan',
+'darkblue', 'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgreen', 'darkgrey', 'darkkhaki',
+'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon',
+'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise',
+'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick',
+'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod',
+'gray', 'green', 'greenyellow', 'grey', 'honeydew', 'hotpink', 'indianred', 'indigo',
+'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue',
+'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgreen', 'lightgrey',
+'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray', 'lightslategrey',
+'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen', 'magenta', 'maroon',
+'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple', 'mediumseagreen',
+'mediumslateblue', 'mediumspringgreen', 'mediumturquoise', 'mediumvioletred', 'midnightblue',
+'mintcream', 'mistyrose', 'moccasin', 'navajowhite', 'navy', 'oldlace', 'olive', 'olivedrab',
+'orange', 'orangered', 'orchid', 'palegoldenrod', 'palegreen', 'paleturquoise',
+'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink', 'plum', 'powderblue',
+'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue', 'saddlebrown', 'salmon',
+'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver', 'skyblue', 'slateblue',
+'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue', 'tan', 'teal', 'thistle',
+'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke', 'yellow', 'yellowgreen']
+
 
 def hungarian_iou(pred_tracks, gt_tracks):
 	"""Returns the best matching of the tracks
@@ -47,22 +78,30 @@ def hungarian_soft(bbox0, bbox1, ind0, ind1):
 	bbox: softmax out of the rnn (N,300)
 	ind: Variable size (N), with the indexes of the anchors matching best to gt
 	"""
-	# Build targets for softmax output
 	length = ind0.size()[0]
-	tar0 = Variable(torch.zeros((length,300))).cuda()
-	tar1 = Variable(torch.zeros((length,300))).cuda()
-	for i,j in enumerate(ind0.data.cpu().numpy()):
+	loss = nn.CrossEntropyLoss()
+
+	"""NOT NEEDED ANYMORE, use cross entropy loss
+	# Build targets for softmax output
+	#tar0 = Variable(torch.zeros((length,300))).cuda()
+	#tar1 = Variable(torch.zeros((length,300))).cuda()
+	#for i,j in enumerate(ind0.data.cpu().numpy()):
 		tar0[i,j] = 1
 	for i,j in enumerate(ind1.data.cpu().numpy()):
 		tar1[i,j] = 1
+	"""
+
+
 
 	# Compare the output vectors
 	cost0 = Variable(torch.zeros((length,length)).cuda())
 	cost1 = Variable(torch.zeros((length,length)).cuda())
 	for i in range(length):
 		for j in range(length):
-			cost0[i,j] = F.pairwise_distance(bbox0[i].view(1,-1), tar0[j].view(1,-1))
-			cost1[i,j] = F.pairwise_distance(bbox1[i].view(1,-1), tar1[j].view(1,-1))
+			#cost0[i,j] = F.pairwise_distance(bbox0[i].view(1,-1), tar0[j].view(1,-1))
+			#cost1[i,j] = F.pairwise_distance(bbox1[i].view(1,-1), tar1[j].view(1,-1))
+			cost0[i,j] = loss(bbox0[i].view(1,-1), ind0[j])
+			cost1[i,j] = loss(bbox1[i].view(1,-1), ind1[j])
 
 	cost = cost0 + cost1
 
@@ -157,38 +196,85 @@ def plot_bb(mb, bb0, bb1, gt_tracks, output_dir=None):
 		plt.savefig(buf, format='png')
 		buf.seek(0)
 		im = Image.open(buf)
+		#im = buf.getvalue()
 		buf.close()
 		return im
 
-def plot_tracks(mb, tracks, gt_tracks=None, output_dir=None, name=None):
+def plot_sequence(tracks, db, output_dir):
+	"""Plots a whole sequence
+
+	Expects that the db only contains the images needed and order according to the tracks
+	in the tracks variable
+	"""
+
+	print("[*] Plotting whole sequence to {}".format(output_dir))
+
+	if not osp.exists(output_dir):
+		os.makedirs(output_dir)
+
+	# infinte color loop
+	cyl = cy('ec', colors)
+	loop_cy_iter = cyl()
+	styles = defaultdict(lambda : next(loop_cy_iter))
+
+	for i in range(db.size):
+		im_path = db.image_paths_at(i)[0]
+		im_name = osp.basename(im_path)
+		im_output = osp.join(output_dir, im_name)
+		im = cv2.imread(im_path)
+		im = im[:, :, (2, 1, 0)]
+
+		fig, ax = plt.subplots(1,1)
+		ax.imshow(im, aspect='equal')
+
+		for j,t in enumerate(tracks):
+			if i in t.keys():
+				t_i = t[i]
+				ax.add_patch(
+				plt.Rectangle((t_i[0], t_i[1]),
+					  t_i[2] - t_i[0],
+					  t_i[3] - t_i[1], fill=False,
+					  linewidth=1.0, **styles[j])
+				)
+
+		plt.axis('off')
+		plt.tight_layout()
+		plt.draw()
+		plt.savefig(im_output)
+		plt.close()
+
+
+def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
 	#output_dir = get_output_dir("anchor_gt_demo")
-	im_paths = mb['im_paths']
+	im_paths = blobs['im_paths']
 	if not name:
 		im0_name = osp.basename(im_paths[0])
 	else:
 		im0_name = str(name)+".jpg"
-	im_output = osp.join(output_dir,im0_name)
 	im0 = cv2.imread(im_paths[0])
 	im1 = cv2.imread(im_paths[1])
 	im0 = im0[:, :, (2, 1, 0)]
 	im1 = im1[:, :, (2, 1, 0)]
 
-	im_scales = mb['blobs']['im_info'][0,2]
+	im_scales = blobs['im_info'][0,2]
 
 	tracks = tracks.data.cpu().numpy() / im_scales
+	num_tracks = tracks.shape[0]
 
-	print(tracks.shape)
-	print(tracks)
+	#print(tracks.shape)
+	#print(tracks)
 
-	fig, ax = plt.subplots(1,2,figsize=(12, 12))
+	fig, ax = plt.subplots(1,2,figsize=(12, 6))
 
 	ax[0].imshow(im0, aspect='equal')
 	ax[1].imshow(im1, aspect='equal')
 
 	# infinte color loop
-	cyl = cy('ec', 'rgbymcwk')
+	cyl = cy('ec', colors)
 	loop_cy_iter = cyl()
 	styles = defaultdict(lambda : next(loop_cy_iter))
+
+	ax[0].set_title(('{} tracks').format(num_tracks), fontsize=14)
 
 	for i,t in enumerate(tracks):
 		t0 = t[0]
@@ -219,15 +305,73 @@ def plot_tracks(mb, tracks, gt_tracks=None, output_dir=None, name=None):
 	plt.axis('off')
 	plt.tight_layout()
 	plt.draw()
+	image = None
 	if output_dir:
+		im_output = osp.join(output_dir,im0_name)
 		plt.savefig(im_output)
 	else:
-		buf = io.BytesIO()
-		plt.savefig(buf, format='png')
-		buf.seek(0)
-		im = Image.open(buf)
-		buf.close()
-		return im
+		image = np.fromstring(fig.canvas.tostring_rgb(), dtype='uint8')
+		image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+	plt.close()
+	return image
+
+
+def plot_tracks_video(blobs, tracks, output_dir):
+	#output_dir = get_output_dir("anchor_gt_demo")
+
+	if not osp.exists(output_dir):
+		os.makedirs(output_dir)
+
+	im_paths = blobs['im_paths']
+	im0 = cv2.imread(im_paths[0])
+	im1 = cv2.imread(im_paths[1])
+	im0 = im0[:, :, (2, 1, 0)]
+	im1 = im1[:, :, (2, 1, 0)]
+
+	im_scales = blobs['im_info'][0,2]
+
+	tracks = tracks.data.cpu().numpy() / im_scales
+	num_tracks = tracks.shape[0]
+
+	#print(tracks.shape)
+	#print(tracks)
+	for i in range(1,num_tracks+1):
+
+		fig, ax = plt.subplots(1,2,figsize=(12, 6))
+
+		ax[0].imshow(im0, aspect='equal')
+		ax[1].imshow(im1, aspect='equal')
+
+		# infinte color loop
+		cyl = cy('ec', colors)
+		loop_cy_iter = cyl()
+		styles = defaultdict(lambda : next(loop_cy_iter))
+
+		ax[0].set_title(('{} tracks').format(num_tracks), fontsize=14)
+
+		for j in range(i):
+			t = tracks[j]
+			t0 = t[0]
+			t1 = t[1]
+			ax[0].add_patch(
+				plt.Rectangle((t0[0], t0[1]),
+						  t0[2] - t0[0],
+						  t0[3] - t0[1], fill=False,
+						  linewidth=1.0, **styles[j])
+				)
+			ax[1].add_patch(
+				plt.Rectangle((t1[0], t1[1]),
+						  t1[2] - t1[0],
+						  t1[3] - t1[1], fill=False,
+						  linewidth=1.0, **styles[j])
+				)
+
+		plt.axis('off')
+		plt.tight_layout()
+		plt.draw()
+		im_output = osp.join(output_dir,"{:03d}.jpg".format(i))
+		plt.savefig(im_output)
+		plt.close()
 
 
 def plot_correlation(im_paths, im_info0, im_info1, cor, rois0, rois1):
@@ -297,3 +441,4 @@ def plot_correlation(im_paths, im_info0, im_info1, cor, rois0, rois1):
 	plt.tight_layout()
 	plt.draw()
 	plt.savefig(im_output)
+	plt.close()
