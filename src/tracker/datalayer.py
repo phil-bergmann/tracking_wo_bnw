@@ -13,6 +13,9 @@ class DataLayer(object):
 		self._db = db
 		self._val = val
 		self._shuffle_db_inds()
+		#print("[*] Converting to blobs...")
+		#DataLayer._to_blobs(self._db)
+		#print("[*] Finished!")
 
 
 	def _shuffle_db_inds(self):
@@ -37,22 +40,50 @@ class DataLayer(object):
 		db_inds = self._perm[self._cur:self._cur + cfg.TRAIN.SMP_PER_BATCH]
 		self._cur += cfg.TRAIN.SMP_PER_BATCH
 
+		#print("{}/{}".format(db_inds,len(self._db)))
+
 		return db_inds
+
+	# Wrong as memory all blobs are hold in memory this way and ram usage goes big
+	@staticmethod
+	def _to_blobs_old(minibatch_db):
+		for smp in minibatch_db:
+			# for performance check if blobs are already there
+			if 'blobs' not in smp.keys():
+				smp['blobs'] = {}
+				smp['blobs']['data'] = []
+				for i,pth in enumerate(smp['im_paths']):
+					im = cv2.imread(pth)
+					blobs, im_scales = _get_blobs(im)
+					im_blob = blobs['data']
+					if i == 0:
+						smp['blobs']['im_info'] = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
+					smp['blobs']['data'].append(im_blob)
+				# Also add resized tracks to blobs
+				smp['blobs']['tracks'] = smp['tracks'] * smp['blobs']['im_info'][0,2]
+
 
 	@staticmethod
 	def _to_blobs(minibatch_db):
+		blobs = []
 		for smp in minibatch_db:
-			smp['blobs'] = {}
-			smp['blobs']['data'] = []
+			blob = {}
+			blob['data'] = []
+			blob['im_paths'] = []
 			for i,pth in enumerate(smp['im_paths']):
 				im = cv2.imread(pth)
-				blobs, im_scales = _get_blobs(im)
-				im_blob = blobs['data']
+				data, im_scales = _get_blobs(im)
+				data = data['data']
 				if i == 0:
-					smp['blobs']['im_info'] = np.array([[im_blob.shape[1], im_blob.shape[2], im_scales[0]]], dtype=np.float32)
-				smp['blobs']['data'].append(im_blob)
-			# Also add resized tracks to blobs
-			smp['blobs']['tracks'] = smp['tracks'] * smp['blobs']['im_info'][0,2]
+					blob['im_info'] = np.array([[data.shape[1], data.shape[2], im_scales[0]]], dtype=np.float32)
+				blob['data'].append(data)
+				# Also add resized tracks to blobs
+				if 'tracks' in smp.keys():
+					blob['tracks'] = smp['tracks'] * blob['im_info'][0,2]
+				blob['im_paths'].append(pth)
+			blobs.append(blob)
+
+		return blobs
 
 
 	def _get_next_minibatch(self):
@@ -63,9 +94,13 @@ class DataLayer(object):
 		db_inds = self._get_next_minibatch_inds()
 		minibatch_db = [self._db[i] for i in db_inds]
 		# Perhaps don't do that every time?
-		DataLayer._to_blobs(minibatch_db)
-		return minibatch_db
+		blobs = DataLayer._to_blobs(minibatch_db)
+		return blobs
 
+	def _get_next_precalc_minibatch(self):
+		db_inds = self._get_next_minibatch_inds()
+		minibatch_db = [self._db[i] for i in db_inds]
+		return minibatch_db[0]
 
 	def forward(self):
 		"""Return the blobs
@@ -83,5 +118,5 @@ class DataLayer(object):
 				'blobs': [3 * {'data':d, 'im_info':info},]
 		} ]
 		"""
-		minibatch = self._get_next_minibatch()
-		return minibatch[0]
+		blobs = self._get_next_minibatch()
+		return blobs[0]
