@@ -8,8 +8,9 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
-class tfrcnn(vgg16):
+class TFRCNN(vgg16):
 
+	
 	# Not all modules are needed anymore
 	def _init_modules(self):
 		self.vgg = models.vgg16()
@@ -32,10 +33,11 @@ class tfrcnn(vgg16):
 
 		#######
 		self.cls_score_net = nn.Linear(4096, self._num_classes)
-		#self.bbox_pred_net = nn.Linear(4096, self._num_classes * 4)
+		self.bbox_pred_net = nn.Linear(4096, self._num_classes * 4)
 		#######
 
 		self.init_weights()
+	
 
 	def init_weights(self):
 		def normal_init(m, mean, stddev, truncated=False):
@@ -54,7 +56,7 @@ class tfrcnn(vgg16):
 		normal_init(self.rpn_bbox_pred_net, 0, 0.01, frcnn_cfg.TRAIN.TRUNCATED)
 
 	
-
+	
 	def _predict(self):
 		# This is just _build_network in tf-faster-rcnn
 		torch.backends.cudnn.benchmark = False
@@ -83,17 +85,23 @@ class tfrcnn(vgg16):
 		#	self._score_summaries[k] = self._predictions[k]
 
 		#return rois
+	
 
+	
 	def _region_classification(self, fc7):
 		cls_score = self.cls_score_net(fc7)
 		cls_pred = torch.max(cls_score, 1)[1]
 		cls_prob = F.softmax(cls_score)
-		#bbox_pred = self.bbox_pred_net(fc7)
+		bbox_pred = self.bbox_pred_net(fc7)
 
 		self._predictions["cls_score"] = cls_score
 		self._predictions["cls_pred"] = cls_pred
 		self._predictions["cls_prob"] = cls_prob
-		#self._predictions["bbox_pred"] = bbox_pred
+		self._predictions["bbox_pred"] = bbox_pred
+	
+
+	def get_rpnet_rois(self):
+		return self._predictions["rois"]
 
 	def forward(self, image, im_info, gt_boxes=None, mode='TRAIN'):
 		#self._image_gt_summaries['image'] = image

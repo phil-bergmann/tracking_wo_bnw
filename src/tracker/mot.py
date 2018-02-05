@@ -13,6 +13,8 @@ class MOT(object):
 
 		self._image_set = image_set
 
+		self._db = []
+
 		mot_dir = osp.join(cfg.DATA_DIR, 'MOT17')
 		self._mot_train_dir = osp.join(mot_dir, 'train')
 		self._mot_test_dir = osp.join(mot_dir, 'test')
@@ -35,10 +37,15 @@ class MOT(object):
 			self.sequence()
 
 
+
 	def sequence(self):
 		self._db = []
 
-		set_path = osp.join(self._mot_train_dir, self._image_set)
+		if self._image_set in self._train_folders:
+			set_path = osp.join(self._mot_train_dir, self._image_set)
+		else:
+			set_path = osp.join(self._mot_test_dir, self._image_set)
+			
 		config_file = osp.join(set_path, 'seqinfo.ini')
 
 		assert osp.exists(config_file), \
@@ -122,7 +129,7 @@ class MOT(object):
 				num_objs = len(gt[i])
 				# x1,y1,x2,y2
 				# (id,frame,bb)
-				tracks = np.zeros((num_objs,3,4), dtype=np.float32)
+				tracks = np.zeros((num_objs,2,4), dtype=np.float32)
 				for j,id in enumerate(gt[i]):
 					tracks[j,0,:] = gt[i][id]
 					tracks[j,1,:] = gt[i+1][id]
@@ -182,6 +189,9 @@ class MOT(object):
 		"""
 
 		#format_str = "{}, -1, {}, {}, {}, {}, {}, -1, -1, -1"
+
+		if not os.path.exists(output_dir):
+			os.makedirs(output_dir)
 
 		file = osp.join(output_dir, 'MOT16-'+self._image_set[6:8]+'.txt')
 

@@ -442,3 +442,41 @@ def plot_correlation(im_paths, im_info0, im_info1, cor, rois0, rois1):
 	plt.draw()
 	plt.savefig(im_output)
 	plt.close()
+
+def plot_simple(mb, bb0, bb1, output_dir):
+	im_paths = mb['im_paths']
+	im0_name = osp.basename(im_paths[0])
+	im_output = osp.join(output_dir,im0_name)
+	im0 = cv2.imread(im_paths[0])
+	im1 = cv2.imread(im_paths[1])
+	im0 = im0[:, :, (2, 1, 0)]
+	im1 = im1[:, :, (2, 1, 0)]
+
+	bb0 = bb0[:,0:4]
+	bb1 = bb1[:,0:4]
+
+	fig, ax = plt.subplots(1,2,figsize=(12, 12))
+
+	ax[0].imshow(im0, aspect='equal')
+	ax[1].imshow(im1, aspect='equal')
+
+	for bb in bb0:
+		ax[0].add_patch(
+			plt.Rectangle((bb[0], bb[1]),
+					  bb[2] - bb[0],
+					  bb[3] - bb[1], fill=False,
+					  edgecolor='red', linewidth=1.0)
+			)
+
+	for bb in bb1:
+		ax[1].add_patch(
+			plt.Rectangle((bb[0], bb[1]),
+					  bb[2] - bb[0],
+					  bb[3] - bb[1], fill=False,
+					  edgecolor='red', linewidth=1.0)
+			)
+
+	plt.axis('off')
+	plt.tight_layout()
+	plt.draw()
+	plt.savefig(im_output)
