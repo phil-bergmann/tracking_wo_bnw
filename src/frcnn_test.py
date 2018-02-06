@@ -21,7 +21,7 @@ from nets.resnet_v1 import resnetv1
 
 import torch
 
-def frcnn_test(args):
+def frcnn_test(imdbtest_name, cfg_file, set_cfgs, network, model, output_dir, score_thresh, max_per_image):
     """
     args = {#'imdb_name':imdb_name,
             'imdbtest_name':imdbtest_name,
@@ -35,28 +35,28 @@ def frcnn_test(args):
             'model':model}
     """
 
-    if args['cfg_file']:
-        cfg_from_file(args['cfg_file'])
-    if args['set_cfgs']:
-        cfg_from_list(args['set_cfgs'])
+    if cfg_file:
+        cfg_from_file(cfg_file)
+    if set_cfgs:
+        cfg_from_list(set_cfgs)
 
     print('Using config:')
     pprint.pprint(cfg)
 
     #filename = os.path.splitext(os.path.basename(args['model']))[0]
 
-    imdb_test = get_imdb(args['imdbtest_name'])
-    imdb_test.competition_mode(args['comp_mode'])
+    imdb_test = get_imdb(imdbtest_name)
+    #imdb_test.competition_mode(args['comp_mode'])
 
     # load network
-    if args['net'] == 'vgg16':
-        net = vgg16(batch_size=1)
-    elif args['net'] == 'res50':
-        net = resnetv1(batch_size=1, num_layers=50)
-    elif args['net'] == 'res101':
-        net = resnetv1(batch_size=1, num_layers=101)
-    elif args['net'] == 'res152':
-        net = resnetv1(batch_size=1, num_layers=152)
+    if network == 'vgg16':
+        net = vgg16()
+    elif network == 'res50':
+        net = resnetv1(num_layers=50)
+    elif network == 'res101':
+        net = resnetv1(num_layers=101)
+    elif network == 'res152':
+        net = resnetv1(num_layers=152)
     else:
         raise NotImplementedError
 
@@ -68,10 +68,8 @@ def frcnn_test(args):
     net.eval()
     net.cuda()
 
-
-    print(('Loading model check point from {:s}').format(args['model']))
-    net.load_state_dict(torch.load(args['model']))
+    print(('Loading model check point from {:s}').format(model))
+    net.load_state_dict(torch.load(model))
     print('Loaded.')
 
-
-    test_net(net, imdb_test, args['output_dir'], max_per_image=args['max_per_image'], thresh=args['score_thresh'])
+    test_net(net, imdb_test, output_dir, max_per_image=max_per_image, thresh=score_thresh)

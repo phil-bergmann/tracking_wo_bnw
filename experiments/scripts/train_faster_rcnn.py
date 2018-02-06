@@ -16,18 +16,14 @@ import yaml
 
 ex = Experiment()
 
+frcnn_trainval = ex.capture(frcnn_trainval)
+
 @ex.config
 def default():
 	set_cfgs = None
-	basenet = None
 	tag =  datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 	description = ""
 	timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-	evaluate = False
-
-@ex.named_config
-def evaluate():
-	evaluate = True
 
 # Dataset configs
 @ex.named_config
@@ -54,11 +50,6 @@ def mot():
 	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
 @ex.named_config
-def voc_basenet():
-	basenet = "data/pretrained_models/voc_0712_80k-110k_converted/vgg16_faster_rcnn_iter_110000.pth"
-	description = "Pretrained from VOC2007 trainval and 2012 trainval+test (80k-110k)"
-
-@ex.named_config
 def res101():
 	network = "res101"
 	weights = "data/imagenet_weights/{}.pth".format(network)
@@ -72,21 +63,7 @@ def vgg16():
 	
 
 @ex.automain
-def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, weights, basenet, tag, description, evaluate, _config):
-
-	args = {'imdb_name':imdb_name,
-			'imdbval_name':imdbval_name,
-			'max_iters':max_iters,
-			'net':network,
-			'cfg_file':None,
-			'set_cfgs':None,
-			'weights':weights,
-			'basenet':basenet,
-			'tag':tag,
-			'eval':evaluate}
-
-	print('Called with args:')
-	print(args)
+def my_main(tag, cfg_file, set_cfgs, imdb_name, _config):
 
 	# Already set everything here, so the path can be determined correctly
 	if cfg_file:
@@ -94,16 +71,16 @@ def my_main(imdb_name, imdbval_name, max_iters, network, cfg_file, set_cfgs, wei
 	if set_cfgs:
 		cfg_from_list(set_cfgs)
 
+	print('Called with args:')
+	print(_config)
+
 	# if not already present save the configuration into a file in the output folder
 	outdir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', 'frcnn', cfg.EXP_DIR, imdb_name, tag))
 	sacred_config = osp.join(outdir, 'sacred_config.yaml')
 	if not osp.isfile(sacred_config):
-		# Don't forget to make voc_basenet to None, if not resuming is not possible
-		_config['basenet'] = None
 		if not os.path.exists(outdir):
 			os.makedirs(outdir)
 		with open(sacred_config, 'w') as outfile:
 			yaml.dump(_config, outfile, default_flow_style=False)
 
-	frcnn_trainval(args)
-	
+	frcnn_trainval()
