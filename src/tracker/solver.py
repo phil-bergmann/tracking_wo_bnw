@@ -1,12 +1,11 @@
 from random import shuffle
 import numpy as np
 import os
+import time
 
 import torch
 from torch.autograd import Variable
 
-from .datalayer import DataLayer
-from .config import cfg
 from .utils import plot_tracks
 
 import tensorboardX as tb
@@ -16,13 +15,19 @@ class Solver(object):
 	default_sgd_args = {"lr": 1e-4,
 						 "weight_decay": 0.0,
 						 "momentum":0}
+	default_optim_args = {"lr": 1e-4}
 
-	def __init__(self, output_dir, tb_dir, optim=torch.optim.SGD, optim_args={}):
+	def __init__(self, output_dir, tb_dir, optim='SGD', optim_args={}):
 
-		optim_args_merged = self.default_sgd_args.copy()
+		optim_args_merged = self.default_optim_args.copy()
 		optim_args_merged.update(optim_args)
 		self.optim_args = optim_args_merged
-		self.optim = optim
+		if optim == 'SGD':
+			self.optim = torch.optim.SGD
+		elif optim == 'Adam':
+			self.optim = torch.optim.Adam
+		else:
+			assert False, "[!] No valid optimizer: {}".format(optim)
 
 		self.output_dir = output_dir
 		self.tb_dir = tb_dir
@@ -35,13 +40,6 @@ class Solver(object):
 		if not os.path.exists(self.tb_val_dir):
 			os.makedirs(self.tb_val_dir)
 
-		# Set the seeds
-		seed = cfg.RNG_SEED
-		torch.manual_seed(seed)
-		torch.cuda.manual_seed(seed)
-		np.random.seed(seed)
-		torch.backends.cudnn.deterministic = True
-
 		self._reset_histories()
 
 	def _reset_histories(self):
@@ -52,12 +50,12 @@ class Solver(object):
 		self._val_losses = {}
 
 	def snapshot(self, model, iter):
-		filename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(iter) + '.pth'
+		filename = model.name + '_iter_{:d}'.format(iter) + '.pth'
 		filename = os.path.join(self.output_dir, filename)
 		torch.save(model.state_dict(), filename)
 		print('Wrote snapshot to: {:s}'.format(filename))
 
-	def train(self, model, db_train, db_val=None, num_epochs=10, log_nth=0):
+	def train(self, model, frcnn, train_loader, val_loader=None, num_epochs=10, log_nth=0):
 		"""
 		Train a given model with the provided data.
 
@@ -77,11 +75,7 @@ class Solver(object):
 		optim = self.optim(parameters, **self.optim_args)
 
 		self._reset_histories()
-		iter_per_epoch = db_train.size
-
-		data_layer = DataLayer(db_train.get_data())
-		if db_val:
-			data_layer_val = DataLayer(db_val.get_data(), val=True)
+		iter_per_epoch = len(train_loader)
 
 		print('START TRAIN.')
 		############################################################################
@@ -107,12 +101,14 @@ class Solver(object):
 		for epoch in range(num_epochs):
 			# TRAINING
 
-			for i in range(1,iter_per_epoch+1):
+			now = time.time()
+
+			for i, batch in enumerate(train_loader, 1):
 				#inputs, labels = Variable(batch[0]), Variable(batch[1])
-				blobs = data_layer.forward()
+				
 
 				optim.zero_grad()
-				losses = model.sum_losses(blobs)
+				losses = model.sum_losses(batch, frcnn)
 				losses['total_loss'].backward()
 				optim.step()
 
@@ -122,8 +118,11 @@ class Solver(object):
 					self._losses[k].append(v.data.cpu().numpy())
 
 				if log_nth and i % log_nth == 0:
-					print('[Iteration %d/%d]' % (i + epoch * iter_per_epoch,
-																  iter_per_epoch * num_epochs))
+					next_now = time.time()
+					print('[Iteration %d/%d] %.3f s/it' % (i + epoch * iter_per_epoch,
+																  iter_per_epoch * num_epochs, (next_now-now)/100))
+					now = next_now
+
 					for k,v in self._losses.items():
 						last_log_nth_losses = self._losses[k][-log_nth:]
 						train_loss = np.mean(last_log_nth_losses)
@@ -132,17 +131,19 @@ class Solver(object):
 						
 	
 			# VALIDATION
-			if db_val and log_nth:
+			if val_loader and log_nth:
 				model.eval()
-				for i in range(log_nth):
-					blobs = data_layer_val.forward()
+				for i, batch in enumerate(val_loader):
 
-					losses = model.sum_losses(blobs)
+					losses = model.sum_losses(batch, frcnn)
 
 					for k,v in losses.items():
 						if k not in self._val_losses.keys():
 							self._val_losses[k] = []
 						self._val_losses[k].append(v.data.cpu().numpy())
+
+					if i >= log_nth:
+						break
 					
 				model.train()
 				for k,v in self._losses.items():
@@ -150,17 +151,17 @@ class Solver(object):
 					val_loss = np.mean(last_log_nth_losses)
 					self.val_writer.add_scalar(k, val_loss, (epoch+1) * iter_per_epoch)
 
-				blobs_val = data_layer_val.forward()
-				tracks_val = model.val_predict(blobs_val)
-				im = plot_tracks(blobs_val, tracks_val)
-				self.val_writer.add_image('val_tracks', im, (epoch+1) * iter_per_epoch)
+				#blobs_val = data_layer_val.forward()
+				#tracks_val = model.val_predict(blobs_val)
+				#im = plot_tracks(blobs_val, tracks_val)
+				#self.val_writer.add_image('val_tracks', im, (epoch+1) * iter_per_epoch)
+
+			self.snapshot(model, (epoch+1)*iter_per_epoch)
 
 			self._reset_histories()
 
 		self.writer.close()
 		self.val_writer.close()
-
-		self.snapshot(model, num_epochs*iter_per_epoch)
 
 		############################################################################
 		#                             END OF YOUR CODE                             #
