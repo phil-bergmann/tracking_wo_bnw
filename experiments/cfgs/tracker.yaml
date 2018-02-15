@@ -1,18 +1,8 @@
-name: ex-ovsc-n20-h500-perm_inp
-db_train: small_train
-db_val: small_val
-max_iters: 500000
-seed: 12345
-frcnn_weights: /usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/stop_180k_allBB/vgg16_faster_rcnn_iter_180000.pth
-CONFIG:
-  - TRAIN.LEARNING_RATE
-  - 0.005
-  - LSTM.HIDDEN_NUM
-  - 500
-  - LSTM.LAYERS
-  - 1
-  - LSTM.SAMPLE_N
-  - 20
-  - LSTM.PERM_INP
-  - True
-desription: Experiment series, IoU, score, permute input
+tracker:
+  name: alpha
+  module_name: tracker
+  desription: blabla
+
+  tracker:
+    detection_thresh: 0.2
+    nms_thresh: 0.3

@@ -1,31 +1,98 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import _init_paths
 
-from sacred import Experiment
 import os.path as osp
+import os
+import numpy as np
 import yaml
+import time
 
-from tracker_test import tracker_test
-from tracker.config import cfg, cfg_from_list, get_output_dir
+from sacred import Experiment
+import torch
+from torch.utils.data import DataLoader
+
+from model.config import cfg as frcnn_cfg
+
+from tracker.config import get_output_dir, get_tb_dir
+from tracker.sfrcnn import FRCNN
+from tracker.lstm_regressor import LSTM_Regressor
+from tracker.mot_sequence import MOT_Sequence
+from tracker.tracker import Tracker
+from tracker.utils import plot_sequence
+
+test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
+sequences = ["MOT17-09"]
 
 ex = Experiment()
 
-tracker_test = ex.capture(tracker_test)
-
-ex.add_config('output/tracker/ex-iou-n20-h500/sacred_config.yaml')
+ex.add_config('experiments/cfgs/tracker.yaml')
+ex.add_config('output/tracker/lstm_regressor/alpha/sacred_config.yaml')
 
 @ex.config
-def default(max_iters):
-	#rnn_weights = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(max_iters) + '.pth'
-	rnn_weights = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(400000) + '.pth'
-	db_test = 'MOT17-09-FRCNN'
+def default():
+	regressor_weights = 'output/tracker/lstm_regressor/alpha/LSTM_Regressor_iter_62480.pth'
+
+LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
+Tracker = ex.capture(Tracker, prefix='tracker.tracker')
 
 @ex.automain
-def my_main(CONFIG):
-	# load cfg values
-	cfg_from_list(CONFIG)
+def my_main(lstm_regressor, tracker, regressor_weights, _config):
+	print(_config)
 
-	tracker_test()
+	lstm_regressor_dir = osp.join(get_output_dir(lstm_regressor['module_name']), lstm_regressor['name'])
+
+	# save sacred config to experiment
+	output_dir = osp.join(get_output_dir(tracker['module_name']), tracker['name'])
+	sacred_config = osp.join(output_dir, 'sacred_config.yaml')
+	
+	if not osp.exists(output_dir):
+		os.makedirs(output_dir)
+	with open(sacred_config, 'w') as outfile:
+		yaml.dump(_config, outfile, default_flow_style=False)
+
+	##########################
+	# Initialize the modules #
+	##########################
+	print("[*] Building FRCNN")
+
+	frcnn = FRCNN()
+	frcnn.create_architecture(2, tag='default',
+		anchor_scales=frcnn_cfg.ANCHOR_SCALES,
+		anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
+	frcnn.eval()
+	frcnn.cuda()
+	frcnn.load_state_dict(torch.load(lstm_regressor['frcnn_weights']))
+
+	
+	print("[*] Building Regressor")
+	regressor = LSTM_Regressor()
+	regressor.cuda()
+	regressor.eval()
+	regressor.load_state_dict(torch.load(regressor_weights))
+
+	print("[*] Building Tracker")
+	tracker = Tracker(frcnn, regressor)
+	
+	####################
+	# Begin evaluation #
+	####################
+	print("[*] Begin Evaluation")
+
+	for s in sequences:
+		now = time.time()
+
+		print("[*] Evaluating: {}".format(s))
+		tracker.reset()
+		db = MOT_Sequence(s)
+		dl = DataLoader(MOT_Sequence(s), batch_size=1, shuffle=False)
+
+		for sample in dl:
+			tracker.step(sample)
+
+		results = tracker.get_results()
+		print("Tracks found: {}".format(len(results)))
+		print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+
+		db.write_results(results, output_dir)
+
+		plot_sequence(results, db, osp.join(output_dir, s))
+
