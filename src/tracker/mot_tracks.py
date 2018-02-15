@@ -38,11 +38,6 @@ class MOT_Tracks(MOT_Sequence):
 
 			track.append(sample)
 
-		if len(track) < 2:
-			print("[!] Found")
-			print(len(d))
-			print(len(track))
-			print(track[0]['im_path'])
 		return track
 
 	def build_tracks(self):
