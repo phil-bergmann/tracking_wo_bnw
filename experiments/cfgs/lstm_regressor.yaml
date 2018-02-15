@@ -1,0 +1,21 @@
+
+
+lstm_regressor:
+  seed: 12345
+  frcnn_weights: /usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/stop_180k_allBB/vgg16_faster_rcnn_iter_180000.pth
+  name: alpha
+  module_name: lstm_regressor
+  max_epochs: 5
+  desription: blabla
+  db_train: train
+  db_val: Null
+
+  solver:
+    optim: Adam
+    optim_args:
+      lr: 0.001
+      weight_decay: 0.0
+
+  lstm_regressor:
+    hidden_dim: 300
+    num_layers: 1
