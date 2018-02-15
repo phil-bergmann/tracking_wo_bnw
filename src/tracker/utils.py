@@ -203,8 +203,10 @@ def plot_bb(mb, bb0, bb1, gt_tracks, output_dir=None):
 def plot_sequence(tracks, db, output_dir):
 	"""Plots a whole sequence
 
-	Expects that the db only contains the images needed and order according to the tracks
-	in the tracks variable
+	Args:
+		tracks (dict): The dictionary containing the track dictionaries in the form tracks[track_id][frame] = bb
+		db (torch.utils.data.Dataset): The dataset with the images belonging to the tracks (e.g. MOT_Sequence object)
+		output_dir (String): Directory where to save the resultind images
 	"""
 
 	print("[*] Plotting whole sequence to {}".format(output_dir))
@@ -217,8 +219,8 @@ def plot_sequence(tracks, db, output_dir):
 	loop_cy_iter = cyl()
 	styles = defaultdict(lambda : next(loop_cy_iter))
 
-	for i in range(db.size):
-		im_path = db.image_paths_at(i)[0]
+	for i,v in enumerate(db):
+		im_path = v['im_path']
 		im_name = osp.basename(im_path)
 		im_output = osp.join(output_dir, im_name)
 		im = cv2.imread(im_path)
@@ -227,7 +229,7 @@ def plot_sequence(tracks, db, output_dir):
 		fig, ax = plt.subplots(1,1)
 		ax.imshow(im, aspect='equal')
 
-		for j,t in enumerate(tracks):
+		for j,t in tracks.items():
 			if i in t.keys():
 				t_i = t[i]
 				ax.add_patch(
@@ -480,3 +482,10 @@ def plot_simple(mb, bb0, bb1, output_dir):
 	plt.tight_layout()
 	plt.draw()
 	plt.savefig(im_output)
+
+def boxes2rois(boxes, cl=1):
+	rois_score = boxes.new(boxes.size()[0],1).zero_()
+	rois_bb = boxes[:, cl*4:(cl+1)*4]
+	rois = torch.cat((rois_score, rois_bb),1)
+
+	return rois
