@@ -1,3 +1,11 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# setup matlpoltib to use without display
+import matplotlib
+matplotlib.use('Agg')
+
 import os.path as osp
 import sys
 
