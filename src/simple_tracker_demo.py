@@ -26,7 +26,7 @@ import numpy as np
 
 out = "regressor0.1_small7_onlyBoxLoss"
 
-def simple_tracker_demo(db_demo, frcnn_weights, regressor_weights):
+def simple_tracker_demo(db_demo, frcnn_weights):
 
 	output_dir = get_output_dir('simple_tracker')
 
@@ -40,10 +40,10 @@ def simple_tracker_demo(db_demo, frcnn_weights, regressor_weights):
 	frcnn.cuda()
 	frcnn.load_state_dict(torch.load(frcnn_weights))
 
-	regressor = Regressor(frcnn=frcnn)
-	regressor.cuda()
-	regressor.eval()
-	regressor.load_state_dict(torch.load(regressor_weights))
+	#regressor = Regressor(frcnn=frcnn)
+	#regressor.cuda()
+	#regressor.eval()
+	#regressor.load_state_dict(torch.load(regressor_weights))
 
 	print("[*] Beginning evaluation...")
 
@@ -56,7 +56,7 @@ def simple_tracker_demo(db_demo, frcnn_weights, regressor_weights):
 	test = ["MOT17-09"]
 
 	for t in test:
-		tracker = FRCNN_TRACKER(frcnn, regressor)
+		tracker = FRCNN_TRACKER(frcnn)
 
 		print("[*] Evaluating: {}".format(t))
 		db = MOT(t+"-FRCNN")
