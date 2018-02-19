@@ -16,10 +16,10 @@ class Tracker():
 
 	def reset(self):
 		self.track_num = 0
-		self.ind2track = torch.zeros(0).cuda()
 		self.results = {}
 		self.im_index = 0
 
+		self.ind2track = torch.zeros(0).cuda()
 		self.features = torch.zeros(0).cuda()
 		self.pos = torch.zeros(0).cuda()
 		self.hidden = Variable(torch.zeros(0)).cuda()
@@ -61,20 +61,39 @@ class Tracker():
 			input = Variable(torch.cat((self.features, search_features),1).view(1,-1,4096*2))
 			bbox_reg, alive, (self.hidden, self.cell_state) = self.regressor(input, (self.hidden, self.cell_state))
 
-			# now regress with the output of the Regressor
-			boxes = bbox_transform_inv(self.pos, bbox_reg.data)
-			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-			self.pos = boxes
+			# kill tracks that are marked as dead
+			keep = torch.ge(alive,0.5).nonzero()
+			if keep.nelement() > 0:
+				keep = keep[:,0].data
 
-			# get the features at the regressed positions
-			_, _, _, _ = self.frcnn.test_rois(self.pos)
-			self.features = self.frcnn.get_fc7()
+				self.pos = self.pos[keep]
+				self.hidden = self.hidden[:,keep,:]
+				self.cell_state = self.cell_state[:,keep,:]
+				self.features = self.features[keep]
+				self.ind2track = self.ind2track[keep]
+				bbox_reg = bbox_reg[keep]
 
-			# create nms input
-			nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
+				# now regress with the output of the Regressor
+				boxes = bbox_transform_inv(self.pos, bbox_reg.data)
+				boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+				self.pos = boxes
 
-			# number of active tracks
-			num_tracks = nms_inp_reg.size(0)
+				# get the features at the regressed positions
+				_, _, _, _ = self.frcnn.test_rois(self.pos)
+				self.features = self.frcnn.get_fc7()
+
+				# create nms input
+				nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
+
+				# number of active tracks
+				num_tracks = nms_inp_reg.size(0)
+			else:
+				self.ind2track = torch.zeros(0).cuda()
+				self.features = torch.zeros(0).cuda()
+				self.pos = torch.zeros(0).cuda()
+				self.hidden = Variable(torch.zeros(0)).cuda()
+				self.cell_state = Variable(torch.zeros(0)).cuda()
+
 
 		#####################
 		# Create new tracks #
@@ -129,6 +148,8 @@ class Tracker():
 			self.results[track_ind][self.im_index] = t.cpu().numpy()
 
 		self.im_index += 1
+
+		print("tracks active: {}/{}".format(num_tracks, self.track_num))
 
 	def get_results(self):
 		return self.results

@@ -20,16 +20,18 @@ from tracker.tracker import Tracker
 from tracker.utils import plot_sequence
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
+train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = ["MOT17-09"]
+sequences = train
 
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracker.yaml')
-ex.add_config('output/tracker/lstm_regressor/alpha/sacred_config.yaml')
+ex.add_config('output/tracker/lstm_regressor/beta/sacred_config.yaml')
 
 @ex.config
 def default():
-	regressor_weights = 'output/tracker/lstm_regressor/alpha/LSTM_Regressor_iter_62480.pth'
+	regressor_weights = 'output/tracker/lstm_regressor/beta/LSTM_Regressor_iter_63710.pth'
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
 Tracker = ex.capture(Tracker, prefix='tracker.tracker')

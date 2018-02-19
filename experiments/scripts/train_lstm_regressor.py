@@ -16,7 +16,7 @@ from tracker.solver import Solver
 from tracker.sfrcnn import FRCNN
 from tracker.lstm_regressor import LSTM_Regressor
 from tracker.mot_wrapper import MOT_Wrapper
-from tracker.mot_tracks import MOT_Tracks
+from tracker.mot_tracks2 import MOT_Tracks
 
 
 ex = Experiment()
@@ -64,6 +64,15 @@ def my_main(lstm_regressor, _config):
 	else:
 		db_val = None
 
+	#for i,v in enumerate(db_train):
+	#	if len(v) <= 4:
+	#		t = []
+	#		print("Track idx {} with len {}".format(i,len(v)))
+	#		for s in v:
+	#			t.append(s['active'][0])
+	#		print(t)
+	
+	
 	##########################
 	# Initialize the modules #
 	##########################

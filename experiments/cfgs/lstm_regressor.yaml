@@ -3,10 +3,10 @@
 lstm_regressor:
   seed: 12345
   frcnn_weights: /usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/stop_180k_allBB/vgg16_faster_rcnn_iter_180000.pth
-  name: alpha
+  name: beta
   module_name: lstm_regressor
   max_epochs: 5
-  desription: blabla
+  desription: This tracker is trained with the kill switch, tracks are of length <=7 and have maximum of 3 times dead samples at the end
   db_train: train
   db_val: Null
 

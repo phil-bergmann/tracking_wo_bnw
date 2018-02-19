@@ -65,7 +65,9 @@ class LSTM_Regressor(nn.Module):
 
 		seq_len = len(track)
 
-		input = torch.zeros(seq_len, 1, self.input_dim).cuda()
+		# Check if first frame is a valid person
+		assert track[0]['active'][0] == 1, "[!] First frame in track has to be active!"
+
 		# track begins at person gt
 		pos = track[0]['gt'].cuda()
 		_, _, _, _ = frcnn.test_image(track[0]['data'][0], track[0]['im_info'][0], pos)
@@ -83,8 +85,9 @@ class LSTM_Regressor(nn.Module):
 
 			input = Variable(torch.cat((old_fc7, new_fc7), 1).view(1,1,-1))
 
-			bbox_reg, _, hidden = self.forward(input, hidden)
+			bbox_reg, alive, hidden = self.forward(input, hidden)
 
+			
 			# now regress with the output of the LSTM
 			boxes = bbox_transform_inv(pos, bbox_reg.data)
 			# seems like only can handle variables because hasattr(x,'data') throws error for tensors
@@ -95,19 +98,32 @@ class LSTM_Regressor(nn.Module):
 			_, _, _, _ = frcnn.test_rois(pos)
 			old_fc7 = frcnn.get_fc7()
 
-			# Calculate the regression targets
-			bbox_targets = Variable(bbox_transform(pos, t['gt'].cuda()))
+			if t['active'][0] == 1:
+				# Calculate the regression targets
+				bbox_targets = Variable(bbox_transform(pos, t['gt'].cuda()))
 
-			# Calculate the losses
-			bbox_loss = F.smooth_l1_loss(bbox_reg, bbox_targets)
-			bbox_losses.append(bbox_loss)
+				# Calculate the bbox losses
+				loss = F.smooth_l1_loss(bbox_reg, bbox_targets)
+				bbox_losses.append(loss)
 
-		bbox_loss = torch.cat(bbox_losses)
-		bbox_loss = bbox_loss.mean()
+				alive_tar = Variable(torch.cuda.FloatTensor(1).fill_(1))
+			else:
+				alive_tar = Variable(torch.cuda.FloatTensor(1).fill_(0))
+
+			# calculate the alive losses
+			loss = F.binary_cross_entropy_with_logits(alive.view(-1), alive_tar)
+			alive_losses.append(loss)
+
+		if len(bbox_losses) > 0:
+			bbox_loss = torch.cat(bbox_losses).mean()
+		else:
+			bbox_loss = Variable(torch.zeros(1)).cuda()
+		alive_loss = torch.cat(alive_losses).mean()
 
 		self._losses['bbox'] = bbox_loss
+		self._losses['alive'] = alive_loss
 
-		self._losses['total_loss'] = bbox_loss
+		self._losses['total_loss'] = bbox_loss + alive_loss
 
 		return self._losses
 
