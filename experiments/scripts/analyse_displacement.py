@@ -36,7 +36,7 @@ def my_main(_config):
 	##################
 	# Begin analysis #
 	##################
-	print("[*] Beginning visibility analysis ..")
+	print("[*] Beginning displacement analysis ..")
 
 	num_range = np.arange(0.0,1.0,0.1)
 
