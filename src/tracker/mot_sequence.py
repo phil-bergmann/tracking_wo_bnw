@@ -19,15 +19,14 @@ class MOT_Sequence(Dataset):
 	handled one should inherit from this class.
 	"""
 
-	def __init__(self, seq_name=None):
+	def __init__(self, seq_name=None, vis_threshold=0.0):
 		"""
 		Args:
-			image_set (string): Image set to take
-			root_dir (string): Directory with all the images.
-			transform (callable, optional): Optional transform to be applied
-				on a sample.
+			seq_name (string): Sequence to take
+			vis_threshold (float): Threshold of visibility of persons above which they are selected
 		"""
 		self._seq_name = seq_name
+		self.vis_threshold = vis_threshold
 
 		self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
 
@@ -60,9 +59,12 @@ class MOT_Sequence(Dataset):
 		sample['data'] = data
 		sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
 		sample['gt'] = {}
+		sample['vis'] = {}
 		# resize tracks
 		for k,v in d['gt'].items():
 			sample['gt'][k] = v * sample['im_info'][2]
+		for k,v in d['vis'].items():
+			sample['vis'][k] = v
 
 		return sample
 
@@ -92,16 +94,18 @@ class MOT_Sequence(Dataset):
 		train = []
 		val = []
 
+		visibility = {}
 		boxes = {}
 		for i in range(1, seqLength+1):
 			boxes[i] = {}
+			visibility[i] = {}
 
 		if osp.exists(gt_file):
 			with open(gt_file, "r") as inf:
 				reader = csv.reader(inf, delimiter=',')
 				for row in reader:
 					# class person, certainity 1, visibility >= 0.25
-					if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= 0.25:
+					if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self.vis_threshold:
 						# Make pixel indexes 0-based, should already be 0-based (or not)
 						x1 = int(row[2]) - 1
 						y1 = int(row[3]) - 1
@@ -110,6 +114,7 @@ class MOT_Sequence(Dataset):
 						y2 = y1 + int(row[5]) - 1
 						bb = np.array([x1,y1,x2,y2], dtype=np.float32)
 						boxes[int(row[0])][int(row[1])] = bb
+						visibility[int(row[0])][int(row[1])] = float(row[8])
 
 
 		for i in range(1,seqLength+1):
@@ -117,6 +122,7 @@ class MOT_Sequence(Dataset):
 
 			sample = { 'gt':boxes[i],
 				 	   'im_path':im_path,
+				 	   'vis':visibility[i],
 			}
 
 			total.append(sample)

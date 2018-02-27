@@ -24,6 +24,7 @@ class Tracker():
 		self.pos = torch.zeros(0).cuda()
 		self.hidden = Variable(torch.zeros(0)).cuda()
 		self.cell_state = Variable(torch.zeros(0)).cuda()
+		self.scores = torch.zeros(0).cuda()
 
 	def step(self, blob):
 		cl = 1
@@ -58,8 +59,8 @@ class Tracker():
 			search_features = self.frcnn.get_fc7()
 
 			# generate input and call Regressor
-			input = Variable(torch.cat((self.features, search_features),1).view(1,-1,4096*2))
-			bbox_reg, alive, (self.hidden, self.cell_state) = self.regressor(input, (self.hidden, self.cell_state))
+			bbox_reg, alive, (self.hidden, self.cell_state) = self.regressor(Variable(self.features), Variable(self.scores),
+				(self.hidden, self.cell_state), Variable(search_features))
 
 			# kill tracks that are marked as dead
 			keep = torch.ge(alive,0.5).nonzero()
@@ -78,9 +79,10 @@ class Tracker():
 				boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 				self.pos = boxes
 
-				# get the features at the regressed positions
-				_, _, _, _ = self.frcnn.test_rois(self.pos)
+				# get the features and scores at the regressed positions
+				_, scores, _, _ = self.frcnn.test_rois(self.pos)
 				self.features = self.frcnn.get_fc7()
+				self.scores = scores[:,cl].contiguous().view(-1,1)
 
 				# create nms input
 				nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
@@ -93,6 +95,7 @@ class Tracker():
 				self.pos = torch.zeros(0).cuda()
 				self.hidden = Variable(torch.zeros(0)).cuda()
 				self.cell_state = Variable(torch.zeros(0)).cuda()
+				self.scores = torch.zeros(0).cuda()
 
 
 		#####################
@@ -119,9 +122,10 @@ class Tracker():
 
 			self.pos = torch.cat((self.pos, det_pos[keep]), 0)
 			# get the regressed features
-			_, _, _, _ = self.frcnn.test_rois(det_pos[keep])
+			_, scores, _, _ = self.frcnn.test_rois(det_pos[keep])
 			det_features = self.frcnn.get_fc7()
 			self.features = torch.cat((self.features, det_features), 0)
+			self.scores = torch.cat((self.scores, scores[:,cl].contiguous().view(-1,1)), 0)
 
 			# create new hidden states
 			hidden, cell_state = self.regressor.init_hidden(num_new)

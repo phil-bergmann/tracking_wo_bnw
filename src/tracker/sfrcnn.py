@@ -88,6 +88,15 @@ class FRCNN(vgg16):
 	def test_rois(self, rois):
 		return self.test_image(None, None, rois)
 
+	def get_net_conv(self, image, im_info):
+		self.eval()
+		self._image = Variable(torch.from_numpy(image.cpu().numpy().transpose([0,3,1,2])).cuda(), volatile=True)
+		self._im_info = im_info.cpu().numpy() # No need to change; actually it can be an list
+		self._mode = 'TEST'
+		torch.backends.cudnn.benchmark = False
+		net_conv = self._image_to_head()
+		return net_conv.data.cpu()
+
 def boxes2rois(boxes, cl=1):
 	rois_score = boxes.new(boxes.size()[0],1).zero_()
 	rois_bb = boxes[:, cl*4:(cl+1)*4]

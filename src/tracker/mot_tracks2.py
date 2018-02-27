@@ -39,6 +39,7 @@ class MOT_Tracks(MOT_Sequence):
 			if 'gt' in f.keys():
 				sample['gt'] = f['gt'] * sample['im_info'][2]
 			sample['active'] = f['active']
+			sample['vis'] = f['vis']
 
 			res.append(sample)
 
@@ -59,39 +60,60 @@ class MOT_Tracks(MOT_Sequence):
 		for sample in self.data:
 			im_path = sample['im_path']
 			gt = sample['gt']
+			vis = sample['vis']
 
 			for k,v in tracks.items():
 				if k in gt.keys():
-					v.append({'id':k, 'im_path':im_path, 'gt':gt[k], 'active':True})
+					active = vis[k] >= 0.5
+					v.append({'id':k, 'im_path':im_path, 'gt':gt[k], 'active':active, 'vis':vis[k]})
 					del gt[k]
-				else:
-					v.append({'id':k, 'im_path':im_path, 'active':False})
 
 			# For all remaining BB in gt new tracks are created
 			for k,v in gt.items():
-				tracks[k] = [{'id':k, 'im_path':im_path, 'gt':v, 'active':True}]
+				tracks[k] = [{'id':k, 'im_path':im_path, 'gt':v, 'active':True, 'vis':vis[k]}]
 
+		# duplicate tracks (go in both directions)
+		tracks_back = {}
+		for k,v in tracks.items():
+			t0 = tracks[k]
+			t1 = []
+			for j in range(len(t0)-1,-1,-1):
+				t1.append(t0[j])
+			tracks_back[k+1000] = t1
+
+		dupl_transitions = 12
 		# Now begin to split into subtracks
-		res = []
-		for _,track in tracks.items():
-			t = []
-			for v in track:
-				if v['active']:
-					# if sequence True ... False and new object True we finish it and create new one
-					if len(t) > 0 and t[-1]['active'] == False:
-						res.append(t)
-						t = []
-					t.append(v)
-				# no inactive samples at beginning of sequence
-				elif len(t) > 0:
-					t.append(v)
-				# track finished if too long or 3 times inactive at end
-				if (len(t) >= 7) or (len(t) >= 4 and t[-3]['active'] == False):
-					res.append(t)
-					t = []
+		res = split_tracks(tracks, 7, dupl_transitions)
+		res += split_tracks(tracks_back, 7, dupl_transitions, True)
 
 
 		if self._seq_name:
 			print("[*] Loaded {} tracks from sequence {}.".format(len(res), self._seq_name))
 
 		self.data = res
+
+def split_tracks(tracks, length, dupl_transitions=1, only_trans=False):
+	res = []
+	for _,track in tracks.items():
+		t = []
+		for v in track:
+			if v['active']:
+				# if sequence True ... False and new object True we finish it and create new one
+				if len(t) > 0 and t[-1]['active'] == False:
+					for i in range(dupl_transitions):
+						res.append(t)
+					t = []
+				t.append(v)
+			# no inactive samples at beginning of sequence
+			elif len(t) > 0:
+				t.append(v)
+			# track finished if too long
+			if (len(t) >= length) or (len(t) >= 3 and t[-2]['active'] == False):
+			#if len(t) >= length:
+				if t[-1]['active'] == False:
+					for i in range(dupl_transitions):
+						res.append(t)
+				elif only_trans == False:
+					res.append(t)	
+				t = []
+	return res

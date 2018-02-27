@@ -15,6 +15,7 @@ from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.sfrcnn import FRCNN
 from tracker.lstm_regressor import LSTM_Regressor
+from tracker.appearance_lstm import Appearance_LSTM
 from tracker.mot_wrapper import MOT_Wrapper
 from tracker.mot_tracks2 import MOT_Tracks
 
@@ -24,6 +25,7 @@ ex = Experiment()
 ex.add_config('experiments/cfgs/lstm_regressor.yaml')
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
+Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
 Solver = ex.capture(Solver, prefix='lstm_regressor.solver')
 
 @ex.automain
@@ -56,7 +58,7 @@ def my_main(lstm_regressor, _config):
 	print("[*] Initializing Dataloader")
 
 	db_train = MOT_Wrapper(lstm_regressor['db_train'], MOT_Tracks)
-	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+	#db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
 	if lstm_regressor['db_val']:
 		db_val = MOT_Wrapper(lstm_regressor['db_val'], MOT_Tracks)
@@ -64,13 +66,22 @@ def my_main(lstm_regressor, _config):
 	else:
 		db_val = None
 
+	
 	#for i,v in enumerate(db_train):
 	#	if len(v) <= 4:
-	#		t = []
+	#			t = []
 	#		print("Track idx {} with len {}".format(i,len(v)))
 	#		for s in v:
 	#			t.append(s['active'][0])
 	#		print(t)
+	#for i,v in enumerate(db_train):
+	#	active = []
+	#	for t in v:
+	#		if t['active'][0]:
+	#			active.append(1)
+	#		else:
+	#			active.append(0)
+	#	print(active)
 	
 	
 	##########################
@@ -89,11 +100,14 @@ def my_main(lstm_regressor, _config):
 	
 	# build lstm regressor
 	print("[*] Building Regressor")
-	regressor = LSTM_Regressor()
+	regressor = LSTM_Regressor(appearance_lstm=Appearance_LSTM())
 	regressor.cuda()
 	regressor.train()
 
-	
+	# precalcuate conv features
+	db_train.precalculate_conv(frcnn)
+	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+
 	##################
 	# Begin training #
 	##################
@@ -101,4 +115,5 @@ def my_main(lstm_regressor, _config):
 
 	solver = Solver(output_dir, tb_dir)
 	solver.train(regressor, frcnn, db_train, db_val, lstm_regressor['max_epochs'], 100)
+	
 	

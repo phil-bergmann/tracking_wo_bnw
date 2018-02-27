@@ -13,42 +13,39 @@ from model.bbox_transform import bbox_transform, bbox_transform_inv, clip_boxes
 class LSTM_Regressor(nn.Module):
 	"""LSTM Regressor Class
 
-	Inputs for the LSTM should be features of the regressed person in image t-1 so that the
-	LSTM can learn how the person looks like, features at position t-1 in image at t so the
-	network can regress to the new position and person score output of the FRCNN so the net-
-	work can decide when the track is not a person anymore.
+	A regressor with a LSTM module with input 501. Inputs are compressed fc7 features to 500 with a FC layer and
+	the person score outputted by the frcnn. The same FC layer is used to compress the fc7 features in the search
+	region to 500. Then LSTM hidden layer and compressed search features are concatenated in a FC layer.
 	Ouputs are the regression and a score if the track should be kept alive or not.
 	"""
-	def __init__(self, hidden_dim, num_layers=1, input_dim=4096*2):
+	def __init__(self, feature_size, appearance_lstm):
 		super(LSTM_Regressor, self).__init__()
 		self.name = "LSTM_Regressor"
-		self.hidden_dim = hidden_dim
-		self.num_layers = num_layers
-		self.input_dim = input_dim
 
-		# Input at the moment regressed fc7 from old image and search region in new image 
-		self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers)
+		# Input compressed, regressed fc7 in old image + person score from regressed box old image
+		self.appearance_lstm = appearance_lstm
+		# compression layer for fc7 features
+		self.compression = nn.Linear(4096, feature_size)
 
-		#self.frcnn = frcnn
+		self.regressor = nn.Sequential(nn.Linear(feature_size+self.appearance_lstm.output_dim, 501),
+			nn.Linear(501, 501), nn.Linear(501, 5))
 
-		# The linear layers that map from hidden state space to output
-		self.regress = nn.Linear(hidden_dim, 4)
-		# The output that tells if we want to keep the track alive or let it die
-		self.alive = nn.Linear(hidden_dim, 1)
-
-		self.init_weights()
-
-	def forward(self, input, hidden):
+	def forward(self, old_fc7, scores, hidden, search_fc7):
 		"""
 		# Output of lstm (seq_len, batch, hidden_size)
 		Args:
 			input (Variable): input with size (seq_len, batch, input_size)
 			hidden (Variable): hidden layer for the tracks (hidden, cell) each with dim (num_layers, batch, hidden_size)
 		"""
-		lstm_out, hidden = self.lstm(input, hidden)
+		old_fc7_compressed = self.compression(old_fc7)
+		lstm_inp = torch.cat((old_fc7_compressed, scores),1).view(1,-1,self.appearance_lstm.input_dim)
+		lstm_out, hidden = self.appearance_lstm(lstm_inp, hidden)
 
-		bbox_reg = self.regress(lstm_out.view(-1, self.hidden_dim))
-		alive = self.alive(lstm_out.view(-1, self.hidden_dim))
+		search_fc7_compressed = self.compression(search_fc7)
+		regressor_out = self.regressor(torch.cat((lstm_out[0,:,:],search_fc7_compressed),1))
+
+		bbox_reg = regressor_out[:,:4]
+		alive = regressor_out[:,4]
 
 		return bbox_reg, alive, hidden
 
@@ -57,6 +54,12 @@ class LSTM_Regressor(nn.Module):
 		Args:
 			track (list): Output from the MOT_Tracks dataloader, length at least 2
 		"""
+
+		# check if using precalculated conv layer
+		if 'conv' in track[0].keys():
+			prec = True
+		else:
+			prec = false
 
 		cl = 1 #Human
 
@@ -70,8 +73,12 @@ class LSTM_Regressor(nn.Module):
 
 		# track begins at person gt
 		pos = track[0]['gt'].cuda()
-		_, _, _, _ = frcnn.test_image(track[0]['data'][0], track[0]['im_info'][0], pos)
-		old_fc7 = frcnn.get_fc7()
+		if prec:
+			frcnn._net_conv = Variable(track[0]['conv'][0]).cuda()
+			_, _, _, _ = frcnn.test_image(None, None, pos)
+		else:
+			_, _, _, _ = frcnn.test_image(track[0]['data'][0], track[0]['im_info'][0], pos)
+		old_fc7 = Variable(frcnn.get_fc7())
 
 		bbox_losses = []
 		alive_losses = []
@@ -80,13 +87,15 @@ class LSTM_Regressor(nn.Module):
 			t = track[i]
 
 			# get fc7 in new image at old position
-			_, _, _, _ = frcnn.test_image(t['data'][0], t['im_info'][0], pos)
-			new_fc7 = frcnn.get_fc7()
+			if prec:
+				frcnn._net_conv = Variable(t['conv'][0]).cuda()
+				_, scores, _, _ = frcnn.test_image(None, None, pos)
+			else:
+				_, scores, _, _ = frcnn.test_image(t['data'][0], t['im_info'][0], pos)
+			score = Variable(scores[:,cl].view(1,1))
+			search_fc7 = Variable(frcnn.get_fc7())
 
-			input = Variable(torch.cat((old_fc7, new_fc7), 1).view(1,1,-1))
-
-			bbox_reg, alive, hidden = self.forward(input, hidden)
-
+			bbox_reg, alive, hidden = self.forward(old_fc7, score, hidden, search_fc7)
 			
 			# now regress with the output of the LSTM
 			boxes = bbox_transform_inv(pos, bbox_reg.data)
@@ -96,7 +105,7 @@ class LSTM_Regressor(nn.Module):
 
 			# get the fc7 on the image on the regressed coordinates
 			_, _, _, _ = frcnn.test_rois(pos)
-			old_fc7 = frcnn.get_fc7()
+			old_fc7 = Variable(frcnn.get_fc7())
 
 			if t['active'][0] == 1:
 				# Calculate the regression targets
@@ -127,26 +136,8 @@ class LSTM_Regressor(nn.Module):
 
 		return self._losses
 
-	def init_weights(self):
-		#for name, param in self.lstm.named_parameters():
-		#	print(name)
-		#	print(param.size())
-
-		# initialize forget gates to 1
-		for names in self.lstm._all_weights:
-			for name in filter(lambda n: "bias" in n,  names):
-				bias = getattr(self.lstm, name)
-				n = bias.size(0)
-				start, end = n//4, n//2
-				bias.data[start:end].fill_(1.)
-
 	def init_hidden(self, minibatch_size=1):
-		# Before we've done anything, we dont have any hidden state.
-		# Refer to the Pytorch documentation to see exactly
-		# why they have this dimensionality.
-		# The axes semantics are (num_layers, minibatch_size, hidden_dim)
-		return (Variable(torch.zeros(self.num_layers, minibatch_size, self.hidden_dim)).cuda(),
-				Variable(torch.zeros(self.num_layers, minibatch_size, self.hidden_dim)).cuda())
+		return self.appearance_lstm.init_hidden(minibatch_size)
 
 	#def load_state_dict(self, state_dict):
 	#	"""Load everything but frcnn"""
