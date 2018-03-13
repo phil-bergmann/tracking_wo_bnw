@@ -46,8 +46,6 @@ def my_main(_config):
 
 	for s in sequences:
 		res[s] = []
-		for i in num_range:
-			res[s].append(0)
 
 		print("[*] Analysing: {}".format(s))
 		db = MOT_Sequence(s, vis_threshold=0.0)
