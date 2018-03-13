@@ -16,10 +16,12 @@ class MOT_Tracks(MOT_Sequence):
 	to begin with a active frame and can end with a maximum of 3 inactive frames.
 	"""
 
-	def __init__(self, seq_name=None):
+	def __init__(self, seq_name=None, generate_blobs=True):
 		super().__init__(seq_name)
 
 		self.build_tracks()
+
+		self.generate_blobs=generate_blobs
 
 	def __getitem__(self, idx):
 		"""Return the ith track with images converted to blobs"""
@@ -27,17 +29,21 @@ class MOT_Tracks(MOT_Sequence):
 		res = []
 		# construct image blobs and return new list, so blobs are not saved into this class
 		for f in track:
-			im = cv2.imread(f['im_path'])
-			blobs, im_scales = _get_blobs(im)
-			data = blobs['data']
-
 			sample = {}
+			if self.generate_blobs:
+				im = cv2.imread(f['im_path'])
+				blobs, im_scales = _get_blobs(im)
+				data = blobs['data']
+				sample['data'] = data
+				sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
+				if 'gt' in f.keys():
+					sample['gt'] = f['gt'] * sample['im_info'][2]
+			else:
+				if 'gt' in f.keys():
+					sample['gt'] = f['gt']
+			
 			sample['id'] = f['id']
 			sample['im_path'] = f['im_path']
-			sample['data'] = data
-			sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
-			if 'gt' in f.keys():
-				sample['gt'] = f['gt'] * sample['im_info'][2]
 			sample['active'] = f['active']
 			sample['vis'] = f['vis']
 
@@ -83,16 +89,30 @@ class MOT_Tracks(MOT_Sequence):
 
 		dupl_transitions = 12
 		# Now begin to split into subtracks
-		res = split_tracks(tracks, 7, dupl_transitions)
-		res += split_tracks(tracks_back, 7, dupl_transitions, True)
+		res = split_tracks(tracks, 7, 4, dupl_transitions)
+		res += split_tracks(tracks_back, 7, 4, dupl_transitions, True)
 
 
 		if self._seq_name:
 			print("[*] Loaded {} tracks from sequence {}.".format(len(res), self._seq_name))
 
+		# calculate weights
+		weights = []
+		for track in res:
+			vis = []
+			for f in track:
+				vis.append(f['vis'])
+			#weights.append(1.05-np.mean(vis)**0.3)
+			if np.mean(vis) < 0.9:
+				weights.append(5)
+			else:
+				weights.append(1)
+		
+		self.weights = weights
+
 		self.data = res
 
-def split_tracks(tracks, length, dupl_transitions=1, only_trans=False):
+def split_tracks(tracks, length, max_trail_dead, dupl_transitions=1, only_trans=False):
 	res = []
 	for _,track in tracks.items():
 		t = []
@@ -108,7 +128,7 @@ def split_tracks(tracks, length, dupl_transitions=1, only_trans=False):
 			elif len(t) > 0:
 				t.append(v)
 			# track finished if too long
-			if (len(t) >= length) or (len(t) >= 3 and t[-2]['active'] == False):
+			if (len(t) >= length) or (len(t) >= (max_trail_dead+1) and t[-max_trail_dead]['active'] == False):
 			#if len(t) >= length:
 				if t[-1]['active'] == False:
 					for i in range(dupl_transitions):

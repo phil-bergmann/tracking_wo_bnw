@@ -24,17 +24,20 @@ class MOT_Wrapper(Dataset):
 		assert image_set in ["train", "test"], "[!] Invalid image set: {}".format(image_set)
 
 		self._dataloader = dataloader()
+		self.weights = []
 
 		if image_set == "train":
 			for seq in self._train_folders:
 				d = dataloader(seq)
 				for sample in d.data:
 					self._dataloader.data.append(sample)
+				self.weights += d.weights
 		if image_set == "test":
 			for seq in self._test_folders:
 				d = dataloader(seq)
 				for sample in d.data:
 					self._dataloader.data.append(sample)
+				self.weights += d.weights
 
 	def precalculate_conv(self, frcnn):
 		assert self.image_set == "train", "[!] Precalculating only implemented for train set not for: {}".format(self.image_set)
@@ -48,8 +51,7 @@ class MOT_Wrapper(Dataset):
 				prec[sample['im_path']] = {'conv':c, 'im_info':sample['im_info']}
 
 		self.prec_data = prec
-
-
+		self._dataloader.generate_blobs = False
 
 	def __len__(self):
 		return len(self._dataloader.data)
@@ -57,22 +59,14 @@ class MOT_Wrapper(Dataset):
 	def __getitem__(self, idx):
 		"""Return the ith Object"""
 		if self.prec_conv:
-			track = self._dataloader.data[idx]
-			res = []
-			# construct image blobs and return new list, so blobs are not saved into this class
+			# add missing values and resize gt
+			track = self._dataloader[idx]
 			for f in track:
 				prec = self.prec_data[f['im_path']]
-				sample = {}
-				sample['id'] = f['id']
-				sample['im_path'] = f['im_path']
-				sample['conv'] = prec['conv']
-				sample['im_info'] = prec['im_info']
+				f['conv'] = prec['conv']
+				f['im_info'] = prec['im_info']
 				if 'gt' in f.keys():
-					sample['gt'] = f['gt'] * sample['im_info'][2]
-				sample['active'] = f['active']
-				sample['vis'] = f['vis']
-
-				res.append(sample)
-			return res
+					f['gt'] = f['gt'] * f['im_info'][2]
+			return track
 		else:
 			return self._dataloader[idx]
