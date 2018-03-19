@@ -17,24 +17,23 @@ class MOT_Wrapper(Dataset):
 
 		self._train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
 			'MOT17-11', 'MOT17-13']
-		#self._train_folders = ['MOT17-02']
 		self._test_folders = ['MOT17-01', 'MOT17-03', 'MOT17-06', 'MOT17-07',
 			'MOT17-08', 'MOT17-12', 'MOT17-14']
 
 		assert image_set in ["train", "test"], "[!] Invalid image set: {}".format(image_set)
 
-		self._dataloader = dataloader()
+		self._dataloader = MOT_Tracks(None, **dataloader)
 		self.weights = []
 
 		if image_set == "train":
 			for seq in self._train_folders:
-				d = dataloader(seq)
+				d = MOT_Tracks(seq, **dataloader)
 				for sample in d.data:
 					self._dataloader.data.append(sample)
 				self.weights += d.weights
 		if image_set == "test":
 			for seq in self._test_folders:
-				d = dataloader(seq)
+				d = MOT_Tracks(seq, **dataloader)
 				for sample in d.data:
 					self._dataloader.data.append(sample)
 				self.weights += d.weights

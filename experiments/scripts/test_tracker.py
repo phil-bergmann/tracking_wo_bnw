@@ -15,7 +15,7 @@ from model.config import cfg as frcnn_cfg
 from tracker.config import get_output_dir, get_tb_dir
 from tracker.sfrcnn import FRCNN
 from tracker.lstm_regressor import LSTM_Regressor
-from tracker.appearance_lstm import Appearance_LSTM
+#from tracker.appearance_lstm import Appearance_LSTM
 from tracker.mot_sequence import MOT_Sequence
 from tracker.tracker import Tracker
 from tracker.utils import plot_sequence
@@ -28,10 +28,10 @@ sequences = train
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracker.yaml')
-ex.add_config('output/tracker/lstm_regressor/epsilon/sacred_config.yaml')
+ex.add_config('output/tracker/lstm_regressor/reg-6dead-srf15/sacred_config.yaml')
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
-Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
+#Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
 Tracker = ex.capture(Tracker, prefix='tracker.tracker')
 
 @ex.automain
@@ -64,7 +64,7 @@ def my_main(lstm_regressor, tracker, _config):
 
 	
 	print("[*] Building Regressor")
-	regressor = LSTM_Regressor(appearance_lstm=Appearance_LSTM())
+	regressor = LSTM_Regressor()
 	regressor.cuda()
 	regressor.eval()
 	regressor.load_state_dict(torch.load(tracker['regressor_weights']))

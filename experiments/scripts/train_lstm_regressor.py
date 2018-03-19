@@ -8,6 +8,7 @@ import yaml
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import WeightedRandomSampler
 
 from model.config import cfg as frcnn_cfg
 
@@ -15,9 +16,9 @@ from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.sfrcnn import FRCNN
 from tracker.lstm_regressor import LSTM_Regressor
-from tracker.appearance_lstm import Appearance_LSTM
+#from tracker.appearance_lstm import Appearance_LSTM
 from tracker.mot_wrapper import MOT_Wrapper
-from tracker.mot_tracks2 import MOT_Tracks
+from tracker.lstm_cnn_regressor import LSTM_CNN_Regressor
 
 
 ex = Experiment()
@@ -25,7 +26,9 @@ ex = Experiment()
 ex.add_config('experiments/cfgs/lstm_regressor.yaml')
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
-Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
+LSTM_CNN_Regressor = ex.capture(LSTM_CNN_Regressor, prefix='lstm_regressor')
+MOT_Wrapper = ex.capture(MOT_Wrapper, prefix='lstm_regressor')
+#Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
 Solver = ex.capture(Solver, prefix='lstm_regressor.solver')
 
 @ex.automain
@@ -57,23 +60,24 @@ def my_main(lstm_regressor, _config):
 	#########################
 	print("[*] Initializing Dataloader")
 
-	db_train = MOT_Wrapper(lstm_regressor['db_train'], MOT_Tracks)
+	db_train = MOT_Wrapper(lstm_regressor['db_train'])
 	#db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
 	if lstm_regressor['db_val']:
-		db_val = MOT_Wrapper(lstm_regressor['db_val'], MOT_Tracks)
+		db_val = MOT_Wrapper(lstm_regressor['db_val'])
 		db_val = DataLoader(db_val, batch_size=1, shuffle=True)
 	else:
 		db_val = None
-
 	
 	#for i,v in enumerate(db_train):
-	#	if len(v) <= 4:
-	#			t = []
-	#		print("Track idx {} with len {}".format(i,len(v)))
-	#		for s in v:
-	#			t.append(s['active'][0])
-	#		print(t)
+	#	t = []
+	#	vis = []
+	#	for s in v:
+	#		t.append(s['active'][0])
+	#		vis.append(s['vis'][0])
+	#	print(i)
+	#	print(t)
+	#	print(vis)
 	#for i,v in enumerate(db_train):
 	#	active = []
 	#	for t in v:
@@ -100,12 +104,19 @@ def my_main(lstm_regressor, _config):
 	
 	# build lstm regressor
 	print("[*] Building Regressor")
-	regressor = LSTM_Regressor(appearance_lstm=Appearance_LSTM())
+	if lstm_regressor['use_appearance_cnn']:
+		regressor = LSTM_CNN_Regressor()
+	else:
+		regressor = LSTM_Regressor()
 	regressor.cuda()
 	regressor.train()
 
 	# precalcuate conv features
-	db_train.precalculate_conv(frcnn)
+	if lstm_regressor['precalculate_features']:
+		db_train.precalculate_conv(frcnn)
+		#db_train._dataloader.generate_blobs = True
+	#sampler = WeightedRandomSampler(db_train.weights, len(db_train), True)
+	#db_train = DataLoader(db_train, batch_size=1, shuffle=False, sampler=sampler)
 	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
 	##################

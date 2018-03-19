@@ -1,8 +1,11 @@
 tracker:
-  name: beta
+  name: reg-6dead-srf15
   module_name: tracker
-  desription: blabla
+  desription: Nothing here
+  regressor_weights: 'output/tracker/lstm_regressor/reg-6dead-srf15/LSTM_Regressor_iter_171890.pth'
 
   tracker:
     detection_thresh: 0.2
     nms_thresh: 0.3
+    alive_thresh: 0.5
+    alive_patience: 1

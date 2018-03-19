@@ -3,19 +3,45 @@
 lstm_regressor:
   seed: 12345
   frcnn_weights: /usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/stop_180k_allBB/vgg16_faster_rcnn_iter_180000.pth
-  name: beta
-  module_name: lstm_regressor
+  name: kill-1alive
+  module_name: lstm_regressor_2
   max_epochs: 5
-  desription: This tracker is trained with the kill switch, tracks are of length <=7 and have maximum of 3 times dead samples at the end
+  desription: kill score, minitracks len 7, 1 alive at beginning rest can be dead
   db_train: train
   db_val: Null
+
+  use_appearance_cnn: False
+  precalculate_features: True
 
   solver:
     optim: Adam
     optim_args:
-      lr: 0.001
-      weight_decay: 0.0
+      lr: 0.0003
+      weight_decay: 0.0001
+
+  dataloader:
+    track_len: 7
+    mult_transitions: 12
+    max_trail_dead: 6
+    sample_transitions_backwards: True
+    min_alive_start: 1
+    active_thresh: 0.5
 
   lstm_regressor:
-    hidden_dim: 300
-    num_layers: 1
+    feature_size: 500
+    comp_features: True
+    comp_features_in: 4096
+    sample_search_regions: False
+    sample_num: 100
+    search_region_factor: 1.0
+    alive_mode: kill
+
+    appearance_lstm:
+      hidden_dim: 501
+      num_layers: 1
+      input_dim: 501
+      output_dim: 501
+
+  appearance_cnn:
+    arch: alex
+    output_dim: 500
