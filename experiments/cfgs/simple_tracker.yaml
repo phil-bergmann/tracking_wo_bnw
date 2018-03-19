@@ -1,0 +1,13 @@
+simple_tracker:
+  name: person-score-patience1
+  module_name: simple_tracker
+  desription: Nothing here
+  seed: 12345
+  frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/stop_180k_allBB/vgg16_faster_rcnn_iter_180000.pth'
+
+  tracker:
+    detection_person_thresh: 0.2
+    regression_person_thresh: 0.01
+    detection_nms_thresh: 0.3
+    regression_nms_thresh: 0.7
+    alive_patience: 1
