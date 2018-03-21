@@ -68,16 +68,17 @@ def my_main(lstm_regressor, _config):
 		db_val = DataLoader(db_val, batch_size=1, shuffle=True)
 	else:
 		db_val = None
-	
+
+
 	#for i,v in enumerate(db_train):
-	#	t = []
-	#	vis = []
-	#	for s in v:
-	#		t.append(s['active'][0])
-	#		vis.append(s['vis'][0])
-	#	print(i)
-	#	print(t)
-	#	print(vis)
+		#vis = []
+		#t = []
+		#for s in v:
+		#	t.append(s['active'][0])
+			#vis.append(s['vis'][0])
+		#print(i)
+		#print(t)
+		#print(vis)
 	#for i,v in enumerate(db_train):
 	#	active = []
 	#	for t in v:
@@ -116,8 +117,9 @@ def my_main(lstm_regressor, _config):
 		db_train.precalculate_conv(frcnn)
 		#db_train._dataloader.generate_blobs = True
 	#sampler = WeightedRandomSampler(db_train.weights, len(db_train), True)
-	#db_train = DataLoader(db_train, batch_size=1, shuffle=False, sampler=sampler)
-	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+	sampler = WeightedRandomSampler(db_train.weights, 30000, True)
+	db_train = DataLoader(db_train, batch_size=1, shuffle=False, sampler=sampler)
+	#db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
 	##################
 	# Begin training #
@@ -126,5 +128,6 @@ def my_main(lstm_regressor, _config):
 
 	solver = Solver(output_dir, tb_dir)
 	solver.train(regressor, frcnn, db_train, db_val, lstm_regressor['max_epochs'], 100)
+	
 	
 	
