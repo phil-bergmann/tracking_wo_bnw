@@ -15,13 +15,22 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 
 from tracker.config import get_output_dir
-from tracker.mot_tracks2 import MOT_Tracks
+from tracker.mot_tracks import MOT_Tracks
 
 ex = Experiment()
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = train
+
+track_dict = {
+	'track_len': 7,
+	'mult_transitions': 4,
+	'max_trail_dead': 6,
+	'sample_transitions_backwards': True,
+	'min_alive_start': 1,
+	'active_thresh': 0.5,
+}
 
 @ex.automain
 def my_main(_config):
@@ -43,19 +52,40 @@ def my_main(_config):
 	res = {}
 	res['ges'] = []
 
+	# keep track of how many transition tracks there are
+	trans = 0
+	active = 0
+
 	for s in sequences:
 		res[s] = []
 
 		print("[*] Analysing: {}".format(s))
-		db = MOT_Tracks(s, generate_blobs=False)
+		db = MOT_Tracks(s, generate_blobs=False, **track_dict)
 		sampler = WeightedRandomSampler(db.weights, len(db), True)
 		dl = DataLoader(db, batch_size=1, shuffle=False, sampler=sampler)
+
+		trans_track = 0
+		active_track = 0
 
 		for i,track in enumerate(dl,1):
 			for t in track:
 				vis = t['vis'][0]
 				res['ges'].append(vis)
 				res[s].append(vis)
+			if track[-1]['active'][0] == True:
+				active_track += 1
+			else:
+				trans_track += 1
+
+		trans += trans_track
+		active += active_track
+
+		print("Completelty active: {}/{} tracks".format(active_track, active_track+trans_track))
+		print("In Percent: {:.2f}%".format(active_track/(active_track+trans_track)*100))
+
+	print("[*] Whole Dataset")
+	print("Completelty active: {}/{} tracks".format(active, active+trans))
+	print("In Percent: {:.2f}%".format(active/(active+trans)*100))
 
 
 	with open(osp.join(output_dir, 'results.csv'), 'w', newline='') as csvfile:
