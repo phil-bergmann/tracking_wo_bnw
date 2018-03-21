@@ -17,7 +17,7 @@ class MOT_Tracks(MOT_Sequence):
 	"""
 
 	def __init__(self, seq_name, track_len, mult_transitions, max_trail_dead, sample_transitions_backwards,
-		min_alive_start, active_thresh):
+		min_alive_start, active_thresh, generate_blobs=True):
 		super().__init__(seq_name)
 		self.track_len = track_len
 		self.mult_transitions = mult_transitions
@@ -29,7 +29,7 @@ class MOT_Tracks(MOT_Sequence):
 
 		self.build_tracks()
 
-		self.generate_blobs=True
+		self.generate_blobs=generate_blobs
 
 	def __getitem__(self, idx):
 		"""Return the ith track with images converted to blobs"""
@@ -88,7 +88,7 @@ class MOT_Tracks(MOT_Sequence):
 					tracks[k] = [{'id':k, 'im_path':im_path, 'gt':v, 'active':True, 'vis':vis[k]}]
 
 		# Now begin to split into subtracks
-		res = split_tracks(tracks, self.track_len, self.min_alive_start, self.max_trail_dead, self.mult_transitions)
+		res, weights = self.split_tracks(tracks)
 
 		# duplicate tracks (go in both directions)
 		if self.sample_transitions_backwards:
@@ -99,12 +99,15 @@ class MOT_Tracks(MOT_Sequence):
 				for j in range(len(t0)-1,-1,-1):
 					t1.append(t0[j])
 				tracks_back[k+1000] = t1
-			res += split_tracks(tracks_back, self.track_len, self.min_alive_start, self.max_trail_dead, self.mult_transitions, True)
+			r, w = self.split_tracks(tracks_back, True)
+			res += r
+			weights += w
 
 		if self._seq_name:
 			print("[*] Loaded {} tracks from sequence {}.".format(len(res), self._seq_name))
 
 		# calculate weights
+		"""
 		weights = []
 		for track in res:
 			vis = []
@@ -115,36 +118,41 @@ class MOT_Tracks(MOT_Sequence):
 				weights.append(5)
 			else:
 				weights.append(1)
+		"""
 		
 		self.weights = weights
 
 		self.data = res
 
-def split_tracks(tracks, length, min_alive_start, max_trail_dead, dupl_transitions=1, only_trans=False):
-	res = []
-	for _,track in tracks.items():
-		t = []
-		for v in track:
-			if v['active']:
-				# if sequence True ... False and new object True we finish it and create new one
-				if len(t) > 0 and t[-1]['active'] == False:
-					for i in range(dupl_transitions):
+	def split_tracks(self, tracks, only_trans=False):
+		res = []
+		weights = []
+		for _,track in tracks.items():
+			t = []
+			for v in track:
+				if v['active']:
+					# if sequence True ... False and new object True we finish it and create new one
+					if len(t) > 0 and t[-1]['active'] == False:
+						#for i in range(dupl_transitions):
 						res.append(t)
+						weights.append(self.mult_transitions)
+						t = []
+					t.append(v)
+				# no inactive samples at beginning of sequence
+				elif len(t) >= self.min_alive_start:
+					t.append(v)
+				# not enough alive at beginning
+				else:
 					t = []
-				t.append(v)
-			# no inactive samples at beginning of sequence
-			elif len(t) >= min_alive_start:
-				t.append(v)
-			# not enough alive at beginning
-			else:
-				t = []
-			# track finished if too long
-			if (len(t) >= length) or (len(t) >= (max_trail_dead+1) and t[-max_trail_dead]['active'] == False):
-			#if len(t) >= length:
-				if t[-1]['active'] == False:
-					for i in range(dupl_transitions):
+				# track finished if too long
+				if (len(t) >= self.track_len) or (len(t) >= (self.max_trail_dead+1) and t[-self.max_trail_dead]['active'] == False):
+				#if len(t) >= length:
+					if t[-1]['active'] == False:
+						#for i in range(dupl_transitions):
 						res.append(t)
-				elif only_trans == False:
-					res.append(t)	
-				t = []
-	return res
+						weights.append(self.mult_transitions)
+					elif only_trans == False:
+						res.append(t)
+						weights.append(1)
+					t = []
+		return res, weights
