@@ -49,10 +49,14 @@ class FRCNN_Tracker():
 
 		# Filter out tracks that have too low person score
 		scores = scores[:,cl]
-		inds = torch.gt(scores, self.detection_person_thresh)
-		boxes = boxes[inds.nonzero().view(-1)]
-		det_pos = boxes[:,cl*4:(cl+1)*4]
-		det_scores = scores[inds]
+		inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+		if inds.nelement() > 0:
+			boxes = boxes[inds]
+			det_pos = boxes[:,cl*4:(cl+1)*4]
+			det_scores = scores[inds]
+		else:
+			det_pos = torch.zeros(0).cuda()
+			det_scores = torch.zeros(0).cuda()
 
 		##################
 		# Predict tracks #
@@ -100,17 +104,18 @@ class FRCNN_Tracker():
 
 		# create nms input and nms new detections
 		nms_inp_det = torch.cat((det_pos, det_scores.view(-1,1)), 1)
-		keep = nms(nms_inp_det, self.detection_nms_thresh)
-		nms_inp_det = nms_inp_det[keep]
-		# check with every track in a single run (problem if tracks delete each other)
-		for i in range(num_tracks):
-			nms_inp = torch.cat((nms_inp_reg[i].view(1,-1), nms_inp_det), 0)
-			keep = nms(nms_inp, self.detection_nms_thresh)
-			keep = keep[torch.ge(keep,1)]
-			if keep.nelement() == 0:
-				nms_inp_det = nms_inp_det.new(0)
-				break
-			nms_inp_det = nms_inp[keep]
+		if nms_inp_det.nelement() > 0:
+			keep = nms(nms_inp_det, self.detection_nms_thresh)
+			nms_inp_det = nms_inp_det[keep]
+			# check with every track in a single run (problem if tracks delete each other)
+			for i in range(num_tracks):
+				nms_inp = torch.cat((nms_inp_reg[i].view(1,-1), nms_inp_det), 0)
+				keep = nms(nms_inp, self.detection_nms_thresh)
+				keep = keep[torch.ge(keep,1)]
+				if keep.nelement() == 0:
+					nms_inp_det = nms_inp_det.new(0)
+					break
+				nms_inp_det = nms_inp[keep]
 
 		if nms_inp_det.nelement() > 0:
 
