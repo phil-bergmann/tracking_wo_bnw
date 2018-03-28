@@ -1,3 +1,5 @@
+# Adapted from: https://omoindrot.github.io/triplet-loss
+
 """Test for the triplet loss computation."""
 
 import _init_paths

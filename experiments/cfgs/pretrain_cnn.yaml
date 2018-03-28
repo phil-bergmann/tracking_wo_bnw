@@ -1,0 +1,29 @@
+cnn:
+  name: alex15
+  module_name: pretrain_cnn
+  desription: blabla
+  seed: 12345
+  max_epochs: 10
+  db_train: train
+  db_val: None
+  
+  model_args:
+    loss: triplet
+    margin: 1.0
+
+  solver:
+    optim: Adam
+    optim_args:
+      lr: 0.0001
+      weight_decay: 0.0000
+
+  dataloader:
+    vis_threshold: 0.5
+    P: 18
+    K: 4
+    max_per_person: 40
+    crop_H: 224
+    crop_W: 112
+
+  cnn:
+    output_dim: 128

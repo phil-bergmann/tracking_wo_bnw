@@ -1,5 +1,14 @@
 # Adapted from: https://omoindrot.github.io/triplet-loss
 
+##############
+# CAUTION !! #
+##############
+# At the moment both batch_all and batch_hard seem to pass the error testing from the source
+# mentioned above, but in practice for my experiments batch_hard converged to margin and
+# batch_all the error exploded. So for me both are not functional at the moment, but 
+# _get_triplet_mask can be used to get all valid triplets and then F.triplet_margin_loss()
+# can be used to get the batch all technique running.
+
 import torch
 from torch.autograd import Variable
 
@@ -96,7 +105,7 @@ def _get_triplet_mask(labels):
     # Check that i, j and k are distinct
     indices_equal = torch.eye(labels.size(0)).byte()
     if labels.is_cuda:
-        indices_equal.cuda()
+        indices_equal = indices_equal.cuda()
     indices_not_equal = ~indices_equal
     i_not_equal_j = torch.unsqueeze(indices_not_equal, 2)
     i_not_equal_k = torch.unsqueeze(indices_not_equal, 1)
@@ -107,6 +116,8 @@ def _get_triplet_mask(labels):
 
     # Check if labels[i] == labels[j] and labels[i] != labels[k]
     label_equal = torch.eq(torch.unsqueeze(labels, 0), torch.unsqueeze(labels, 1))
+    #if labels.is_cuda:
+    #    label_equal = label_equal.cuda()
     i_equal_j = torch.unsqueeze(label_equal, 2)
     i_equal_k = torch.unsqueeze(label_equal, 1)
 
@@ -154,7 +165,6 @@ def batch_all_triplet_loss(labels, embeddings, margin, squared=False):
     triplet_loss = torch.clamp(triplet_loss, min=0.0)
 
     # Count number of positive triplets (where triplet_loss > 0)
-    #!!! Not sure if triplet_loss.data should be used ...
     valid_triplets = torch.gt(triplet_loss, 1e-16)
     num_positive_triplets = valid_triplets.sum().float()
     num_valid_triplets = mask.sum()

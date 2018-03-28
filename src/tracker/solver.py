@@ -55,7 +55,7 @@ class Solver(object):
 		torch.save(model.state_dict(), filename)
 		print('Wrote snapshot to: {:s}'.format(filename))
 
-	def train(self, model, frcnn, train_loader, val_loader=None, num_epochs=10, log_nth=0):
+	def train(self, model, train_loader, val_loader=None, num_epochs=10, log_nth=0, model_args={}):
 		"""
 		Train a given model with the provided data.
 
@@ -108,7 +108,7 @@ class Solver(object):
 				
 
 				optim.zero_grad()
-				losses = model.sum_losses(batch, frcnn)
+				losses = model.sum_losses(batch, **model_args)
 				losses['total_loss'].backward()
 				optim.step()
 
@@ -135,7 +135,7 @@ class Solver(object):
 				model.eval()
 				for i, batch in enumerate(val_loader):
 
-					losses = model.sum_losses(batch, frcnn)
+					losses = model.sum_losses(batch, **model_args)
 
 					for k,v in losses.items():
 						if k not in self._val_losses.keys():
