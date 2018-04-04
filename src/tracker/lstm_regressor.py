@@ -95,7 +95,6 @@ class LSTM_Regressor(nn.Module):
 			frcnn (nn.Module): The faster rcnn network
 			cnn (nn.Module): A alternative network for the feature extraction if frcnn should not be used
 		"""
-
 		# check if using precalculated conv layer
 		if 'conv' in track[0].keys():
 			prec = True
@@ -114,6 +113,7 @@ class LSTM_Regressor(nn.Module):
 
 		# track begins at person gt
 		pos = track[0]['gt'].cuda()
+		pos = clip_boxes(Variable(pos), track[0]['im_info'][0][:2]).data
 		if prec:
 			frcnn._net_conv = Variable(track[0]['conv'][0]).cuda()
 			_, scores, _, _ = frcnn.test_image(None, None, pos)
@@ -121,11 +121,12 @@ class LSTM_Regressor(nn.Module):
 			_, scores, _, _ = frcnn.test_image(track[0]['data'][0], track[0]['im_info'][0], pos)
 
 		if cnn:
-			old_features = cnn.test_image(track[0]['data'][0], pos)
+			#print("A")
+			old_features = cnn.test_rois(track[0]['data'][0], pos).detach()
 		else:
 			old_features = Variable(frcnn.get_fc7())
 		old_score = Variable(scores[:1,cl].view(1,1))
-		old_score = Variable(scores[:1,cl].view(1,1).fill_(0))
+		#old_score = Variable(scores[:1,cl].view(1,1).fill_(0))
 
 		bbox_losses = []
 		alive_losses = []
@@ -182,7 +183,8 @@ class LSTM_Regressor(nn.Module):
 				_, _, _, _ = frcnn.test_image(t['data'][0], t['im_info'][0], pos)
 			
 			if cnn:
-				search_features = cnn.test_image(t['data'][0], pos)
+				#print("B")
+				search_features = cnn.test_rois(t['data'][0], pos).detach()
 			else:
 				search_features = Variable(frcnn.get_fc7())
 
@@ -201,7 +203,8 @@ class LSTM_Regressor(nn.Module):
 			# get the fc7 on the image on the regressed coordinates
 			_, scores, _, _ = frcnn.test_rois(pos[:1])
 			if cnn:
-				old_features = cnn.test_rois(pos)
+				#print("C")
+				old_features = cnn.test_rois(track[0]['data'][0], pos[:1]).detach()
 			else:
 				old_features = Variable(frcnn.get_fc7())
 			old_score = Variable(scores[:,cl].view(1,1))

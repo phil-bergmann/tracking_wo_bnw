@@ -19,6 +19,7 @@ from tracker.lstm_regressor import LSTM_Regressor
 from tracker.mot_sequence import MOT_Sequence
 from tracker.tracker import Tracker
 from tracker.utils import plot_sequence
+from tracker.alex import Alex
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
@@ -28,11 +29,12 @@ sequences = train
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracker.yaml')
-ex.add_config('output/tracker/lstm_regressor/reg-6dead-srf15/sacred_config.yaml')
+ex.add_config('output/tracker/lstm_regressor_3/alexk-9-3alive/sacred_config.yaml')
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
 #Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
 Tracker = ex.capture(Tracker, prefix='tracker.tracker')
+Alex = ex.capture(Alex, prefix='cnn.cnn')
 
 @ex.automain
 def my_main(lstm_regressor, tracker, _config):
@@ -71,6 +73,14 @@ def my_main(lstm_regressor, tracker, _config):
 
 	print("[*] Building Tracker")
 	tracker = Tracker(frcnn, regressor)
+
+	if lstm_regressor['use_appearance_cnn']:
+		cnn = Alex()
+		cnn.load_state_dict(torch.load(lstm_regressor['cnn_weights']))
+		cnn.eval()
+		cnn.cuda()
+	else:
+		cnn = None
 	
 	####################
 	# Begin evaluation #
@@ -86,7 +96,7 @@ def my_main(lstm_regressor, tracker, _config):
 		dl = DataLoader(db, batch_size=1, shuffle=False)
 
 		for sample in dl:
-			tracker.step(sample)
+			tracker.step(sample, cnn)
 
 		results = tracker.get_results()
 		print("Tracks found: {}".format(len(results)))

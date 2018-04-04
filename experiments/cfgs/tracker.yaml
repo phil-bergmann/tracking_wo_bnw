@@ -1,8 +1,8 @@
 tracker:
-  name: reg-6dead-srf15
-  module_name: tracker
+  name: alexk-9-3alive
+  module_name: tracker_phase3
   desription: Nothing here
-  regressor_weights: 'output/tracker/lstm_regressor/reg-6dead-srf15/LSTM_Regressor_iter_171890.pth'
+  regressor_weights: 'output/tracker/lstm_regressor_3/alexk-9-3alive/LSTM_Regressor_iter_150000.pth'
 
   tracker:
     detection_thresh: 0.2

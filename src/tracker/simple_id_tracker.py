@@ -5,24 +5,27 @@ import torch
 from torch.autograd import Variable
 import numpy as np
 
-class FRCNN_Tracker():
+class Simple_ID_Tracker():
 
 	def __init__(self, frcnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
-		regression_nms_thresh, alive_patience):
+		regression_nms_thresh, alive_patience, reid_module):
 		self.frcnn = frcnn
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
 		self.regression_nms_thresh = regression_nms_thresh
 		self.alive_patience = alive_patience
+		self.reid_module = reid_module
 
 		self.reset()
 
 	def reset(self, hard=True):
 		self.ind2track = torch.zeros(0).cuda()
 		self.pos = torch.zeros(0).cuda()
-		#self.features = torch.zeros(0).cuda()
 		self.kill_counter = torch.zeros(0).cuda()
+		self.hidden = Variable(torch.zeros(0)).cuda()
+		self.cell_state = Variable(torch.zeros(0)).cuda()
+		self.lstm_out = Variable(torch.zeros(0)).cuda()
 
 		if hard:
 			self.track_num = 0
@@ -31,9 +34,25 @@ class FRCNN_Tracker():
 
 	def keep(self, keep):
 		self.pos = self.pos[keep]
-		#self.features = self.features[keep]
 		self.ind2track = self.ind2track[keep]
 		self.kill_counter = self.kill_counter[keep]
+		self.hidden = self.hidden[:,keep,:]
+		self.cell_state = self.cell_state[:,keep,:]
+		self.lstm_out = self.lstm_out[keep]
+
+	def add(self, num_new, new_det_pos):
+		self.pos = torch.cat((self.pos, new_det_pos), 0)
+		self.ind2track = torch.cat((self.ind2track, torch.arange(self.track_num, self.track_num+num_new).cuda()), 0)
+		self.track_num += num_new
+		self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
+		# create new hidden states
+		hidden, cell_state = self.reid_module.init_hidden(num_new)
+		if self.hidden.nelement() > 0:
+			self.hidden = torch.cat((self.hidden, hidden), 1)
+			self.cell_state = torch.cat((self.cell_state, cell_state), 1)
+		else:
+			self.hidden = hidden
+			self.cell_state = cell_state
 
 	def step(self, blob):
 
@@ -86,7 +105,9 @@ class FRCNN_Tracker():
 
 				# create nms input
 				#nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
-				nms_inp_reg = torch.cat((self.pos, scores.add_(2)),1)
+				#nms_inp_reg = torch.cat((self.pos, scores.add_(2)),1)
+				appearance_scores = self.reid_module.test_rois(blob['data'][0], self.pos, self.lstm_out)
+				nms_inp_reg = torch.cat((self.pos, appearance_scores.data.add(2)), 1)
 
 				# nms here if tracks overlap
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
@@ -122,13 +143,13 @@ class FRCNN_Tracker():
 			num_new = nms_inp_det.size(0)
 			new_det_pos = nms_inp_det[:,:4]
 
-			self.pos = torch.cat((self.pos, new_det_pos), 0)
+			# add new
+			self.add(num_new, new_det_pos)
 
-			self.ind2track = torch.cat((self.ind2track, torch.arange(self.track_num, self.track_num+num_new).cuda()), 0)
-
-			self.track_num += num_new
-
-			self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
+		if self.pos.nelement() > 0:
+			self.lstm_out, (self.hidden, self.cell_state) = self.reid_module.feed_rois(blob['data'][0], self.pos, (self.hidden, self.cell_state))
+			#_,_ = self.reid_module.feed_rois(blob['data'][0], self.pos, h)
+			#print("out")
 
 		####################
 		# Generate Results #
@@ -143,6 +164,7 @@ class FRCNN_Tracker():
 		self.im_index += 1
 
 		#print("tracks active: {}/{}".format(num_tracks, self.track_num))
+		print(self.hidden.size())
 
 	def get_results(self):
 		return self.results

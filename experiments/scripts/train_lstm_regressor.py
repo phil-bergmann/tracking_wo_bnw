@@ -19,11 +19,14 @@ from tracker.lstm_regressor import LSTM_Regressor
 #from tracker.appearance_lstm import Appearance_LSTM
 from tracker.mot_wrapper import MOT_Wrapper
 from tracker.lstm_cnn_regressor import LSTM_CNN_Regressor
+from tracker.alex import Alex
 
 
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/lstm_regressor.yaml')
+ex.add_config('output/tracker/pretrain_cnn/alex13/sacred_config.yaml')
+Alex = ex.capture(Alex, prefix='cnn.cnn')
 
 LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
 LSTM_CNN_Regressor = ex.capture(LSTM_CNN_Regressor, prefix='lstm_regressor')
@@ -105,10 +108,10 @@ def my_main(lstm_regressor, _config):
 	
 	# build lstm regressor
 	print("[*] Building Regressor")
-	if lstm_regressor['use_appearance_cnn']:
-		regressor = LSTM_CNN_Regressor()
-	else:
-		regressor = LSTM_Regressor()
+	#if lstm_regressor['use_appearance_cnn']:
+	#	regressor = LSTM_CNN_Regressor()
+	#else:
+	regressor = LSTM_Regressor()
 	regressor.cuda()
 	regressor.train()
 
@@ -125,9 +128,17 @@ def my_main(lstm_regressor, _config):
 	# Begin training #
 	##################
 	print("[*] Solving ...")
+	model_args = {'frcnn':frcnn}
+	if lstm_regressor['use_appearance_cnn']:
+		cnn = Alex()
+		cnn.load_state_dict(torch.load(lstm_regressor['cnn_weights']))
+		cnn.eval()
+		cnn.cuda()
+		print(cnn.output_dim)
+		model_args['cnn'] = cnn
 
 	solver = Solver(output_dir, tb_dir)
-	solver.train(regressor, frcnn, db_train, db_val, lstm_regressor['max_epochs'], 100)
+	solver.train(regressor, db_train, db_val, lstm_regressor['max_epochs'], 100, model_args=model_args)
 	
 	
 	

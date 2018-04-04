@@ -16,7 +16,13 @@ from tracker.sfrcnn import FRCNN
 from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
-from tracker.frcnn_tracker import FRCNN_Tracker
+from tracker.simple_tracker import Simple_Tracker
+from tracker.simple_reid_tracker import Simple_ReID_Tracker
+from tracker.simple_id_tracker import Simple_ID_Tracker
+from tracker.reid_module import ReID_Module
+from tracker.alex import Alex
+from tracker.simple_regressor import Simple_Regressor
+from tracker.simple_regressor_tracker import Simple_Regressor_Tracker
 
 import torch
 from torch.autograd import Variable
@@ -26,11 +32,21 @@ import numpy as np
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/simple_tracker.yaml')
-FRCNN_Tracker = ex.capture(FRCNN_Tracker, prefix='simple_tracker.tracker')
+ex.add_config('output/tracker/reid_module/reid2/sacred_config.yaml')
+ex.add_config('output/tracker/simple_regressor/simple0/sacred_config.yaml')
+
+Simple_Tracker = ex.capture(Simple_Tracker, prefix='simple_tracker.tracker')
+Simple_ID_Tracker = ex.capture(Simple_ID_Tracker, prefix='simple_tracker.tracker')
+Simple_ReID_Tracker = ex.capture(Simple_ReID_Tracker, prefix='simple_tracker.tracker')
+Simple_Regressor_Tracker = ex.capture(Simple_Regressor_Tracker, prefix='simple_tracker.tracker')
+ReID_Module = ex.capture(ReID_Module, prefix='reid_module.reid_module')
+Alex = ex.capture(Alex, prefix='cnn.cnn')
+Simple_Regressor = ex.capture(Simple_Regressor, prefix='simple_regressor.simple_regressor')
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = ["MOT17-09"]
+#sequences = ["MOT17-12", "MOT17-14"]
 sequences = train
     
 @ex.automain
@@ -55,6 +71,7 @@ def my_main(simple_tracker, _config):
     ##########################
     # Initialize the modules #
     ##########################
+    
     print("[*] Building FRCNN")
 
     frcnn = FRCNN()
@@ -65,7 +82,32 @@ def my_main(simple_tracker, _config):
     frcnn.cuda()
     frcnn.load_state_dict(torch.load(simple_tracker['frcnn_weights']))
     
-    tracker = FRCNN_Tracker(frcnn)
+    if simple_tracker['mode'] == 'simple':
+        print("[*] Using Simple")
+        tracker = Simple_Tracker(frcnn=frcnn)
+    elif simple_tracker['mode'] == 'id_simple':
+        print("[*] Using Simple ID")
+        cnn = Alex()
+        reid_module = ReID_Module(cnn=cnn, mode="TEST")
+        reid_module.load_state_dict(torch.load(simple_tracker['reid_weights']))
+        reid_module.eval()
+        reid_module.cuda()
+        tracker = Simple_ID_Tracker(frcnn=frcnn, reid_module=reid_module)
+    elif simple_tracker['mode'] == 'reid_simple':
+        print("[*] Using Simple ReID")
+        cnn = Alex()
+        reid_module = ReID_Module(cnn=cnn, mode="TEST")
+        reid_module.load_state_dict(torch.load(simple_tracker['reid_weights']))
+        reid_module.eval()
+        reid_module.cuda()
+        tracker = Simple_ReID_Tracker(frcnn=frcnn, reid_module=reid_module)
+    elif simple_tracker['mode'] == 'simple_regressor':
+        print("[*] Using Simple Regressor")
+        simple_regressor = Simple_Regressor()
+        simple_regressor.load_state_dict(torch.load(simple_tracker['simple_regressor_weights']))
+        simple_regressor.eval()
+        simple_regressor.cuda()
+        tracker = Simple_Regressor_Tracker(frcnn=frcnn, simple_regressor=simple_regressor)
 
     print("[*] Beginning evaluation...")
 

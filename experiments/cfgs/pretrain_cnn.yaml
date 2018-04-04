@@ -1,7 +1,7 @@
 cnn:
-  name: alex15
+  name: alex16
   module_name: pretrain_cnn
-  desription: blabla
+  desription: all before output_dim 1000
   seed: 12345
   max_epochs: 10
   db_train: train

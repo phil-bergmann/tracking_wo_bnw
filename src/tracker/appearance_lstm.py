@@ -17,7 +17,6 @@ class Appearance_LSTM(nn.Module):
 
 		self.out = nn.Linear(hidden_dim, output_dim)
 
-
 		self.init_weights()
 
 	def init_hidden(self, minibatch_size=1):

@@ -20,7 +20,7 @@ ex.add_config('experiments/cfgs/pretrain_cnn.yaml')
 
 MOT_Siamese_Wrapper = ex.capture(MOT_Siamese_Wrapper, prefix='cnn')
 Solver = ex.capture(Solver, prefix='cnn.solver')
-alex = ex.capture(alex, prefix='cnn.cnn')
+#alex = ex.capture(alex, prefix='cnn.cnn')
 
 @ex.automain
 def my_main(_config, cnn):
@@ -68,7 +68,8 @@ def my_main(_config, cnn):
 	# Initialize the modules #
 	##########################
 	print("[*] Building CNN")
-	network = alex(pretrained=True)
+	network = alex(pretrained=True, **cnn['cnn'])
+	print(network.output_dim)
 	network.train()
 	network.cuda()
 

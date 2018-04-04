@@ -21,6 +21,7 @@ class Alex(models.AlexNet):
     def __init__(self, output_dim=1000):
         super(Alex, self).__init__(output_dim)
         self.name = "alex"
+        self.output_dim = output_dim
         # remove last max pool layer
         #self.features = nn.Sequential(*list(self.features._modules.values())[:-1])
         # resize classifier first layer for smaller input
@@ -60,19 +61,34 @@ class Alex(models.AlexNet):
     def test_rois(self, image, rois):
         """Tests the rois on a particular image. Should be inside image."""
         x = self.build_crops(image, rois).cuda()
+        #print(x.size())
         x = Variable(self.prepare_images(x))
         
         return self.forward(x)
 
     def build_crops(self, image, rois):
-        image = image.cpu().numpy()
+        np_image = image.cpu().numpy()
         res = []
         for r in rois:
-            im = image[0,int(r[1]):int(r[3]), int(r[0]):int(r[2])]
+            x0 = int(r[0])
+            y0 = int(r[1])
+            x1 = int(r[2])
+            y1 = int(r[3])
+            if x0 == x1:
+                if x0 != 0:
+                    x0 -= 1
+                else:
+                    x1 += 1
+            if y0 == y1:
+                if y0 != 0:
+                    y0 -= 1
+                else:
+                    y1 += 1
+
+            im = np_image[0,y0:y1, x0:x1]
             im = cv2.resize(im, (112, 224), interpolation=cv2.INTER_LINEAR)
-            res.append(im)
-        res = np.concatenate(res, axis=0)
-        res = torch.from_numpy(res)
+            res.append(torch.from_numpy(im))
+        res = torch.stack(res, 0)
         if image.is_cuda:
             res = res.cuda()
         return res
@@ -148,11 +164,14 @@ class Alex(models.AlexNet):
         embeddings = self.forward(inp)
 
         if loss == 'hard':
+            # not functional, converges to margin because it makes all output vectors the same
             triplet_loss = batch_hard_triplet_loss(labels, embeddings, margin)
         elif loss == 'all':
+            # not functional error explodes
             triplet_loss, fraction_positive_triplets = batch_all_triplet_loss(labels, embeddings, margin)
             print("Frac-Pos: {}".format(fraction_positive_triplets.data[0]))
         elif loss == 'triplet':
+            # works, batch all strategy
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
             e1 = []
@@ -166,6 +185,7 @@ class Alex(models.AlexNet):
             e2 = torch.stack(e2,0)
             triplet_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=1)
         elif loss == 'cosine':
+            # suboptimal but seems to work
             x1 = embeddings[:-4]
             x2 = embeddings[2:-2]
             l = np.array(17*[1,1,-1,-1])

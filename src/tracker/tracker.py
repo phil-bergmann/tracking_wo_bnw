@@ -45,7 +45,7 @@ class Tracker():
 		self.scores = self.scores[keep]
 		self.kill_counter = self.kill_counter[keep]
 
-	def step(self, blob):
+	def step(self, blob, cnn=None):
 		cl = 1
 
 		###########################
@@ -74,10 +74,16 @@ class Tracker():
 				self.pos = increase_search_region(self.pos, self.search_region_factor)
 				self.pos = clip_boxes(Variable(self.pos), blob['im_info'][0][:2]).data
 
-			_, _, _, _ = self.frcnn.test_rois(self.pos)
-			search_features = self.frcnn.get_fc7()
+			if cnn:
+				search_features = cnn.test_rois(blob['data'][0], self.pos).data
+			else:
+				_, _, _, _ = self.frcnn.test_rois(self.pos)
+				search_features = self.frcnn.get_fc7()
 
 			# generate input and call Regressor
+			print("here")
+			print(self.features.size())
+			print(self.scores.size())
 			bbox_reg, alive, (self.hidden, self.cell_state) = self.regressor(Variable(self.features), Variable(self.scores),
 				(self.hidden, self.cell_state), Variable(search_features))
 
@@ -99,7 +105,10 @@ class Tracker():
 
 				# get the features and scores at the regressed positions
 				_, scores, _, _ = self.frcnn.test_rois(self.pos)
-				self.features = self.frcnn.get_fc7()
+				if cnn:
+					self.features = cnn.test_rois(blob['data'][0], self.pos).data
+				else:
+					self.features = self.frcnn.get_fc7()
 				self.scores = scores[:,cl].contiguous().view(-1,1)
 
 				# create nms input
@@ -138,7 +147,10 @@ class Tracker():
 			self.pos = torch.cat((self.pos, new_det_pos), 0)
 			# get the regressed features
 			_, scores, _, _ = self.frcnn.test_rois(new_det_pos)
-			det_features = self.frcnn.get_fc7()
+			if cnn:
+				det_features = cnn.test_rois(blob['data'][0], new_det_pos).data
+			else:
+				det_features = self.frcnn.get_fc7()
 			self.features = torch.cat((self.features, det_features), 0)
 			self.scores = torch.cat((self.scores, scores[:,cl].contiguous().view(-1,1)), 0)
 

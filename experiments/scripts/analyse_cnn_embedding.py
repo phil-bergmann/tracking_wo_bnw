@@ -18,8 +18,8 @@ from tracker.alex import alex
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 
 ex = Experiment()
-ex.add_config('output/tracker/pretrain_cnn/alex13/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/alex13/alex_iter_4540.pth'
+ex.add_config('output/tracker/pretrain_cnn/alex15/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/alex15/alex_iter_4540.pth'
 
 @ex.automain
 def my_main(_config, cnn):
@@ -39,7 +39,7 @@ def my_main(_config, cnn):
     ##########################
     print("[*] Building CNN")
     
-    network = alex(pretrained=True)
+    network = alex(pretrained=True, **cnn['cnn'])
     network.load_state_dict(torch.load(weights))
     network.train()
     network.cuda()
