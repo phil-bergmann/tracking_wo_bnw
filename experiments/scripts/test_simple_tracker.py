@@ -11,7 +11,6 @@ import os.path as osp
 import yaml
 import time
 
-
 from tracker.sfrcnn import FRCNN
 from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
@@ -23,6 +22,11 @@ from tracker.reid_module import ReID_Module
 from tracker.alex import Alex
 from tracker.simple_regressor import Simple_Regressor
 from tracker.simple_regressor_tracker import Simple_Regressor_Tracker
+from tracker.utils import interpolate
+from tracker.simple_ap_tracker import Simple_Ap_Tracker
+from tracker.simple_siamese_tracker import Simple_Siamese_Tracker
+from tracker.simple_siameseid_tracker import Simple_SiameseID_Tracker
+from tracker.simple_align_tracker import Simple_Align_Tracker
 
 import torch
 from torch.autograd import Variable
@@ -33,21 +37,26 @@ ex = Experiment()
 
 ex.add_config('experiments/cfgs/simple_tracker.yaml')
 ex.add_config('output/tracker/reid_module/reid2/sacred_config.yaml')
+ex.add_config('output/tracker/pretrain_cnn/alex15/sacred_config.yaml')
 ex.add_config('output/tracker/simple_regressor/simple0/sacred_config.yaml')
 
 Simple_Tracker = ex.capture(Simple_Tracker, prefix='simple_tracker.tracker')
 Simple_ID_Tracker = ex.capture(Simple_ID_Tracker, prefix='simple_tracker.tracker')
 Simple_ReID_Tracker = ex.capture(Simple_ReID_Tracker, prefix='simple_tracker.tracker')
 Simple_Regressor_Tracker = ex.capture(Simple_Regressor_Tracker, prefix='simple_tracker.tracker')
+Simple_Ap_Tracker = ex.capture(Simple_Ap_Tracker, prefix='simple_tracker.tracker')
+Simple_Siamese_Tracker = ex.capture(Simple_Siamese_Tracker, prefix='simple_tracker.tracker')
 ReID_Module = ex.capture(ReID_Module, prefix='reid_module.reid_module')
 Alex = ex.capture(Alex, prefix='cnn.cnn')
 Simple_Regressor = ex.capture(Simple_Regressor, prefix='simple_regressor.simple_regressor')
+Simple_SiameseID_Tracker = ex.capture(Simple_SiameseID_Tracker, prefix='simple_tracker.tracker')
+Simple_Align_Tracker = ex.capture(Simple_Align_Tracker, prefix='simple_tracker.tracker')
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = ["MOT17-09"]
 #sequences = ["MOT17-12", "MOT17-14"]
-sequences = train
+sequences = train + test
     
 @ex.automain
 def my_main(simple_tracker, _config):
@@ -108,6 +117,30 @@ def my_main(simple_tracker, _config):
         simple_regressor.eval()
         simple_regressor.cuda()
         tracker = Simple_Regressor_Tracker(frcnn=frcnn, simple_regressor=simple_regressor)
+    elif simple_tracker['mode'] == "ap_simple":
+        print("[*] Using Simple Appearance Tracker")
+        cnn = Alex()
+        cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+        cnn.train()
+        cnn.cuda()
+        tracker = Simple_Ap_Tracker(frcnn=frcnn, cnn=cnn)
+    elif simple_tracker['mode'] == "siamese_simple":
+        print("[*] Using Simple Appearance Tracker")
+        cnn = Alex()
+        cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+        cnn.train()
+        cnn.cuda()
+        tracker = Simple_Siamese_Tracker(frcnn=frcnn, cnn=cnn)
+    elif simple_tracker['mode'] == 'siameseid':
+        print("[*] Using Simple Siamese ID Tracker")
+        cnn = Alex()
+        cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+        cnn.train()
+        cnn.cuda()
+        tracker = Simple_SiameseID_Tracker(frcnn=frcnn, cnn=cnn)
+    elif simple_tracker['mode'] == 'align':
+        print("[*] Using Simple Align Tracker")
+        tracker = Simple_Align_Tracker(frcnn=frcnn)
 
     print("[*] Beginning evaluation...")
 
@@ -130,8 +163,13 @@ def my_main(simple_tracker, _config):
         print("Tracks found: {}".format(len(results)))
         print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
 
+        if simple_tracker['interpolate']:
+            results = interpolate(results)
+
+
         db.write_results(results, osp.join(output_dir))
         
-        plot_sequence(results, db, osp.join(output_dir, s))
+        if simple_tracker['write_images']:
+            plot_sequence(results, db, osp.join(output_dir, s))
     
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))

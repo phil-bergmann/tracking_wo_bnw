@@ -4,28 +4,27 @@ from model.nms_wrapper import nms
 import torch
 from torch.autograd import Variable
 import numpy as np
+import cv2
 
-class Simple_ID_Tracker():
+class Simple_Align_Tracker():
 
 	def __init__(self, frcnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
-		regression_nms_thresh, alive_patience, reid_module):
+		regression_nms_thresh, alive_patience, use_detections):
 		self.frcnn = frcnn
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
 		self.regression_nms_thresh = regression_nms_thresh
 		self.alive_patience = alive_patience
-		self.reid_module = reid_module
+		self.use_detections = use_detections
 
 		self.reset()
 
 	def reset(self, hard=True):
 		self.ind2track = torch.zeros(0).cuda()
 		self.pos = torch.zeros(0).cuda()
+		#self.features = torch.zeros(0).cuda()
 		self.kill_counter = torch.zeros(0).cuda()
-		self.hidden = Variable(torch.zeros(0)).cuda()
-		self.cell_state = Variable(torch.zeros(0)).cuda()
-		self.lstm_out = Variable(torch.zeros(0)).cuda()
 
 		if hard:
 			self.track_num = 0
@@ -34,25 +33,33 @@ class Simple_ID_Tracker():
 
 	def keep(self, keep):
 		self.pos = self.pos[keep]
+		#self.features = self.features[keep]
 		self.ind2track = self.ind2track[keep]
 		self.kill_counter = self.kill_counter[keep]
-		self.hidden = self.hidden[:,keep,:]
-		self.cell_state = self.cell_state[:,keep,:]
-		self.lstm_out = self.lstm_out[keep]
 
-	def add(self, num_new, new_det_pos):
-		self.pos = torch.cat((self.pos, new_det_pos), 0)
-		self.ind2track = torch.cat((self.ind2track, torch.arange(self.track_num, self.track_num+num_new).cuda()), 0)
-		self.track_num += num_new
-		self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
-		# create new hidden states
-		hidden, cell_state = self.reid_module.init_hidden(num_new)
-		if self.hidden.nelement() > 0:
-			self.hidden = torch.cat((self.hidden, hidden), 1)
-			self.cell_state = torch.cat((self.cell_state, cell_state), 1)
-		else:
-			self.hidden = hidden
-			self.cell_state = cell_state
+	def align(self, blob):
+		if self.im_index > 0:
+			im1 = self.last_image.cpu().numpy()
+			im2 = blob['data'][0][0].cpu().numpy()
+			im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
+			im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
+			sz = im1.shape
+			warp_mode = cv2.MOTION_EUCLIDEAN
+			warp_matrix = np.eye(2, 3, dtype=np.float32)
+			#number_of_iterations = 5000
+			number_of_iterations = 20
+			termination_eps = 1e-10
+			criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
+			(cc, warp_matrix) = cv2.findTransformECC (im1_gray,im2_gray,warp_matrix, warp_mode, criteria)
+			warp_matrix = torch.from_numpy(warp_matrix)
+			pos = []
+			for p in self.pos:
+				p1 = torch.Tensor([p[0], p[1], 1]).view(3,1)
+				p2 = torch.Tensor([p[2], p[3], 1]).view(3,1)
+				p1_n = torch.mm(warp_matrix, p1).view(1,2)
+				p2_n = torch.mm(warp_matrix, p2).view(1,2)
+				pos.append(torch.cat((p1_n, p2_n), 1))
+			self.pos = torch.cat(pos, 0).cuda()
 
 	def step(self, blob):
 
@@ -62,13 +69,25 @@ class Simple_ID_Tracker():
 		# Look for new detections #
 		###########################
 		_, scores, bbox_pred, rois = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
+		#_, _, _, _ = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
+		if self.use_detections:
+			dets = blob['dets']
+			if len(dets) > 0:
+				dets = torch.cat(dets, 0)			
+				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
+			else:
+				rois = torch.zeros(0).cuda()
 
-		boxes = bbox_transform_inv(rois, bbox_pred)
-		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+		if rois.nelement() > 0:
+			boxes = bbox_transform_inv(rois, bbox_pred)
+			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 
-		# Filter out tracks that have too low person score
-		scores = scores[:,cl]
-		inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+			# Filter out tracks that have too low person score
+			scores = scores[:,cl]
+			inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+		else:
+			inds = torch.zeros(0).cuda()
+
 		if inds.nelement() > 0:
 			boxes = boxes[inds]
 			det_pos = boxes[:,cl*4:(cl+1)*4]
@@ -83,6 +102,8 @@ class Simple_ID_Tracker():
 		num_tracks = 0
 		nms_inp_reg = self.pos.new(0)
 		if self.pos.nelement() > 0:
+			# align
+			self.align(blob)
 			# regress
 			_, _, bbox_pred, rois = self.frcnn.test_rois(self.pos)
 			boxes = bbox_transform_inv(rois, bbox_pred)
@@ -105,9 +126,7 @@ class Simple_ID_Tracker():
 
 				# create nms input
 				#nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
-				#nms_inp_reg = torch.cat((self.pos, scores.add_(2)),1)
-				appearance_scores = self.reid_module.test_rois(blob['data'][0], self.pos, self.lstm_out)
-				nms_inp_reg = torch.cat((self.pos, appearance_scores.data.add(2)), 1)
+				nms_inp_reg = torch.cat((self.pos, scores.add_(2).view(-1,1)),1)
 
 				# nms here if tracks overlap
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
@@ -124,7 +143,10 @@ class Simple_ID_Tracker():
 		#####################
 
 		# create nms input and nms new detections
-		nms_inp_det = torch.cat((det_pos, det_scores.view(-1,1)), 1)
+		if det_pos.nelement() > 0:
+			nms_inp_det = torch.cat((det_pos, det_scores.view(-1,1)), 1)
+		else:
+			nms_inp_det = torch.zeros(0).cuda()
 		if nms_inp_det.nelement() > 0:
 			keep = nms(nms_inp_det, self.detection_nms_thresh)
 			nms_inp_det = nms_inp_det[keep]
@@ -143,13 +165,13 @@ class Simple_ID_Tracker():
 			num_new = nms_inp_det.size(0)
 			new_det_pos = nms_inp_det[:,:4]
 
-			# add new
-			self.add(num_new, new_det_pos)
+			self.pos = torch.cat((self.pos, new_det_pos), 0)
 
-		if self.pos.nelement() > 0:
-			self.lstm_out, (self.hidden, self.cell_state) = self.reid_module.feed_rois(blob['data'][0], self.pos, (self.hidden, self.cell_state))
-			#_,_ = self.reid_module.feed_rois(blob['data'][0], self.pos, h)
-			#print("out")
+			self.ind2track = torch.cat((self.ind2track, torch.arange(self.track_num, self.track_num+num_new).cuda()), 0)
+
+			self.track_num += num_new
+
+			self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
 
 		####################
 		# Generate Results #
@@ -162,9 +184,9 @@ class Simple_ID_Tracker():
 			self.results[track_ind][self.im_index] = t.cpu().numpy()
 
 		self.im_index += 1
+		self.last_image = blob['data'][0][0]
 
 		#print("tracks active: {}/{}".format(num_tracks, self.track_num))
-		#print(self.hidden.size())
 
 	def get_results(self):
 		return self.results

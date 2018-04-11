@@ -27,8 +27,8 @@ class ReID_Module(nn.Module):
 	
 	def test_rois(self, image, rois, lstm_out):
 		feat =  self.cnn.test_rois(image, rois)
-		if feat.size(0) > 1:
-			lstm_out = torch.cat([lstm_out for _ in range(feat.size(0))], 0)
+		if feat.size(0) != lstm_out.size(0):
+			lstm_out = torch.cat([lstm_out for _ in range(int(feat.size(0)/lstm_out.size(0)))], 0)
 		fc_out = self.pred_head(feat, lstm_out)
 		return fc_out.detach()
 

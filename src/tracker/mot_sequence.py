@@ -29,6 +29,7 @@ class MOT_Sequence(Dataset):
 		self.vis_threshold = vis_threshold
 
 		self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
+		self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
 
 		self._train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
 			'MOT17-11', 'MOT17-13']
@@ -58,21 +59,28 @@ class MOT_Sequence(Dataset):
 		sample['im_path'] = d['im_path']
 		sample['data'] = data
 		sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
+		sample['or_data'] = im[np.newaxis, ...].astype(np.float32, copy=True)
+		#sample['or_data'] = im[np.newaxis, ...]
 		sample['gt'] = {}
 		sample['vis'] = {}
+		sample['dets'] = []
 		# resize tracks
 		for k,v in d['gt'].items():
 			sample['gt'][k] = v * sample['im_info'][2]
 		for k,v in d['vis'].items():
 			sample['vis'][k] = v
+		for det in d['dets']:
+			sample['dets'].append(det * sample['im_info'][2])
 
 		return sample
 
 	def sequence(self, seq_name):
 		if seq_name in self._train_folders:
 			seq_path = osp.join(self._mot_dir, 'train', seq_name)
+			label_path = osp.join(self._label_dir, 'train', 'MOT16-'+seq_name[-2:])
 		else:
 			seq_path = osp.join(self._mot_dir, 'test', seq_name)
+			label_path = osp.join(self._label_dir, 'test', 'MOT16-'+seq_name[-2:])
 			
 		config_file = osp.join(seq_path, 'seqinfo.ini')
 
@@ -89,6 +97,7 @@ class MOT_Sequence(Dataset):
 
 		imDir = osp.join(seq_path, imDir)
 		gt_file = osp.join(seq_path, 'gt', 'gt.txt')
+		det_file = osp.join(label_path, 'det', 'det.txt')
 
 		total = []
 		train = []
@@ -96,9 +105,11 @@ class MOT_Sequence(Dataset):
 
 		visibility = {}
 		boxes = {}
+		dets = {}
 		for i in range(1, seqLength+1):
 			boxes[i] = {}
 			visibility[i] = {}
+			dets[i] = []
 
 		if osp.exists(gt_file):
 			with open(gt_file, "r") as inf:
@@ -116,6 +127,17 @@ class MOT_Sequence(Dataset):
 						boxes[int(row[0])][int(row[1])] = bb
 						visibility[int(row[0])][int(row[1])] = float(row[8])
 
+		with open(det_file, "r") as inf:
+			reader = csv.reader(inf, delimiter=',')
+			for row in reader:
+				x1 = float(row[2]) - 1
+				y1 = float(row[3]) - 1
+				# This -1 accounts for the width (width of 1 x1=x2)
+				x2 = x1 + float(row[4]) - 1
+				y2 = y1 + float(row[5]) - 1
+				bb = np.array([x1,y1,x2,y2], dtype=np.float32)
+				dets[int(row[0])].append(bb)
+
 
 		for i in range(1,seqLength+1):
 			im_path = osp.join(imDir,"{:06d}.jpg".format(i))
@@ -123,6 +145,7 @@ class MOT_Sequence(Dataset):
 			sample = { 'gt':boxes[i],
 				 	   'im_path':im_path,
 				 	   'vis':visibility[i],
+					   'dets':dets[i]
 			}
 
 			total.append(sample)

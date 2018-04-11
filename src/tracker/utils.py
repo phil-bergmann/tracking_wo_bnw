@@ -14,6 +14,7 @@ from PIL import Image
 from scipy.optimize import linear_sum_assignment
 from cycler import cycler as cy
 from collections import defaultdict
+from scipy.interpolate import interp1d
 
 import torch
 from torch.autograd import Variable
@@ -489,3 +490,34 @@ def boxes2rois(boxes, cl=1):
 	rois = torch.cat((rois_score, rois_bb),1)
 
 	return rois
+
+def interpolate(tracks):
+	interpolated = {}
+	for i, track in tracks.items():
+		interpolated[i] = {}
+		frames = []
+		x0 = []
+		y0 = []
+		x1 = []
+		y1 = []
+		
+		for f, bb in track.items():
+			frames.append(f)
+			x0.append(bb[0])
+			y0.append(bb[1])
+			x1.append(bb[2])
+			y1.append(bb[3])
+
+		if len(frames) > 1:
+			x0_inter = interp1d(frames, x0)
+			y0_inter = interp1d(frames, y0)
+			x1_inter = interp1d(frames, x1)
+			y1_inter = interp1d(frames, y1)
+		
+			for f in range(min(frames), max(frames)+1):
+				bb = np.array([x0_inter(f), y0_inter(f), x1_inter(f), y1_inter(f)])
+				interpolated[i][f] = bb
+		else:
+			interpolated[i][frames[0]] = np.array([x0[0], y0[0], x1[0], y1[0]])
+
+	return interpolated
