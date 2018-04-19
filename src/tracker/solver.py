@@ -5,6 +5,7 @@ import time
 
 import torch
 from torch.autograd import Variable
+from torch.optim.lr_scheduler import LambdaLR
 
 from .utils import plot_tracks
 
@@ -17,7 +18,7 @@ class Solver(object):
 						 "momentum":0}
 	default_optim_args = {"lr": 1e-4}
 
-	def __init__(self, output_dir, tb_dir, optim='SGD', optim_args={}):
+	def __init__(self, output_dir, tb_dir, optim='SGD', optim_args={}, lr_scheduler_lambda=None):
 
 		optim_args_merged = self.default_optim_args.copy()
 		optim_args_merged.update(optim_args)
@@ -28,6 +29,8 @@ class Solver(object):
 			self.optim = torch.optim.Adam
 		else:
 			assert False, "[!] No valid optimizer: {}".format(optim)
+
+		self.lr_scheduler_lambda = lr_scheduler_lambda
 
 		self.output_dir = output_dir
 		self.tb_dir = tb_dir
@@ -74,6 +77,11 @@ class Solver(object):
 		parameters = [param for name, param in model.named_parameters() if 'frcnn' not in name]
 		optim = self.optim(parameters, **self.optim_args)
 
+		if self.lr_scheduler_lambda:
+			scheduler = LambdaLR(optim, lr_lambda=self.lr_scheduler_lambda)
+		else:
+			scheduler = None
+
 		self._reset_histories()
 		iter_per_epoch = len(train_loader)
 
@@ -100,6 +108,9 @@ class Solver(object):
 
 		for epoch in range(num_epochs):
 			# TRAINING
+			if scheduler:
+				scheduler.step()
+				print("[*] New learning rate(s): {}".format(scheduler.get_lr()))
 
 			now = time.time()
 

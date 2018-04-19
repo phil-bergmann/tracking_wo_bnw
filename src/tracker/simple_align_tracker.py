@@ -115,7 +115,7 @@ class Simple_Align_Tracker():
 			scores = scores[:,cl]
 
 			# check if still is a valid person
-			dead = torch.lt(scores, self.regression_person_thresh)
+			dead = torch.le(scores, self.regression_person_thresh)
 			self.kill_counter[dead] += 1
 			self.kill_counter[~dead] = 0
 			keep = torch.lt(self.kill_counter, self.alive_patience).nonzero()

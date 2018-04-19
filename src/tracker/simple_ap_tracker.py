@@ -10,11 +10,12 @@ from scipy.spatial.distance import cdist
 
 class Simple_Ap_Tracker():
 
-    def __init__(self, frcnn, cnn, detection_person_thresh, detection_nms_thresh):
+    def __init__(self, frcnn, cnn, detection_person_thresh, detection_nms_thresh, use_detections):
         self.frcnn = frcnn
         self.cnn = cnn
         self.detection_person_thresh = detection_person_thresh
         self.detection_nms_thresh = detection_nms_thresh
+        self.use_detections = use_detections
 
         self.reset()
 
@@ -48,13 +49,25 @@ class Simple_Ap_Tracker():
         # Look for new detections #
         ###########################
         _, scores, bbox_pred, rois = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
+        #_, _, _, _ = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
+        if self.use_detections:
+            dets = blob['dets']
+            if len(dets) > 0:
+                dets = torch.cat(dets, 0)           
+                _, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
+            else:
+                rois = torch.zeros(0).cuda()
 
-        boxes = bbox_transform_inv(rois, bbox_pred)
-        boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+        if rois.nelement() > 0:
+            boxes = bbox_transform_inv(rois, bbox_pred)
+            boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 
-        # Filter out tracks that have too low person score
-        scores = scores[:,cl]
-        inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+            # Filter out tracks that have too low person score
+            scores = scores[:,cl]
+            inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+        else:
+            inds = torch.zeros(0).cuda()
+
         if inds.nelement() > 0:
             boxes = boxes[inds]
             det_pos = boxes[:,cl*4:(cl+1)*4]

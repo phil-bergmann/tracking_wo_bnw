@@ -4,8 +4,10 @@ import os
 import os.path as osp
 import configparser
 import csv
+from PIL import Image
 
 from torch.utils.data import Dataset
+from torchvision.transforms import Normalize, Compose, ToTensor
 
 from model.test import _get_blobs
 
@@ -19,7 +21,7 @@ class MOT_Sequence(Dataset):
 	handled one should inherit from this class.
 	"""
 
-	def __init__(self, seq_name=None, vis_threshold=0.0):
+	def __init__(self, seq_name=None, vis_threshold=0.0, normalize_mean=[0.485, 0.456, 0.406], normalize_std=[0.229, 0.224, 0.225]):
 		"""
 		Args:
 			seq_name (string): Sequence to take
@@ -35,6 +37,8 @@ class MOT_Sequence(Dataset):
 			'MOT17-11', 'MOT17-13']
 		self._test_folders = ['MOT17-01', 'MOT17-03', 'MOT17-06', 'MOT17-07',
 			'MOT17-08', 'MOT17-12', 'MOT17-14']
+
+		self.transforms = Compose([ToTensor(), Normalize(normalize_mean, normalize_std)])
 
 		if seq_name:
 			assert seq_name in self._train_folders or seq_name in self._test_folders, \
@@ -59,8 +63,11 @@ class MOT_Sequence(Dataset):
 		sample['im_path'] = d['im_path']
 		sample['data'] = data
 		sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
-		sample['or_data'] = im[np.newaxis, ...].astype(np.float32, copy=True)
-		#sample['or_data'] = im[np.newaxis, ...]
+		# convert to siamese input
+		im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+		im = Image.fromarray(im)
+		im = self.transforms(im)
+		sample['app_data'] = im.unsqueeze(0)
 		sample['gt'] = {}
 		sample['vis'] = {}
 		sample['dets'] = []

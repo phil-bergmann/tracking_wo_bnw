@@ -2,11 +2,15 @@
 from model.test import _get_blobs
 
 from .mot_sequence import MOT_Sequence
-#from .config import get_output_dir
+from .config import get_output_dir
 
 import cv2
+from PIL import Image
 import numpy as np
 import os.path as osp
+
+import torch
+from torchvision.transforms import CenterCrop, Normalize, Compose, RandomHorizontalFlip, RandomCrop, ToTensor, RandomResizedCrop
 
 
 class MOT_Siamese(MOT_Sequence):
@@ -14,9 +18,12 @@ class MOT_Siamese(MOT_Sequence):
 
 	This class builds samples for training of a simaese net. It returns a tripple of 2 matching and 1 not
     matching image crop of a person. The crops con be precalculated.
+
+	Values for P are normally 18 and K 4
 	"""
 
-	def __init__(self, seq_name=None, vis_threshold=0.5, P=18, K=4, max_per_person=40, crop_H=224, crop_W=112):
+	def __init__(self, seq_name, vis_threshold, P, K, max_per_person, crop_H, crop_W,
+				transform, normalize_mean=None, normalize_std=None):
 		super().__init__(seq_name, vis_threshold=vis_threshold)
 
 		self.P = P
@@ -24,6 +31,13 @@ class MOT_Siamese(MOT_Sequence):
 		self.max_per_person = max_per_person
 		self.crop_H = crop_H
 		self.crop_W = crop_W
+
+		if transform == "random":
+			self.transform = Compose([RandomCrop((crop_H, crop_W)), RandomHorizontalFlip(), ToTensor(), Normalize(normalize_mean, normalize_std)])
+		elif transform == "center":
+			self.transform = Compose([CenterCrop((crop_H, crop_W)), ToTensor(), Normalize(normalize_mean, normalize_std)])
+		else:
+			raise NotImplementedError("Tranformation not understood: {}".format(transform))
 
 		self.build_samples()
 
@@ -42,7 +56,13 @@ class MOT_Siamese(MOT_Sequence):
 			res.append(neg[np.random.choice(neg.shape[0], self.K, replace=False)])
 
 		# concatenate the results
-		res = np.concatenate(res, axis=0)
+		r = []
+		for pers in res:
+			for im in pers:
+				im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+				im = Image.fromarray(im)
+				r.append(self.transform(im))
+		images = torch.stack(r, 0)
 
 		# construct the labels
 		labels = [idx] * self.K
@@ -52,7 +72,7 @@ class MOT_Siamese(MOT_Sequence):
 
 		labels = np.array(labels)
 
-		batch = [res, labels]
+		batch = [images, labels]
 
 		return batch
 
@@ -101,13 +121,21 @@ class MOT_Siamese(MOT_Sequence):
 
 	def build_crop(self, im_path, gt):
 		im = cv2.imread(im_path)
-		blobs, im_scales = _get_blobs(im)
-		im = blobs['data'][0]
-		gt = gt * im_scales[0]
-		gt = np.clip(gt, 0, None)
+		height, width, channels = im.shape
+		#blobs, im_scales = _get_blobs(im)
+		#im = blobs['data'][0]
+		#gt = gt * im_scales[0]
+		# clip to image boundary
+		w = gt[2] - gt[0]
+		h = gt[3] - gt[1]
+		context = 0
+		gt[0] = np.clip(gt[0]-context*w, 0, width-1)
+		gt[1] = np.clip(gt[1]-context*h, 0, height-1)
+		gt[2] = np.clip(gt[2]+context*w, 0, width-1)
+		gt[3] = np.clip(gt[3]+context*h, 0, height-1)
 
 		im = im[int(gt[1]):int(gt[3]), int(gt[0]):int(gt[2])]
 
-		im = cv2.resize(im, (self.crop_W, self.crop_H), interpolation=cv2.INTER_LINEAR)
+		im = cv2.resize(im, (int(self.crop_W*1.125), int(self.crop_H*1.125)), interpolation=cv2.INTER_LINEAR)
 
 		return im

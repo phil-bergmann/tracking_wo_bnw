@@ -14,11 +14,12 @@ from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 from tracker.alex import alex
+from tracker.resnet import resnet50
 
 ex = Experiment()
 ex.add_config('experiments/cfgs/pretrain_cnn.yaml')
 
-MOT_Siamese_Wrapper = ex.capture(MOT_Siamese_Wrapper, prefix='cnn')
+#MOT_Siamese_Wrapper = ex.capture(MOT_Siamese_Wrapper, prefix='cnn')
 Solver = ex.capture(Solver, prefix='cnn.solver')
 #alex = ex.capture(alex, prefix='cnn.cnn')
 
@@ -47,9 +48,26 @@ def my_main(_config, cnn):
 	#########################
 	print("[*] Initializing Dataloader")
 
-	db_train = MOT_Siamese_Wrapper(cnn['db_train'])
+	dataloader = cnn['dataloader']
+	db_train = MOT_Siamese_Wrapper(cnn['db_train'], dataloader)
 	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
+	"""
+	outdir = get_output_dir("siamese_test")
+	for i, sample in enumerate(db_train,1):
+		for j, img in enumerate(sample[0][0],1):
+			invTrans = Compose([ Normalize(mean = [ 0., 0., 0. ],
+                                                     std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+                                Normalize(mean = [ -0.485, -0.456, -0.406 ],
+                                                     std = [ 1., 1., 1. ]),
+                               ])
+			t = ToPILImage()
+			print(img.size())
+			im = t(invTrans(img))
+			print(img)
+			im.save(osp.join(outdir, str(i)+"_"+str(j)+".jpg"))
+	"""
+	
 	#if cnn['db_val']:
 	#	db_val = MOT_Wrapper(cnn['db_val'], MOT_Tracks)
 	#	db_val = DataLoader(db_val, batch_size=1, shuffle=True)
@@ -67,9 +85,9 @@ def my_main(_config, cnn):
 	##########################
 	# Initialize the modules #
 	##########################
+	
 	print("[*] Building CNN")
-	network = alex(pretrained=True, **cnn['cnn'])
-	print(network.output_dim)
+	network = resnet50(pretrained=True, **cnn['cnn'])
 	network.train()
 	network.cuda()
 
@@ -77,8 +95,20 @@ def my_main(_config, cnn):
 	# Begin training #
 	##################
 	print("[*] Solving ...")
-
-	solver = Solver(output_dir, tb_dir)
+	
+	if cnn['lr_scheduler']:
+		# build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
+		# from Hermans et al.
+		lr = cnn['solver']['optim_args']['lr']
+		iters_per_epoch = len(db_train)
+		# we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
+		l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
+																iters_per_epoch,  iters_per_epoch))
+	else:
+		l = None
+	solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
 	solver.train(network, db_train, db_val, cnn['max_epochs'], 100, model_args=cnn['model_args'])
+	
+	
 	
 	
