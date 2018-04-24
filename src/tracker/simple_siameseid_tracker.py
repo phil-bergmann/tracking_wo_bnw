@@ -4,11 +4,17 @@ from model.nms_wrapper import nms
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
+from torchvision.transforms import Resize, Compose, ToPILImage, ToTensor, Normalize
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from collections import deque
 import cv2
+import matplotlib.pyplot as plt
+import os
+
+pth="/usr/stud/bergmanp/sequential_tracking/output/tracker/siamese_test"
 
 class Simple_SiameseID_Tracker():
 	"""
@@ -27,11 +33,11 @@ class Simple_SiameseID_Tracker():
 		self.use_detections = use_detections
 		self.inactive_patience = 10
 		self.do_reid = False
-		self.max_features_num = 10
-		self.id_sim_threshold = 4.52
-		self.reid_sim_threshold = 0.3
+		self.max_features_num = 50
+		self.id_sim_threshold = 6.0
+		self.reid_sim_threshold = 0.0
 		# use nms with appearance score or only appearance score to kill tracks
-		self.nms_mode = "nms_person"
+		self.nms_mode = "appearance"
 		self.do_align = True
 
 		self.reset()
@@ -116,19 +122,16 @@ class Simple_SiameseID_Tracker():
 	def reid(self, blob, new_det_pos):
 		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
-			#inactive_features = self.get_inactive_features()
-
-			#dist_mat = cdist(inactive_features.cpu().numpy(), new_det_features.cpu().numpy(), 'cosine')
 			dist_mat = []
 			for t in self.inactive_tracks:
-				dist_mat.append(torch.cat([1 - t.test_features(feat.view(1,-1)) for feat in new_det_features], 1))
+				dist_mat.append(torch.cat([1 - t.test_features(feat.view(1,-1), self.reid_sim_threshold) for feat in new_det_features], 1))
 			dist_mat = torch.cat(dist_mat, 0).cpu().numpy()
 			row_ind, col_ind = linear_sum_assignment(dist_mat)
 
 			assigned = []
 			remove_inactive = []
 			for r,c in zip(row_ind, col_ind):
-				if dist_mat[r,c] <= self.reid_threshold:
+				if dist_mat[r,c] <= 0.5:
 					#print("im: {}\ncosts: {}".format(self.im_index, costs[r,c]))
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
@@ -262,6 +265,21 @@ class Simple_SiameseID_Tracker():
 						keep = keep[:,0]
 				else:
 					raise NotImplementedError("Track ending mode not understood: {}".format(self.nms_mode))
+
+				# Plot the killed tracks for debugging
+				not_keep = list(np.arange(0,len(self.tracks)))
+				tracks = []
+				for i in keep:
+					not_keep.remove(i)
+					#tracks.append(self.tracks[i])
+				for i in not_keep:
+					t = self.tracks[i]
+					feat = new_features[i]
+					scores = t.test_features_debug(feat.view(1,-1), self.id_sim_threshold).cpu().numpy()
+					ims = list(t.ims)[-10:]
+					t.add_image(blob)
+					test_im = t.ims[-1]
+					plot(ims, scores, test_im, t.id)
 				
 				if keep.nelement() > 0:
 					self.keep(keep)
@@ -315,6 +333,9 @@ class Simple_SiameseID_Tracker():
 		####################
 
 		for t in self.tracks:
+			####
+			t.add_image(blob)
+			####
 			track_ind = int(t.id)
 			if track_ind not in self.results.keys():
 				self.results[track_ind] = {}
@@ -339,6 +360,7 @@ class Track(object):
 		self.id = track_id
 		self.pos = pos
 		self.features = deque([features])
+		self.ims = deque([])
 		self.count_inactive = 0
 		self.inactive_patience = inactive_patience
 		self.max_features_num = max_features_num
@@ -355,11 +377,66 @@ class Track(object):
 		if len(self.features) > self.max_features_num:
 			self.features.popleft()
 
+	def add_image(self, blob):
+		image = blob['app_data'][0].clone()
+		res = []
+		trans = Compose([Normalize(mean = [ 0., 0., 0. ], std = [ 1/0.229, 1/0.224, 1/0.225 ]),
+						Normalize(mean = [ -0.485, -0.456, -0.406 ], std = [ 1., 1., 1. ]),
+							ToPILImage(), Resize((100,50))])
+		x0 = int(self.pos[0,0] / blob['im_info'][0][2])
+		y0 = int(self.pos[0,1] / blob['im_info'][0][2])
+		x1 = int(self.pos[0,2] / blob['im_info'][0][2])
+		y1 = int(self.pos[0,3] / blob['im_info'][0][2])
+		if x0 == x1:
+			if x0 != 0:
+				x0 -= 1
+			else:
+				x1 += 1
+		if y0 == y1:
+			if y0 != 0:
+				y0 -= 1
+			else:
+				y1 += 1
+		im = image[0,:,y0:y1,x0:x1]
+		im = trans(im)
+		self.ims.append(im)
+		if len(self.ims) > 10:
+			self.ims.popleft()
+
 	def test_features(self, test_features, similarity_threshold):
+		# feature comparison on a voting scheme
+		feat_num = len(self.features)
+		if feat_num <= 5:
+			features = self.features
+		elif feat_num <= 9:
+			features = list(self.features)[:-feat_num+5]
+		else:
+			features = list(self.features)[:-5]
+		test_features = torch.cat([test_features for _ in range(len(features))], 0)
+		features = torch.cat(features, 0)
+		dists = F.pairwise_distance(features, test_features)
+		pos = torch.le(dists, similarity_threshold).sum()
+		return torch.Tensor([pos/len(features)]).view(1,1).cuda()
+		#return torch.Tensor([100-dists.mean()]).view(1,1).cuda()
+
+	def test_features_debug(self, test_features, similarity_threshold):
 		# feature comparison on a voting scheme
 		test_features = torch.cat([test_features for _ in range(len(self.features))], 0)
 		features = torch.cat(self.features, 0)
 		dists = F.pairwise_distance(features, test_features)
-		pos = torch.le(dists, similarity_threshold).sum()
-		return torch.Tensor([pos/len(self.features)]).view(1,1).cuda()
-		#return torch.Tensor([scores.mean()]).view(1,1).cuda()
+		return dists.view(-1)
+
+def plot(images, scores, test_image, track_id):
+	im_path = os.path.join(pth, str(track_id)+".jpg")
+	fig, ax = plt.subplots(2,6,figsize=(48, 48))
+
+	for i in range(len(images)):
+		ax[i//5,i%5].imshow(np.asarray(images[i]), aspect='equal')
+		ax[i//5,i%5].set_title("Euclidean Distance: {}".format(scores[i]), size='x-large')
+	ax[1,5].imshow(np.asarray(test_image), aspect='equal')
+	ax[1,5].set_title("Test Image", size='x-large')
+	plt.axis('off')
+	plt.tight_layout()
+	plt.draw()
+	plt.savefig(im_path)
+	plt.close()

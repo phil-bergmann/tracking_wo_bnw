@@ -22,7 +22,7 @@ class MOT_Siamese(MOT_Sequence):
 	Values for P are normally 18 and K 4
 	"""
 
-	def __init__(self, seq_name, vis_threshold, P, K, max_per_person, crop_H, crop_W,
+	def __init__(self, seq_name, split, vis_threshold, P, K, max_per_person, crop_H, crop_W,
 				transform, normalize_mean=None, normalize_std=None):
 		super().__init__(seq_name, vis_threshold=vis_threshold)
 
@@ -40,6 +40,15 @@ class MOT_Siamese(MOT_Sequence):
 			raise NotImplementedError("Tranformation not understood: {}".format(transform))
 
 		self.build_samples()
+
+		if split == 'all':
+			pass
+		elif split == 'small_train':
+			self.data = self.data[0::5] + self.data[1::5] + self.data[2::5] + self.data[3::5]
+		elif split == 'small_val':
+			self.data = self.data[4::5]
+		else:
+			raise NotImplementedError("Split: {}".format(split))
 
 	def __getitem__(self, idx):
 		"""Return the ith triplet"""

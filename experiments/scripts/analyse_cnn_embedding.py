@@ -23,8 +23,8 @@ from torchvision.transforms import CenterCrop, Normalize, ToTensor, Compose, Res
 from torch.autograd import Variable
 
 ex = Experiment()
-ex.add_config('output/tracker/pretrain_cnn/res50-batch_all/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/res50-batch_all/ResNet_iter_24970.pth'
+ex.add_config('output/tracker/pretrain_cnn/res50-wt-small_train/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/res50-wt-small_train/ResNet_iter_25254.pth'
 
 @ex.automain
 def my_main(_config, cnn):
@@ -56,7 +56,7 @@ def my_main(_config, cnn):
     print("[*] Initializing Dataloader")
 
     dataloader = {'P':18, 'K':4, 'vis_threshold':0.5, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
-                    'transform': 'center'}
+                    'transform': 'center', 'split':'small_val'}
     db_train = MOT_Siamese_Wrapper('train', dataloader)
     train_data = db_train._dataloader.data
 
@@ -108,5 +108,5 @@ def my_main(_config, cnn):
     # change form BGR to RGB
     #thumb[:,:,:,:] = thumb[:,[2,1,0],:,:]
     
-    writer.add_embedding(embeddings, label_img=thumb, tag='res50-batch_all', global_step=24970, metadata=meta)
+    writer.add_embedding(embeddings, label_img=thumb, tag=cnn['name'], global_step=25254, metadata=meta)
 

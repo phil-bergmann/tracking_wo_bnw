@@ -76,7 +76,7 @@ class Simple_Ap_Tracker():
             keep = nms(nms_inp_det, self.detection_nms_thresh)
             nms_inp_det = nms_inp_det[keep]
             det_pos = nms_inp_det[:,:4]
-            det_features = self.cnn.test_rois(blob['data'][0], det_pos).data
+            det_features = self.cnn.test_rois(blob['app_data'][0], det_pos / blob['im_info'][0][2]).data
         else:
             det_pos = torch.zeros(0).cuda()
             det_features = torch.zeros(0).cuda()

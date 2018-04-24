@@ -1,19 +1,17 @@
 simple_tracker:
-  name: align_euclid_ps005
-  module_name: simple_tracker_2
-  desription: max iterations 20
+  name: debug
+  module_name: simple_tracker_3
+  desription: 
   seed: 12345
   frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/STOP180k_NEW/vgg16_faster_rcnn_iter_180000.pth'
-  reid_weights: 'output/tracker/reid_module/reid2/ReID_Module_iter_3990.pth'
-  simple_regressor_weights: 'output/tracker/simple_regressor/simple0/Simple_Regressor_iter_150000.pth'
-  cnn_weights: output/tracker/pretrain_cnn/alex15/alex_iter_4540.pth
-  interpolate: False
+  cnn_weights: output/tracker/pretrain_cnn/res50-weighted_triplet/ResNet_iter_24970.pth
+  interpolate: True
   write_images: True
 
-  mode: align
+  mode: siameseid
 
   tracker:
-    detection_person_thresh: 0.05
+    detection_person_thresh: 0.01
     regression_person_thresh: 0.01
     detection_nms_thresh: 0.3
     regression_nms_thresh: 0.5
