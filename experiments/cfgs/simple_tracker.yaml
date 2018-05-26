@@ -1,19 +1,22 @@
 simple_tracker:
-  name: debug
-  module_name: simple_tracker_3
+  name: test
+  module_name: simple_tracker_reso
   desription: 
   seed: 12345
-  frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/STOP180k_NEW/vgg16_faster_rcnn_iter_180000.pth'
-  cnn_weights: output/tracker/pretrain_cnn/res50-weighted_triplet/ResNet_iter_24970.pth
-  interpolate: True
-  write_images: True
+  network: res101
+  #frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/vgg16/mot_2017_train/STOP180k_NEW/vgg16_faster_rcnn_iter_180000.pth'
+  frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/res101/mot_2017_train/STOP180k_NEW/res101_faster_rcnn_iter_180000.pth'
+  cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
+  cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  interpolate: False
+  write_images: False
+  sequences: train
 
-  mode: siameseid
+  mode: align
 
   tracker:
-    detection_person_thresh: 0.01
-    regression_person_thresh: 0.01
+    detection_person_thresh: 0.5
+    regression_person_thresh: 0.5
     detection_nms_thresh: 0.3
-    regression_nms_thresh: 0.5
-    alive_patience: 1
-    use_detections: True
+    regression_nms_thresh: 0.6
+    public_detections: DPM_RAW

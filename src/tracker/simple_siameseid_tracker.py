@@ -1,5 +1,6 @@
 from model.bbox_transform import bbox_transform_inv, clip_boxes
 from model.nms_wrapper import nms
+from .utils import bbox_overlaps
 
 import torch
 from torch.autograd import Variable
@@ -23,21 +24,22 @@ class Simple_SiameseID_Tracker():
 	"""
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
-		regression_nms_thresh, use_detections):
+		regression_nms_thresh, public_detections):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
 		self.regression_nms_thresh = regression_nms_thresh
-		self.use_detections = use_detections
+		self.public_detections = public_detections
 		self.inactive_patience = 10
-		self.do_reid = False
-		self.max_features_num = 50
-		self.id_sim_threshold = 6.0
-		self.reid_sim_threshold = 0.0
+		self.do_reid = True
+		self.max_features_num = 10
+		self.id_sim_threshold = 2.5
+		self.reid_sim_threshold = 2.0
+		self.reid_iou_threshold = 0.2
 		# use nms with appearance score or only appearance score to kill tracks
-		self.nms_mode = "appearance"
+		self.nms_mode = "nms_person"
 		self.do_align = True
 
 		self.reset()
@@ -55,7 +57,8 @@ class Simple_SiameseID_Tracker():
 		tracks = []
 		for i in keep:
 			tracks.append(self.tracks[i])
-		self.inactive_tracks += [t for t in self.tracks if t not in tracks]
+		new_inactive = [t for t in self.tracks if t not in tracks]
+		self.inactive_tracks += new_inactive
 		self.tracks = tracks
 
 	def add(self, new_det_pos, new_det_features):
@@ -71,15 +74,15 @@ class Simple_SiameseID_Tracker():
 		pos = self.get_pos()
 
 		# regress
-		_, _, bbox_pred, rois = self.frcnn.test_rois(pos)
+		_, scores, bbox_pred, rois = self.frcnn.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		pos = boxes[:,cl*4:(cl+1)*4]
-		for t,p in zip(self.tracks, pos):
-			t.pos = p.view(1,-1)
+		#for t,p in zip(self.tracks, pos):
+		#	t.pos = p.view(1,-1)
 
 		# get scores of new regressed positions
-		_, scores, _, _ = self.frcnn.test_rois(pos)
+		#_, scores, _, _ = self.frcnn.test_rois(pos)
 		scores = scores[:,cl]
 
 		s = []
@@ -90,6 +93,7 @@ class Simple_SiameseID_Tracker():
 				self.inactive_tracks.append(t)
 			else:
 				s.append(scores[i])
+				t.pos = pos[i].view(1,-1)
 		return torch.Tensor(s[::-1]).cuda()
 
 	def get_pos(self):
@@ -122,16 +126,33 @@ class Simple_SiameseID_Tracker():
 	def reid(self, blob, new_det_pos):
 		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
+			# calculate appearance distances
 			dist_mat = []
+			pos = []
 			for t in self.inactive_tracks:
-				dist_mat.append(torch.cat([1 - t.test_features(feat.view(1,-1), self.reid_sim_threshold) for feat in new_det_features], 1))
-			dist_mat = torch.cat(dist_mat, 0).cpu().numpy()
+				dist_mat.append(torch.cat([t.test_features(feat.view(1,-1), self.reid_sim_threshold) for feat in new_det_features], 1))
+				pos.append(t.pos)
+			if len(dist_mat) > 1:
+				dist_mat = torch.cat(dist_mat, 0)
+				pos = torch.cat(pos,0)
+			else:
+				dist_mat = dist_mat[0]
+				pos = pos[0]
+
+			# calculate IoU distances
+			iou = bbox_overlaps(pos, new_det_pos)
+			iou_mask = torch.ge(iou, self.reid_iou_threshold)
+			iou_neg_mask = ~iou_mask
+			# make all impossible assignemnts to the same add big value
+			dist_mat = dist_mat * iou_mask.float() + iou_neg_mask.float()*1000
+			dist_mat = dist_mat.cpu().numpy()
+
 			row_ind, col_ind = linear_sum_assignment(dist_mat)
 
 			assigned = []
 			remove_inactive = []
 			for r,c in zip(row_ind, col_ind):
-				if dist_mat[r,c] <= 0.5:
+				if dist_mat[r,c] <= self.reid_sim_threshold:
 					#print("im: {}\ncosts: {}".format(self.im_index, costs[r,c]))
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
@@ -143,6 +164,7 @@ class Simple_SiameseID_Tracker():
 
 			for t in remove_inactive:
 				self.inactive_tracks.remove(t)
+				#print("matched in frame {}".format(self.im_index))
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
@@ -183,8 +205,8 @@ class Simple_SiameseID_Tracker():
 			warp_mode = cv2.MOTION_EUCLIDEAN
 			warp_matrix = np.eye(2, 3, dtype=np.float32)
 			#number_of_iterations = 5000
-			number_of_iterations = 20
-			termination_eps = 1e-10
+			number_of_iterations = 50
+			termination_eps = 0.001
 			criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
 			(cc, warp_matrix) = cv2.findTransformECC (im1_gray,im2_gray,warp_matrix, warp_mode, criteria)
 			warp_matrix = torch.from_numpy(warp_matrix)
@@ -198,22 +220,39 @@ class Simple_SiameseID_Tracker():
 				pos = torch.cat((p1_n, p2_n), 1).cuda()
 				t.pos = pos.view(1,-1)
 
+			if self.do_reid:
+				for t in self.inactive_tracks:
+					p = t.pos[0]
+					p1 = torch.Tensor([p[0], p[1], 1]).view(3,1)
+					p2 = torch.Tensor([p[2], p[3], 1]).view(3,1)
+					p1_n = torch.mm(warp_matrix, p1).view(1,2)
+					p2_n = torch.mm(warp_matrix, p2).view(1,2)
+					pos = torch.cat((p1_n, p2_n), 1).cuda()
+					t.pos = pos.view(1,-1)
+
 	def step(self, blob):
 
+		# only the class person used here
 		cl = 1
 
 		###########################
 		# Look for new detections #
 		###########################
-		_, scores, bbox_pred, rois = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
-		#_, _, _, _ = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
-		if self.use_detections:
-			dets = blob['dets']
+		self.frcnn.load_image(blob['data'][0], blob['im_info'][0])
+		if self.public_detections:
+			if self.public_detections == "DPM_RAW":
+				dets = blob['raw_dets']
+			elif self.public_detections == "DPM":
+				dets = blob['dets']
+			else:
+				raise NotImplementedError("[!] Public detecions not understood: {}\nChoose between: ['DPM', 'DPM_RAW', False]".format(self.public_detections))
 			if len(dets) > 0:
 				dets = torch.cat(dets, 0)			
 				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
+		else:
+			_, scores, bbox_pred, rois = self.frcnn.detect()
 
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
@@ -254,9 +293,10 @@ class Simple_SiameseID_Tracker():
 				# nms here if tracks overlap
 				if self.nms_mode == "nms_person":
 					nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1,1)),1)
+					#nms_inp_reg = torch.cat((self.get_pos(), torch.rand(person_scores.size()).add_(2).view(-1,1).cuda()),1)
 					keep = nms(nms_inp_reg, self.regression_nms_thresh)
 				elif self.nms_mode == "nms_appearance":
-					nms_inp_reg = torch.cat((self.get_pos(), appearance_scores.add(3)), 1)
+					nms_inp_reg = torch.cat((self.get_pos(), 100-appearance_scores.add(3)), 1)
 					keep = nms(nms_inp_reg, self.regression_nms_thresh)
 				elif self.nms_mode == "appearance":
 					nms_inp_reg = torch.cat((self.get_pos(), appearance_scores.add(3)), 1)
@@ -272,6 +312,7 @@ class Simple_SiameseID_Tracker():
 				for i in keep:
 					not_keep.remove(i)
 					#tracks.append(self.tracks[i])
+				"""
 				for i in not_keep:
 					t = self.tracks[i]
 					feat = new_features[i]
@@ -280,6 +321,7 @@ class Simple_SiameseID_Tracker():
 					t.add_image(blob)
 					test_im = t.ims[-1]
 					plot(ims, scores, test_im, t.id)
+				"""
 				
 				if keep.nelement() > 0:
 					self.keep(keep)
@@ -334,7 +376,7 @@ class Simple_SiameseID_Tracker():
 
 		for t in self.tracks:
 			####
-			t.add_image(blob)
+			#t.add_image(blob)
 			####
 			track_ind = int(t.id)
 			if track_ind not in self.results.keys():
@@ -403,7 +445,7 @@ class Track(object):
 		if len(self.ims) > 10:
 			self.ims.popleft()
 
-	def test_features(self, test_features, similarity_threshold):
+	def test_features_old(self, test_features, similarity_threshold, cnn):
 		# feature comparison on a voting scheme
 		feat_num = len(self.features)
 		if feat_num <= 5:
@@ -416,8 +458,38 @@ class Track(object):
 		features = torch.cat(features, 0)
 		dists = F.pairwise_distance(features, test_features)
 		pos = torch.le(dists, similarity_threshold).sum()
+		#dists = cnn.compare(Variable(features), Variable(test_features)).data
+		#pos = torch.ge(dists, similarity_threshold).sum()
 		return torch.Tensor([pos/len(features)]).view(1,1).cuda()
 		#return torch.Tensor([100-dists.mean()]).view(1,1).cuda()
+
+	def test_features_old2(self, test_features, similarity_threshold):
+		# feature comparison on a voting scheme
+		feat_num = len(self.features)
+		if feat_num <= 5:
+			features = self.features
+		elif feat_num <= 9:
+			features = list(self.features)[:-feat_num+5]
+		else:
+			features = list(self.features)[:-5]
+		features = torch.cat(features, 0)
+		#print(features.size())
+		#print(test_features.size())
+		features = features.mean(0, keepdim=True)
+		dist = F.pairwise_distance(features, test_features)
+		#print(dist)
+		return dist
+		#return torch.Tensor([100-dist]).view(1,1).cuda()
+
+	def test_features(self, test_features, similarity_threshold):
+		# feature comparison on a voting scheme
+		if len(self.features) > 1:
+			features = torch.cat(self.features, 0)
+		else:
+			features = self.features[0]
+		features = features.mean(0, keepdim=True)
+		dist = F.pairwise_distance(features, test_features)
+		return dist
 
 	def test_features_debug(self, test_features, similarity_threshold):
 		# feature comparison on a voting scheme

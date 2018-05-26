@@ -24,15 +24,13 @@ from torchvision.transforms import CenterCrop, Normalize, ToTensor, Compose, Res
 from torch.autograd import Variable
 
 ex = Experiment()
-ex.add_config('output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth'
-#thresholds = [6.0, 6.5, 7.0, 7.5, 8.0]
-thresholds = np.arange(1.5,5.1,0.3)
+ex.add_config('output/tracker/pretrain_cnn/res50-ce3-small_train/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/res50-ce3-small_train/ResNet_iter_14763.pth'
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = ["train"] + train
 #sequences = ["MOT17-09"]
 
-def calcScores(network, data, thresholds):
+def calcScores(network, data):
     # calculate labels
     ind = 0
     meta = []
@@ -54,36 +52,42 @@ def calcScores(network, data, thresholds):
             tens.append(im)
         images.append(torch.stack(tens, 0))
 
-    embeddings = torch.cat([network(Variable(im.cuda(), volatile=True)).data for im in images],0).cpu()
+    embeddings = torch.cat([network(Variable(im.cuda(), volatile=True)) for im in images],0).detach()
 
     pos_mask = _get_anchor_positive_triplet_mask(labels)
     neg_mask = _get_anchor_negative_triplet_mask(labels)
 
     # compute pariwise square distance matrix
     n = embeddings.size(0)
-    m = embeddings.size(0)
-    d = embeddings.size(1)
+    #m = embeddings.size(0)
+    #d = embeddings.size(1)
 
-    x = embeddings.unsqueeze(1).expand(n, m, d)
-    y = embeddings.unsqueeze(0).expand(n, m, d)
+    #x = embeddings.unsqueeze(1).expand(n, m, d)
+    #y = embeddings.unsqueeze(0).expand(n, m, d)
 
-    dist = torch.sqrt(torch.pow(x - y, 2).sum(2))
+    #dist = torch.sqrt(torch.pow(x - y, 2).sum(2))
+    dist = []
+    for e in embeddings:
+        ee = torch.stack([e.detach() for _ in range(n)], 0)
+        dist.append(network.compare(embeddings, ee).data)
+    dist = torch.cat(dist, 1).cpu()
+
+    #print(dist)
 
     pos_distances = dist * pos_mask.float()
     neg_distances = dist * neg_mask.float()
     num_pos = pos_mask.sum()
     num_neg = neg_mask.sum()
     # calculate the right classifications
-    for t in thresholds:
-        # every 0 entry is also le t so filter with mask here
-        pos_right = torch.le(pos_distances, t) * pos_mask
-        pos_right = pos_right.sum()
-        neg_right = torch.gt(neg_distances, t).sum()
+    # every 0 entry is also le t so filter with mask here
+    pos_right = torch.ge(pos_distances, 0.5) * pos_mask
+    pos_right = pos_right.sum()
+    neg_right = torch.lt(neg_distances, 0.5) * neg_mask
+    neg_right = neg_right.sum()
         
-        print("[*] Threshold set to: {}".format(t))
-        print("Positive right classifications: {:.2f}% {}/{}".format(pos_right/num_pos*100, pos_right, num_pos))
-        print("Negative right classifications: {:.2f}% {}/{}".format(neg_right/num_neg*100, neg_right, num_neg))
-        print("All right classifications: {:.2f}% {}/{}".format((pos_right+neg_right)/(num_pos+num_neg)*100,
+    print("Positive right classifications: {:.2f}% {}/{}".format(pos_right/num_pos*100, pos_right, num_pos))
+    print("Negative right classifications: {:.2f}% {}/{}".format(neg_right/num_neg*100, neg_right, num_neg))
+    print("All right classifications: {:.2f}% {}/{}".format((pos_right+neg_right)/(num_pos+num_neg)*100,
                                                                 pos_right+neg_right, num_pos+num_neg))
 
 @ex.automain
@@ -113,9 +117,9 @@ def my_main(_config, cnn):
             db_train = MOT_Siamese_Wrapper('train', dataloader)
             data = db_train._dataloader.data
             print("[*] Evaluating whole train set...")
-            calcScores(network, data, thresholds)
+            calcScores(network, data)
         else:
             db_train = MOT_Siamese(s, **dataloader)
             data = db_train.data
             print("[*] Evaluating {}...".format(s))
-            calcScores(network, data, thresholds)
+            calcScores(network, data)

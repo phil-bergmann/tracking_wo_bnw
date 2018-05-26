@@ -10,11 +10,11 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
 
 from model.config import cfg as frcnn_cfg
 
 from tracker.config import get_output_dir, get_tb_dir
-from tracker.alex import alex
 from tracker.resnet_ce import resnet50
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 from tracker.mot_siamese import MOT_Siamese
@@ -24,15 +24,15 @@ from torchvision.transforms import CenterCrop, Normalize, ToTensor, Compose, Res
 from torch.autograd import Variable
 
 ex = Experiment()
-ex.add_config('output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth'
-#thresholds = [6.0, 6.5, 7.0, 7.5, 8.0]
-thresholds = np.arange(1.5,5.1,0.3)
-train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-sequences = ["train"] + train
-#sequences = ["MOT17-09"]
+ex.add_config('output/tracker/pretrain_cnn/res50-ce3-small_train/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/res50-ce3-small_train/ResNet_iter_14763.pth'
+pth = 'output/tracker/cnn_demo/'
 
-def calcScores(network, data, thresholds):
+train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+sequences = train
+#sequences = train[3:4]
+
+def plotImages(network, data):
     # calculate labels
     ind = 0
     meta = []
@@ -43,15 +43,17 @@ def calcScores(network, data, thresholds):
 
     # images have to be center cropped to right size from (288, 144) to (256, 128)
     images = []
+    plot_images = []
     transformation = Compose([CenterCrop((256, 128)), ToTensor(),
                         Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
     for d in data:
         tens = []
         for im in d:
-            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-            im = Image.fromarray(im)
-            im = transformation(im)
-            tens.append(im)
+            plot_images.append(im)
+            imm = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+            imm = Image.fromarray(imm)
+            imm = transformation(imm)
+            tens.append(imm)
         images.append(torch.stack(tens, 0))
 
     embeddings = torch.cat([network(Variable(im.cuda(), volatile=True)).data for im in images],0).cpu()
@@ -71,20 +73,70 @@ def calcScores(network, data, thresholds):
 
     pos_distances = dist * pos_mask.float()
     neg_distances = dist * neg_mask.float()
-    num_pos = pos_mask.sum()
-    num_neg = neg_mask.sum()
-    # calculate the right classifications
-    for t in thresholds:
-        # every 0 entry is also le t so filter with mask here
-        pos_right = torch.le(pos_distances, t) * pos_mask
-        pos_right = pos_right.sum()
-        neg_right = torch.gt(neg_distances, t).sum()
-        
-        print("[*] Threshold set to: {}".format(t))
-        print("Positive right classifications: {:.2f}% {}/{}".format(pos_right/num_pos*100, pos_right, num_pos))
-        print("Negative right classifications: {:.2f}% {}/{}".format(neg_right/num_neg*100, neg_right, num_neg))
-        print("All right classifications: {:.2f}% {}/{}".format((pos_right+neg_right)/(num_pos+num_neg)*100,
-                                                                pos_right+neg_right, num_pos+num_neg))
+
+    
+    # select a anchor
+    anchors = [i for i in range(dist.size(0))]
+    anchors = np.random.choice([i for i in anchors], 30, replace=False)
+
+    """
+    for a in anchors:
+        d = dist[a]
+
+        pos_ind = pos_mask[a].nonzero()[:,0]
+        pos_ind = np.random.choice([i for i in pos_ind], 3, replace=False)
+        neg_ind = neg_mask[a].nonzero()[:,0]
+        neg_ind = np.random.choice([i for i in neg_ind], 4, replace=False)
+
+        im_path = os.path.join(pth, str(a)+".jpg")
+        fig, ax = plt.subplots(2,4,figsize=(48, 48))
+
+        for i in range(8):
+            if i == 0:
+                im = plot_images[a]
+                sc = 0
+            elif i < 4:
+                im = plot_images[pos_ind[i-1]]
+                sc = d[pos_ind[i-1]]
+            else:
+                im = plot_images[neg_ind[i-4]]
+                sc = d[neg_ind[i-4]]
+            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+            ax[i//4,i%4].imshow(np.asarray(im), aspect='equal')
+            ax[i//4,i%4].set_title("Euclidean Distance: {}".format(sc), size='x-large')
+        plt.axis('off')
+        plt.tight_layout()
+        plt.draw()
+        plt.savefig(im_path)
+        plt.close()
+    """
+
+    # TODO plot K nearest targets
+    _, indices = torch.sort(dist, dim=1)
+    for a in anchors:
+        ind = indices[a]
+        d = dist[a]
+
+        im_path = os.path.join(pth, str(a)+".jpg")
+        fig, ax = plt.subplots(2,5,figsize=(48, 48))
+
+        for i in range(10):
+            if i == 0:
+                im = plot_images[a]
+                sc = 0
+            else:
+                im = plot_images[ind[i]]
+                sc = d[ind[i]]
+            im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+            ax[i//5,i%5].imshow(np.asarray(im), aspect='equal')
+            ax[i//5,i%5].set_title("Euclidean Distance: {}".format(sc), size='x-large')
+
+        plt.axis('off')
+        plt.tight_layout()
+        plt.draw()
+        plt.savefig(im_path)
+        plt.close()
+
 
 @ex.automain
 def my_main(_config, cnn):
@@ -99,6 +151,9 @@ def my_main(_config, cnn):
     network.load_state_dict(torch.load(weights))
     network.eval()
     network.cuda()
+
+    if not osp.exists(pth):
+        os.makedirs(pth)
     
 
     #########################
@@ -106,16 +161,16 @@ def my_main(_config, cnn):
     #########################
     print("[*] Initializing Dataloader")
 
-    dataloader = {'P':18, 'K':4, 'vis_threshold':0.5, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
+    dataloader = {'P':18, 'K':4, 'vis_threshold':0.1, 'max_per_person':8, 'crop_H':256, 'crop_W':128,
                     'transform': 'center', 'split':'small_val'}
     for s in sequences:
         if s == "train":
             db_train = MOT_Siamese_Wrapper('train', dataloader)
             data = db_train._dataloader.data
             print("[*] Evaluating whole train set...")
-            calcScores(network, data, thresholds)
+            plotImages(network, data)
         else:
             db_train = MOT_Siamese(s, **dataloader)
             data = db_train.data
             print("[*] Evaluating {}...".format(s))
-            calcScores(network, data, thresholds)
+            plotImages(network, data)

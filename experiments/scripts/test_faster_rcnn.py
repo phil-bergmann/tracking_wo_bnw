@@ -19,8 +19,10 @@ frcnn_test = ex.capture(frcnn_test)
 @ex.config
 def default():
 	score_thresh = 0.05
+	nms_thresh = 0.3
 	clip_bbox = False
 	max_per_image = 100
+	output_name = None
 
 	# Added so that sacred doesn't throw a key error
 	description = ""
@@ -48,10 +50,10 @@ def mot_train():
 
 
 @ex.automain
-def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_bbox, _config):
+def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_bbox, output_name, nms_thresh, _config):
 
 	# Clip bboxes after bbox reg to image boundary
-	cfg_from_list(['TEST.BBOX_CLIP', str(clip_bbox)])
+	cfg_from_list(['TEST.BBOX_CLIP', str(clip_bbox), 'TEST.NMS', str(nms_thresh)])
 
 	# Already set everything here, so the path can be determined correctly
 	if cfg_file:
@@ -62,7 +64,10 @@ def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_b
 	model_dir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', 'frcnn', cfg.EXP_DIR,
 		imdb_name, tag))
 	model = osp.join(model_dir, cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(max_iters) + '.pth')
-	output_dir = osp.join(model_dir, imdbtest_name)
+	if output_name:
+		output_dir = osp.join(model_dir, output_name)
+	else:
+		output_dir = osp.join(model_dir, imdbtest_name)
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
 

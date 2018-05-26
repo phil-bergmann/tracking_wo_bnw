@@ -131,7 +131,7 @@ class Solver(object):
 				if log_nth and i % log_nth == 0:
 					next_now = time.time()
 					print('[Iteration %d/%d] %.3f s/it' % (i + epoch * iter_per_epoch,
-																  iter_per_epoch * num_epochs, (next_now-now)/100))
+																  iter_per_epoch * num_epochs, (next_now-now)/log_nth))
 					now = next_now
 
 					for k,v in self._losses.items():

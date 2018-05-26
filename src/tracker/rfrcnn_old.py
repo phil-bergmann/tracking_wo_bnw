@@ -1,6 +1,6 @@
 # Simple FRCNN for testing the simple tracker
 
-from nets.vgg16 import vgg16
+from nets.resnet_v1 import resnetv1
 from model.config import cfg as frcnn_cfg
 
 import torch
@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 
 
-class FRCNN(vgg16):
+class FRCNN(resnetv1):
 	
 	
 	def _predict(self, rois, image_to_head):

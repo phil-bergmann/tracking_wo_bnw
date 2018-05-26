@@ -11,7 +11,8 @@ import os.path as osp
 import yaml
 import time
 
-from tracker.sfrcnn import FRCNN
+from tracker.rfrcnn import FRCNN as rFRCNN
+from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
@@ -20,7 +21,7 @@ from tracker.utils import interpolate
 from tracker.simple_ap_tracker import Simple_Ap_Tracker
 from tracker.simple_siameseid_tracker import Simple_SiameseID_Tracker
 from tracker.simple_align_tracker import Simple_Align_Tracker
-from tracker.resnet import resnet50
+from tracker.resnet_ce import resnet50
 
 import torch
 from torch.autograd import Variable
@@ -30,7 +31,9 @@ import numpy as np
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/simple_tracker.yaml')
-ex.add_config('output/tracker/pretrain_cnn/res50-weighted_triplet/sacred_config.yaml')
+
+# hacky workaround to load the corresponding cnn config and not having to hardcode it here
+ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
 
 Simple_Tracker = ex.capture(Simple_Tracker, prefix='simple_tracker.tracker')
 Simple_Ap_Tracker = ex.capture(Simple_Ap_Tracker, prefix='simple_tracker.tracker')
@@ -40,7 +43,7 @@ Simple_Align_Tracker = ex.capture(Simple_Align_Tracker, prefix='simple_tracker.t
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-sequences = ["MOT17-09"]
+#sequences = ["MOT17-09"]
 #sequences = ["MOT17-12", "MOT17-14"]
 #sequences = train
     
@@ -63,13 +66,26 @@ def my_main(simple_tracker, cnn, _config):
     with open(sacred_config, 'w') as outfile:
         yaml.dump(_config, outfile, default_flow_style=False)
 
+    seq = []
+    if "train" in simple_tracker['sequences']:
+        seq = seq + train
+    if "test" in simple_tracker['sequences']:
+        seq = seq + test
+    #seq = ["MOT17-02"]
+
     ##########################
     # Initialize the modules #
     ##########################
     
     print("[*] Building FRCNN")
 
-    frcnn = FRCNN()
+    if simple_tracker['network'] == 'vgg16':
+        frcnn = vFRCNN()
+    elif simple_tracker['network'] == 'res101':
+        frcnn = rFRCNN(num_layers=101)
+    else:
+        raise NotImplementedError("Network not understood: {}".format(simple_tracker['network']))
+
     frcnn.create_architecture(2, tag='default',
         anchor_scales=frcnn_cfg.ANCHOR_SCALES,
         anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
@@ -102,7 +118,7 @@ def my_main(simple_tracker, cnn, _config):
 
     time_ges = 0
 
-    for s in sequences:
+    for s in seq:
         tracker.reset()
 
         now = time.time()
@@ -113,6 +129,8 @@ def my_main(simple_tracker, cnn, _config):
         for sample in dl:
             tracker.step(sample)
         results = tracker.get_results()
+
+        #tracker.write_debug(osp.join(output_dir, "debug_{}.txt".format(s)))
 
         time_ges += time.time() - now
 

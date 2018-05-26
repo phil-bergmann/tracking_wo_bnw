@@ -1,17 +1,18 @@
 cnn:
-  name: res50-ba-small_train
+  name: res50-ce4-all
   module_name: pretrain_cnn
-  desription: train on small train and evaluate later on validation set to check performance
+  desription: all
   seed: 12345
   max_epochs: 69
   db_train: train
-  db_val: None
+  db_val: False
 
   lr_scheduler: True
   
   model_args:
-    loss: batch_all
-    margin: 1.0
+    loss: cross_entropy
+    margin: 0.2
+    prec_at_k: 3
 
   solver:
     optim: Adam
@@ -20,8 +21,8 @@ cnn:
       weight_decay: 0.0000
 
   dataloader:
-    split: small_train
-    vis_threshold: 0.5
+    split: all
+    vis_threshold: 0.3
     P: 18
     K: 4
     max_per_person: 1000

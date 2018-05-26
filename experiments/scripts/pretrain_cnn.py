@@ -14,7 +14,7 @@ from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 from tracker.alex import alex
-from tracker.resnet import resnet50
+from tracker.resnet_ce import resnet50
 
 ex = Experiment()
 ex.add_config('experiments/cfgs/pretrain_cnn.yaml')
@@ -68,12 +68,14 @@ def my_main(_config, cnn):
 			im.save(osp.join(outdir, str(i)+"_"+str(j)+".jpg"))
 	"""
 	
-	#if cnn['db_val']:
-	#	db_val = MOT_Wrapper(cnn['db_val'], MOT_Tracks)
-	#	db_val = DataLoader(db_val, batch_size=1, shuffle=True)
-	#else:
-	#	db_val = None
-	db_val = None
+
+	if cnn['db_val']:
+		dataloader['split'] = "small_val"
+		db_val = MOT_Siamese_Wrapper(cnn['db_val'], dataloader)
+		db_val = DataLoader(db_val, batch_size=1, shuffle=True)
+	else:
+		db_val = None
+	#db_val = None
 
 	#for i,d in enumerate(db_train,1):
 	#	if i == 1:

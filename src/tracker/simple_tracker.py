@@ -8,14 +8,13 @@ import numpy as np
 class Simple_Tracker():
 
 	def __init__(self, frcnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
-		regression_nms_thresh, alive_patience, use_detections):
+		regression_nms_thresh, public_detections):
 		self.frcnn = frcnn
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
 		self.regression_nms_thresh = regression_nms_thresh
-		self.alive_patience = alive_patience
-		self.use_detections = use_detections
+		self.public_detections = public_detections
 
 		self.reset()
 
@@ -23,7 +22,7 @@ class Simple_Tracker():
 		self.ind2track = torch.zeros(0).cuda()
 		self.pos = torch.zeros(0).cuda()
 		#self.features = torch.zeros(0).cuda()
-		self.kill_counter = torch.zeros(0).cuda()
+		#self.kill_counter = torch.zeros(0).cuda()
 
 		if hard:
 			self.track_num = 0
@@ -34,7 +33,7 @@ class Simple_Tracker():
 		self.pos = self.pos[keep]
 		#self.features = self.features[keep]
 		self.ind2track = self.ind2track[keep]
-		self.kill_counter = self.kill_counter[keep]
+		#self.kill_counter = self.kill_counter[keep]
 
 	def step(self, blob):
 
@@ -43,15 +42,19 @@ class Simple_Tracker():
 		###########################
 		# Look for new detections #
 		###########################
-		_, scores, bbox_pred, rois = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
-		#_, _, _, _ = self.frcnn.test_image(blob['data'][0], blob['im_info'][0])
-		if self.use_detections:
+		self.frcnn.load_image(blob['data'][0], blob['im_info'][0])
+		if self.public_detections:
 			dets = blob['dets']
 			if len(dets) > 0:
 				dets = torch.cat(dets, 0)			
 				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
+				#boxes = bbox_transform_inv(rois, bbox_pred)
+				#boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+				#_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
+		else:
+			_, scores, bbox_pred, rois = self.frcnn.detect()
 
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
@@ -78,20 +81,21 @@ class Simple_Tracker():
 		nms_inp_reg = self.pos.new(0)
 		if self.pos.nelement() > 0:
 			# regress
-			_, _, bbox_pred, rois = self.frcnn.test_rois(self.pos)
+			_, scores, bbox_pred, rois = self.frcnn.test_rois(self.pos)
 			boxes = bbox_transform_inv(rois, bbox_pred)
 			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 			self.pos = boxes[:,cl*4:(cl+1)*4]
 
 			# get scores of new regressed positions
-			_, scores, _, _ = self.frcnn.test_rois(self.pos)
+			#_, scores, _, _ = self.frcnn.test_rois(self.pos)
 			scores = scores[:,cl]
 
 			# check if still is a valid person
-			dead = torch.le(scores, self.regression_person_thresh)
-			self.kill_counter[dead] += 1
-			self.kill_counter[~dead] = 0
-			keep = torch.lt(self.kill_counter, self.alive_patience).nonzero()
+			#dead = torch.le(scores, self.regression_person_thresh)
+			#self.kill_counter[dead] += 1
+			#self.kill_counter[~dead] = 0
+			#keep = torch.lt(self.kill_counter, self.alive_patience).nonzero()
+			keep = torch.gt(scores, self.regression_person_thresh).nonzero()
 			if keep.nelement() > 0:
 				keep = keep[:,0]
 				self.keep(keep)
@@ -100,6 +104,7 @@ class Simple_Tracker():
 				# create nms input
 				#nms_inp_reg = torch.cat((self.pos, self.pos.new(self.pos.size(0),1).fill_(2)),1)
 				nms_inp_reg = torch.cat((self.pos, scores.add_(2).view(-1,1)),1)
+				#nms_inp_reg = torch.cat((self.pos, torch.rand(scores.size()).add_(2).view(-1,1).cuda()),1)
 
 				# nms here if tracks overlap
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
@@ -144,7 +149,7 @@ class Simple_Tracker():
 
 			self.track_num += num_new
 
-			self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
+			#self.kill_counter = torch.cat((self.kill_counter, torch.zeros(num_new).cuda()), 0)
 
 		####################
 		# Generate Results #
