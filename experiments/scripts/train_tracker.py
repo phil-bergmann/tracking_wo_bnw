@@ -14,7 +14,7 @@ import subprocess
 from model.config import cfg as frcnn_cfg
 
 from tracker.config import get_output_dir, get_tb_dir
-from tracker.resnet_ce import resnet50
+from tracker.resnet import resnet50
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 from tracker.mot_siamese import MOT_Siamese
 from tracker.triplet_loss import _get_anchor_positive_triplet_mask, _get_anchor_negative_triplet_mask
@@ -26,6 +26,7 @@ ex = Experiment()
 GPU = 1
 calc = True
 offset = 8 + 3*GPU
+mb_thresh = 500
 
 @ex.automain
 def my_main(_config):
@@ -57,19 +58,20 @@ def my_main(_config):
 
     captured = False
 
-    data = Variable(torch.rand(1,3,256,128), volatile=True).cuda()
+    data = Variable(torch.rand(50,3,256,128), volatile=True).cuda()
 
     while True:
         if not captured:
             x = subprocess.check_output(['nvidia-smi'])
             mb = x.decode('ascii').split("\n")[offset].split("|")[2].strip(" ").split("MiB")[0]
             mb = int(mb)
-            if mb < 3000:
+            if mb < mb_thresh:
                 network.cuda()
                 captured = True
                 print("[*] Captured!")
             time.sleep(5)
         elif calc:
             network(data)
+            time.sleep(0.3)
         else:
             time.sleep(5)

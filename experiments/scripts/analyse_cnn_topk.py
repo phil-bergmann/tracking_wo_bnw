@@ -29,12 +29,11 @@ ex = Experiment()
 ex.add_config('output/tracker/pretrain_cnn/res50-bh3-small_train/sacred_config.yaml')
 weights = 'output/tracker/pretrain_cnn/res50-bh3-small_train/ResNet_iter_25137.pth'
 #thresholds = [6.0, 6.5, 7.0, 7.5, 8.0]
-thresholds = np.arange(2.3,3.0,0.1)
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 sequences = ["train"]
 #sequences = ["MOT17-09"]
 
-def calcScores(network, data, thresholds):
+def calcScores(network, data):
     # calculate labels
     ind = 0
     meta = []
@@ -71,6 +70,19 @@ def calcScores(network, data, thresholds):
 
     dist = torch.sqrt(torch.pow(x - y, 2).sum(2))
 
+    dist_diag = dist + torch.eye(dist.size(0)) * 10000
+
+    pos = 0
+    ges = dist_diag.size(0)
+    pos_float_mask = pos_mask.float()
+    for i in range(dist_diag.size(0)):
+        value, index = dist_diag[i].min(0)
+        pos += pos_float_mask[i,index[0]]
+    print("Result top 1 acc: {}".format(pos/ges))
+    print(pos)
+    print(ges)
+
+    """
     pos_distances = dist * pos_mask.float()
     neg_distances = dist * neg_mask.float()
     num_pos = pos_mask.sum()
@@ -87,6 +99,7 @@ def calcScores(network, data, thresholds):
         print("Negative right classifications: {:.2f}% {}/{}".format(neg_right/num_neg*100, neg_right, num_neg))
         print("All right classifications: {:.2f}% {}/{}".format((pos_right+neg_right)/(num_pos+num_neg)*100,
                                                                 pos_right+neg_right, num_pos+num_neg))
+    """
 
 @ex.automain
 def my_main(_config, cnn):
@@ -108,16 +121,16 @@ def my_main(_config, cnn):
     #########################
     print("[*] Initializing Dataloader")
 
-    dataloader = {'P':18, 'K':4, 'vis_threshold':0.5, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
+    dataloader = {'P':18, 'K':4, 'vis_threshold':0.3, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
                     'transform': 'center', 'split':'small_val'}
     for s in sequences:
         if s == "train":
             db_train = MOT_Siamese_Wrapper('train', dataloader)
             data = db_train._dataloader.data
             print("[*] Evaluating whole train set...")
-            calcScores(network, data, thresholds)
+            calcScores(network, data)
         else:
             db_train = MOT_Siamese(s, **dataloader)
             data = db_train.data
             print("[*] Evaluating {}...".format(s))
-            calcScores(network, data, thresholds)
+            calcScores(network, data)

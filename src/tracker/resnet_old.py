@@ -41,8 +41,6 @@ class ResNet(models.ResNet):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-        self.fc_compare = nn.Linear(output_dim, 1)
-
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
@@ -70,13 +68,6 @@ class ResNet(models.ResNet):
         
         return self.forward(x)
 
-    def compare(self, e0, e1, train=False):
-        out = torch.abs(e0 - e1)
-        out = self.fc_compare(out)
-        if not train:
-            out = torch.sigmoid(out)
-        return out
-
     def build_crops(self, image, rois):
         res = []
         trans = Compose([ToPILImage(), Resize((256,128)), ToTensor()])
@@ -102,7 +93,7 @@ class ResNet(models.ResNet):
         res = res.cuda()
         return res
 
-    def sum_losses(self, batch, loss, margin, prec_at_k):
+    def sum_losses(self, batch, loss, margin):
         """For Pretraining
 
         Function for preatrainind this CNN with the triplet loss. Takes a sample of N=PK images, P different
@@ -120,32 +111,9 @@ class ResNet(models.ResNet):
         labels = labels.cuda()
 
         embeddings = self.forward(inp)
-        
-        if loss == "cross_entropy":
-            m = _get_triplet_mask(labels).nonzero()
-            e0 = []
-            e1 = []
-            e2 = []
-            for p in m:
-                e0.append(embeddings[p[0]])
-                e1.append(embeddings[p[1]])
-                e2.append(embeddings[p[2]])
-            e0 = torch.stack(e0,0)
-            e1 = torch.stack(e1,0)
-            e2 = torch.stack(e2,0)
 
-            out_pos = self.compare(e0, e1, train=True)
-            out_neg = self.compare(e0, e2, train=True)
 
-            tar_pos = Variable(torch.ones(out_pos.size(0)).view(-1,1).cuda())
-            tar_neg = Variable(torch.zeros(out_pos.size(0)).view(-1,1).cuda())
-
-            loss_pos = F.binary_cross_entropy_with_logits(out_pos, tar_pos)
-            loss_neg = F.binary_cross_entropy_with_logits(out_neg, tar_neg)
-
-            total_loss = (loss_pos + loss_neg)/2
-
-        elif loss == 'batch_all':
+        if loss == 'batch_all':
             # works, batch all strategy
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
@@ -158,7 +126,7 @@ class ResNet(models.ResNet):
             e0 = torch.stack(e0,0)
             e1 = torch.stack(e1,0)
             e2 = torch.stack(e2,0)
-            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
+            triplet_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
         elif loss == 'batch_hard':
             # compute pariwise square distance matrix, not stable with sqr as 0 can happen
             n = embeddings.size(0)
@@ -195,7 +163,7 @@ class ResNet(models.ResNet):
             e0 = torch.stack(e0,0)
             e1 = torch.stack(e1,0)
             e2 = torch.stack(e2,0)
-            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
+            triplet_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
 
         elif loss == 'weighted_triplet':
             # compute pairwise distance matrix
@@ -229,45 +197,12 @@ class ResNet(models.ResNet):
             neg_weight_dist = neg_dist * neg_weights
 
             triplet_loss = torch.clamp(margin + pos_weight_dist.sum(1, keepdim=True) - neg_weight_dist.sum(1, keepdim=True), min=0)
-            total_loss = triplet_loss.mean()
+            triplet_loss = triplet_loss.mean()
         else:
             raise NotImplementedError("Loss: {}".format(loss))
 
         losses = {}
-
-        if prec_at_k:
-            # compute pariwise square distance matrix, not stable with sqr as 0 can happen
-            n = embeddings.size(0)
-            m = embeddings.size(0)
-            d = embeddings.size(1)
-
-            x = embeddings.data.unsqueeze(1).expand(n, m, d)
-            y = embeddings.data.unsqueeze(0).expand(n, m, d)
-
-            dist = torch.pow(x - y, 2).sum(2)
-            mask_anchor_positive = _get_anchor_positive_triplet_mask(labels)
-            _, indices = torch.sort(dist, dim=1)
-            num_hit = 0
-            num_ges = 0
-            for i in range(dist.size(0)):
-                d = mask_anchor_positive[i].nonzero().view(-1,1)
-                ind = indices[i][:prec_at_k+1]
-
-                same = d==ind
-                num_hit += same.sum()
-                num_ges += prec_at_k
-            k_loss = torch.Tensor(1)
-            k_loss[0] = num_hit / num_ges
-            losses['prec_at_k'] = Variable(k_loss.cuda())
-
-            #mask_anchor_negative = _get_anchor_negative_triplet_mask(labels)
-            #pos_dists = dist * Variable(mask_anchor_positive.float())
-            #neg_dists = dist * Variable(mask_anchor_negative.float())
-            #losses['mean_positive_dist'] = pos_dists.mean()
-            #losses['mean_negative_dist'] = neg_dists.mean()
-
-
-        losses['total_loss'] = total_loss
+        losses['total_loss'] = triplet_loss
 
         return losses
 

@@ -15,7 +15,7 @@ from PIL import Image
 from model.config import cfg as frcnn_cfg
 
 from tracker.config import get_output_dir, get_tb_dir
-from tracker.alex import alex
+#from tracker.alex import alex
 from tracker.resnet import resnet50
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 
@@ -23,9 +23,10 @@ from torchvision.transforms import CenterCrop, Normalize, ToTensor, Compose, Res
 from torch.autograd import Variable
 
 ex = Experiment()
-ex.add_config('output/tracker/pretrain_cnn/res50-wt-small_train/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/res50-wt-small_train/ResNet_iter_25254.pth'
-
+ex.add_config('output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth'
+#ex.add_config('output/tracker/pretrain_cnn/res50-bh3-small_train/sacred_config.yaml')
+#weights = 'output/tracker/pretrain_cnn/res50-bh3-small_train/ResNet_iter_25137.pth'
 @ex.automain
 def my_main(_config, cnn):
     print(_config)
@@ -56,7 +57,7 @@ def my_main(_config, cnn):
     print("[*] Initializing Dataloader")
 
     dataloader = {'P':18, 'K':4, 'vis_threshold':0.5, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
-                    'transform': 'center', 'split':'small_val'}
+                    'transform': 'center', 'split':'all'}
     db_train = MOT_Siamese_Wrapper('train', dataloader)
     train_data = db_train._dataloader.data
 
@@ -95,7 +96,7 @@ def my_main(_config, cnn):
     #numpy_images = np.concatenate([d[:, 8:136, 16:272, :] for d in train_data],0)
     res = Compose([Normalize(mean = [ 0., 0., 0. ], std = [ 1/0.229, 1/0.224, 1/0.225 ]),
                     Normalize(mean = [ -0.485, -0.456, -0.406 ], std = [ 1., 1., 1. ]),
-                    ToPILImage(), Resize((32,16)), ToTensor()])
+                    ToPILImage(), Resize((64,32)), ToTensor()])
     thumb = []
     for im in torch.cat(images, 0):
         thumb.append(res(im))
@@ -108,5 +109,5 @@ def my_main(_config, cnn):
     # change form BGR to RGB
     #thumb[:,:,:,:] = thumb[:,[2,1,0],:,:]
     
-    writer.add_embedding(embeddings, label_img=thumb, tag=cnn['name'], global_step=25254, metadata=meta)
+    writer.add_embedding(embeddings, label_img=thumb, tag=cnn['name'], global_step=26000, metadata=meta)
 
