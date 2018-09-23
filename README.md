@@ -34,3 +34,8 @@ tensorboardX
 sacred
 pyyaml
 tensorboard+tensorflow
+
+
+Normalize not whole image but crops for person reid!
+wrong: do not de normalize crops directly to print, they change the image.
+Copy crops and then denormalize for printing!

@@ -3,7 +3,7 @@ import numpy as np
 
 import torch
 from torch.autograd import Variable
-
+from torch.optim.lr_scheduler import LambdaLR
 
 class Solver(object):
     default_adam_args = {"lr": 1e-4,
@@ -12,12 +12,13 @@ class Solver(object):
                          "weight_decay": 0.0}
 
     def __init__(self, optim=torch.optim.Adam, optim_args={},
-                 loss_func=torch.nn.CrossEntropyLoss):
+                 loss_func=torch.nn.CrossEntropyLoss, lr_scheduler_lambda=None):
         optim_args_merged = self.default_adam_args.copy()
         optim_args_merged.update(optim_args)
         self.optim_args = optim_args_merged
         self.optim = optim
         self.loss_func = loss_func()
+        self.lr_scheduler_lambda = lr_scheduler_lambda
 
         self._reset_histories()
 
@@ -42,6 +43,10 @@ class Solver(object):
         - log_nth: log training accuracy and loss every nth iteration
         """
         optim = self.optim(model.parameters(), **self.optim_args)
+        if self.lr_scheduler_lambda:
+            scheduler = LambdaLR(optim, lr_lambda=self.lr_scheduler_lambda)
+        else:
+            scheduler = None
         self._reset_histories()
         iter_per_epoch = len(train_loader)
 
@@ -68,6 +73,8 @@ class Solver(object):
 
         for epoch in range(num_epochs):
             # TRAINING
+            if scheduler:
+                scheduler.step()
 
             for i, batch in enumerate(train_loader, 1):
                 inputs, labels = Variable(batch[0]), Variable(batch[1])

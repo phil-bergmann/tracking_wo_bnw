@@ -21,7 +21,7 @@ from tracker.utils import interpolate
 from tracker.simple_ap_tracker import Simple_Ap_Tracker
 from tracker.simple_siameseid_tracker import Simple_SiameseID_Tracker
 from tracker.simple_align_tracker import Simple_Align_Tracker
-from tracker.resnet_ce import resnet50
+from tracker.resnet import resnet50
 
 import torch
 from torch.autograd import Variable
