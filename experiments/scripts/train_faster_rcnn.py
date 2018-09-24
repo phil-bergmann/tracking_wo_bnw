@@ -30,11 +30,6 @@ def default():
 def small_mot():
 	imdb_name = "mot_2017_small_train"
 	imdbval_name = "mot_2017_small_val"
-	# around same number of epochs as voc 07 trainval (70000/5000=14)
-	# 2658*14 = 37212
-	# step size at max_iters/1.4
-	#max_iters = 38000
-	#set_cfgs = ["TRAIN.STEPSIZE", "[27000]"]
 	max_iters = 180000
 	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
@@ -42,10 +37,6 @@ def small_mot():
 def mot():
 	imdb_name = "mot_2017_train"
 	imdbval_name = "mot_2017_small_val"
-	# around same number of epochs as voc 07 trainval (70000/5000=14)
-	# 5316*14 = 74424
-	#max_iters = 110000
-	#set_cfgs = ["TRAIN.STEPSIZE", "[80000]"]
 	max_iters = 180000
 	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
