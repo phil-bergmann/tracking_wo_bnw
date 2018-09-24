@@ -13,15 +13,12 @@ from torch.utils.data import DataLoader
 from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
-from tracker.alex import alex
-from tracker.resnet_ce import resnet50
+from tracker.resnet import resnet50
 
 ex = Experiment()
 ex.add_config('experiments/cfgs/pretrain_cnn.yaml')
 
-#MOT_Siamese_Wrapper = ex.capture(MOT_Siamese_Wrapper, prefix='cnn')
 Solver = ex.capture(Solver, prefix='cnn.solver')
-#alex = ex.capture(alex, prefix='cnn.cnn')
 
 @ex.automain
 def my_main(_config, cnn):
@@ -52,42 +49,16 @@ def my_main(_config, cnn):
 	db_train = MOT_Siamese_Wrapper(cnn['db_train'], dataloader)
 	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
-	"""
-	outdir = get_output_dir("siamese_test")
-	for i, sample in enumerate(db_train,1):
-		for j, img in enumerate(sample[0][0],1):
-			invTrans = Compose([ Normalize(mean = [ 0., 0., 0. ],
-                                                     std = [ 1/0.229, 1/0.224, 1/0.225 ]),
-                                Normalize(mean = [ -0.485, -0.456, -0.406 ],
-                                                     std = [ 1., 1., 1. ]),
-                               ])
-			t = ToPILImage()
-			print(img.size())
-			im = t(invTrans(img))
-			print(img)
-			im.save(osp.join(outdir, str(i)+"_"+str(j)+".jpg"))
-	"""
-	
-
 	if cnn['db_val']:
 		dataloader['split'] = "small_val"
 		db_val = MOT_Siamese_Wrapper(cnn['db_val'], dataloader)
 		db_val = DataLoader(db_val, batch_size=1, shuffle=True)
 	else:
 		db_val = None
-	#db_val = None
-
-	#for i,d in enumerate(db_train,1):
-	#	if i == 1:
-	#		print(d[1][0])
-	#	for j,im in enumerate(d[0][0],1):
-	#		cv2.imwrite(osp.join(output_dir, str(j)+'.png'),im.numpy())
-
 	
 	##########################
 	# Initialize the modules #
 	##########################
-	
 	print("[*] Building CNN")
 	network = resnet50(pretrained=True, **cnn['cnn'])
 	network.train()

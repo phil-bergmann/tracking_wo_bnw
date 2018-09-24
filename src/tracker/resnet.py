@@ -106,7 +106,9 @@ class ResNet(models.ResNet):
         """For Pretraining
 
         Function for preatrainind this CNN with the triplet loss. Takes a sample of N=PK images, P different
-        persons, K images of each. K=4 is a normal parameter
+        persons, K images of each. K=4 is a normal parameter.
+
+        [!] Batch all and batch hard should work fine. Take care with weighted triplet or cross entropy!!
 
         Args:
             batch (list): [images, labels], images are Tensor of size (N,H,W,C), H=224, W=112, labels Tensor of
@@ -260,12 +262,6 @@ class ResNet(models.ResNet):
             k_loss[0] = num_hit / num_ges
             losses['prec_at_k'] = Variable(k_loss.cuda())
 
-            #mask_anchor_negative = _get_anchor_negative_triplet_mask(labels)
-            #pos_dists = dist * Variable(mask_anchor_positive.float())
-            #neg_dists = dist * Variable(mask_anchor_negative.float())
-            #losses['mean_positive_dist'] = pos_dists.mean()
-            #losses['mean_negative_dist'] = neg_dists.mean()
-
 
         losses['total_loss'] = total_loss
 
@@ -288,12 +284,3 @@ def resnet50(pretrained=False, **kwargs):
     if pretrained:
         model.load_pretrained_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
-
-
-"""
-from resnet import resnet50
-r = resnet50(output_dim=128)
-import torch
-from torch.autograd import Variable
-r(Variable(torch.ones(1,3,256,128)))
-"""

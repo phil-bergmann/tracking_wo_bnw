@@ -7,7 +7,8 @@
 # mentioned above, but in practice for my experiments batch_hard converged to margin and
 # batch_all the error exploded. So for me both are not functional at the moment, but 
 # _get_triplet_mask can be used to get all valid triplets and then F.triplet_margin_loss()
-# can be used to get the batch all technique running.
+# can be used to get them running. See resnet.py for how the losses are implemented in this
+# project.
 
 import torch
 from torch.autograd import Variable

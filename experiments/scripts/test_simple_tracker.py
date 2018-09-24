@@ -18,7 +18,6 @@ from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
 from tracker.simple_tracker import Simple_Tracker
 from tracker.utils import interpolate
-from tracker.simple_ap_tracker import Simple_Ap_Tracker
 from tracker.simple_siameseid_tracker import Simple_SiameseID_Tracker
 from tracker.simple_align_tracker import Simple_Align_Tracker
 from tracker.resnet import resnet50
@@ -36,16 +35,11 @@ ex.add_config('experiments/cfgs/simple_tracker.yaml')
 ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
 
 Simple_Tracker = ex.capture(Simple_Tracker, prefix='simple_tracker.tracker')
-Simple_Ap_Tracker = ex.capture(Simple_Ap_Tracker, prefix='simple_tracker.tracker')
-
 Simple_SiameseID_Tracker = ex.capture(Simple_SiameseID_Tracker, prefix='simple_tracker.tracker')
 Simple_Align_Tracker = ex.capture(Simple_Align_Tracker, prefix='simple_tracker.tracker')
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-#sequences = ["MOT17-09"]
-#sequences = ["MOT17-12", "MOT17-14"]
-#sequences = train
     
 @ex.automain
 def my_main(simple_tracker, cnn, _config):
@@ -71,7 +65,6 @@ def my_main(simple_tracker, cnn, _config):
         seq = seq + train
     if "test" in simple_tracker['sequences']:
         seq = seq + test
-    #seq = ["MOT17-02"]
 
     ##########################
     # Initialize the modules #
@@ -99,13 +92,6 @@ def my_main(simple_tracker, cnn, _config):
     elif simple_tracker['mode'] == 'align':
         print("[*] Using Simple Align Tracker")
         tracker = Simple_Align_Tracker(frcnn=frcnn)
-    elif simple_tracker['mode'] == "ap_simple":
-        print("[*] Using Simple Appearance Tracker")
-        cnn = resnet50(pretrained=False, **cnn['cnn'])
-        cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
-        cnn.eval()
-        cnn.cuda()
-        tracker = Simple_Ap_Tracker(frcnn=frcnn, cnn=cnn)
     elif simple_tracker['mode'] == 'siameseid':
         print("[*] Using Simple Siamese ID Tracker")
         cnn = resnet50(pretrained=False, **cnn['cnn'])
@@ -139,7 +125,6 @@ def my_main(simple_tracker, cnn, _config):
 
         if simple_tracker['interpolate']:
             results = interpolate(results)
-
 
         db.write_results(results, osp.join(output_dir))
         

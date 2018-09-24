@@ -1,108 +1,122 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import _init_paths
 
-import os.path as osp
+from sacred import Experiment
+from model.config import cfg as frcnn_cfg
 import os
-import numpy as np
+import os.path as osp
 import yaml
 import time
 
-from sacred import Experiment
-import torch
-from torch.utils.data import DataLoader
-
-from model.config import cfg as frcnn_cfg
-
-from tracker.config import get_output_dir, get_tb_dir
-from tracker.sfrcnn import FRCNN
-from tracker.lstm_regressor import LSTM_Regressor
-#from tracker.appearance_lstm import Appearance_LSTM
+from tracker.rfrcnn import FRCNN as rFRCNN
+from tracker.vfrcnn import FRCNN as vFRCNN
+from tracker.config import cfg, get_output_dir
+from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
 from tracker.tracker import Tracker
-from tracker.utils import plot_sequence
-from tracker.alex import Alex
+from tracker.utils import interpolate
+from tracker.resnet import resnet50
 
-test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
-train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-sequences = ["MOT17-09"]
-sequences = train
+import torch
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+import numpy as np
 
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracker.yaml')
-ex.add_config('output/tracker/lstm_regressor_3/alexk-9-3alive/sacred_config.yaml')
 
-LSTM_Regressor = ex.capture(LSTM_Regressor, prefix='lstm_regressor.lstm_regressor')
-#Appearance_LSTM = ex.capture(Appearance_LSTM, prefix='lstm_regressor.appearance_lstm')
-Tracker = ex.capture(Tracker, prefix='tracker.tracker')
-Alex = ex.capture(Alex, prefix='cnn.cnn')
+# hacky workaround to load the corresponding cnn config and not having to hardcode it here
+ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
 
+Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
+
+test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
+train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+    
 @ex.automain
-def my_main(lstm_regressor, tracker, _config):
-	print(_config)
+def my_main(simple_tracker, cnn, _config):
+    # set all seeds
+    torch.manual_seed(simple_tracker['seed'])
+    torch.cuda.manual_seed(simple_tracker['seed'])
+    np.random.seed(simple_tracker['seed'])
+    torch.backends.cudnn.deterministic = True
 
-	lstm_regressor_dir = osp.join(get_output_dir(lstm_regressor['module_name']), lstm_regressor['name'])
+    print(_config)
 
-	# save sacred config to experiment
-	output_dir = osp.join(get_output_dir(tracker['module_name']), tracker['name'])
-	sacred_config = osp.join(output_dir, 'sacred_config.yaml')
-	
-	if not osp.exists(output_dir):
-		os.makedirs(output_dir)
-	with open(sacred_config, 'w') as outfile:
-		yaml.dump(_config, outfile, default_flow_style=False)
+    output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
+    
+    sacred_config = osp.join(output_dir, 'sacred_config.yaml')
+    
+    if not osp.exists(output_dir):
+        os.makedirs(output_dir)
+    with open(sacred_config, 'w') as outfile:
+        yaml.dump(_config, outfile, default_flow_style=False)
 
-	##########################
-	# Initialize the modules #
-	##########################
-	print("[*] Building FRCNN")
+    seq = []
+    if "train" in simple_tracker['sequences']:
+        seq = seq + train
+    if "test" in simple_tracker['sequences']:
+        seq = seq + test
 
-	frcnn = FRCNN()
-	frcnn.create_architecture(2, tag='default',
-		anchor_scales=frcnn_cfg.ANCHOR_SCALES,
-		anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
-	frcnn.eval()
-	frcnn.cuda()
-	frcnn.load_state_dict(torch.load(lstm_regressor['frcnn_weights']))
+    ##########################
+    # Initialize the modules #
+    ##########################
+    
+    print("[*] Building FRCNN")
 
-	
-	print("[*] Building Regressor")
-	regressor = LSTM_Regressor()
-	regressor.cuda()
-	regressor.eval()
-	regressor.load_state_dict(torch.load(tracker['regressor_weights']))
+    if simple_tracker['network'] == 'vgg16':
+        frcnn = vFRCNN()
+    elif simple_tracker['network'] == 'res101':
+        frcnn = rFRCNN(num_layers=101)
+    else:
+        raise NotImplementedError("Network not understood: {}".format(simple_tracker['network']))
 
-	print("[*] Building Tracker")
-	tracker = Tracker(frcnn, regressor)
+    frcnn.create_architecture(2, tag='default',
+        anchor_scales=frcnn_cfg.ANCHOR_SCALES,
+        anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
+    frcnn.eval()
+    frcnn.cuda()
+    frcnn.load_state_dict(torch.load(simple_tracker['frcnn_weights']))
+    
+    cnn = resnet50(pretrained=False, **cnn['cnn'])
+    cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+    cnn.eval()
+    cnn.cuda()
+    tracker = Tracker(frcnn=frcnn, cnn=cnn)
 
-	if lstm_regressor['use_appearance_cnn']:
-		cnn = Alex()
-		cnn.load_state_dict(torch.load(lstm_regressor['cnn_weights']))
-		cnn.eval()
-		cnn.cuda()
-	else:
-		cnn = None
-	
-	####################
-	# Begin evaluation #
-	####################
-	print("[*] Begin Evaluation")
+    print("[*] Beginning evaluation...")
 
-	for s in sequences:
-		now = time.time()
+    time_ges = 0
 
-		print("[*] Evaluating: {}".format(s))
-		tracker.reset()
-		db = MOT_Sequence(s)
-		dl = DataLoader(db, batch_size=1, shuffle=False)
+    for s in seq:
+        tracker.reset()
 
-		for sample in dl:
-			tracker.step(sample, cnn)
+        now = time.time()
 
-		results = tracker.get_results()
-		print("Tracks found: {}".format(len(results)))
-		print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+        print("[*] Evaluating: {}".format(s))
+        db = MOT_Sequence(s)
+        dl = DataLoader(db, batch_size=1, shuffle=False)
+        for sample in dl:
+            tracker.step(sample)
+        results = tracker.get_results()
 
-		db.write_results(results, output_dir)
+        #tracker.write_debug(osp.join(output_dir, "debug_{}.txt".format(s)))
 
-		plot_sequence(results, db, osp.join(output_dir, s))
+        time_ges += time.time() - now
 
+        print("Tracks found: {}".format(len(results)))
+        print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+
+        if simple_tracker['interpolate']:
+            results = interpolate(results)
+
+        db.write_results(results, osp.join(output_dir))
+        
+        if simple_tracker['write_images']:
+            plot_sequence(results, db, osp.join(output_dir, s))
+    
+    print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))

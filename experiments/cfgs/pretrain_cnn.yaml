@@ -1,7 +1,7 @@
 cnn:
-  name: res50-ce4-all
+  name: test
   module_name: pretrain_cnn
-  desription: all
+  desription: 
   seed: 12345
   max_epochs: 69
   db_train: train
@@ -10,8 +10,11 @@ cnn:
   lr_scheduler: True
   
   model_args:
-    loss: cross_entropy
+    # Recommended for loss: batch_all, batch_hard 
+    # Unstable, no guarantee they are working: weighted_triplet, cross_entropy
+    loss: batch_hard
     margin: 0.2
+    # Plot prec at k to tensorboard, 0 for off
     prec_at_k: 3
 
   solver:
@@ -21,13 +24,17 @@ cnn:
       weight_decay: 0.0000
 
   dataloader:
+    # all, small_train, small_val (small are 0.8 - 0.2 splits, they are splitted by identity)
     split: all
+    # all targets with visibility lower than this are filtered out
     vis_threshold: 0.3
     P: 18
     K: 4
+    # limit maximum number of images per identity
     max_per_person: 1000
     crop_H: 256
     crop_W: 128
+    # center: just a center crop, random: random crop and 0.5 horizontal flip probability
     transform: random
     normalize_mean:
       - 0.485

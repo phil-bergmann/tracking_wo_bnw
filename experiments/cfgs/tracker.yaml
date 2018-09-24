@@ -1,11 +1,39 @@
-tracker:
-  name: alexk-9-3alive
-  module_name: tracker_phase3
-  desription: Nothing here
-  regressor_weights: 'output/tracker/lstm_regressor_3/alexk-9-3alive/LSTM_Regressor_iter_150000.pth'
+simple_tracker:
+  name: test
+  module_name: test
+  desription: 
+  seed: 12345
+  # vgg16 or res101
+  network: res101
+  frcnn_weights: 'output/frcnn/res101/mot_2017_train/STOP180k_NEW/res101_faster_rcnn_iter_180000.pth'
+  cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
+  cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  interpolate: False
+  write_images: False
+  # train or test or both (smth like train+test)
+  sequences: train+test
 
   tracker:
-    detection_thresh: 0.2
-    nms_thresh: 0.3
-    alive_thresh: 0.5
-    alive_patience: 1
+    # FRCNN score threshold for detections
+    detection_person_thresh: 0.7
+    # FRCNN score threshold for keeping the track alive
+    regression_person_thresh: 0.7
+    # NMS threshold for detection
+    detection_nms_thresh: 0.3
+    # NMS theshold while tracking
+    regression_nms_thresh: 0.6
+    # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
+    # 0 tells the tracker to use private detections (Faster R-CNN)
+    public_detections: DPM_RAW
+    # How much last appearance features are to keep
+    max_features_num: 10
+    # Do camera motion compensation
+    do_align: True
+    # Use siamese network to do reid
+    do_reid: True
+    # How much timesteps dead tracks are kept and cosidered for reid
+    inactive_patience: 10
+    # How similar do image and old track need to be to be considered the same person
+    reid_sim_threshold: 2.0
+    # How much IoU do track and image need to be considered for matching
+    reid_iou_threshold: 0.2
