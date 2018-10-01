@@ -41,6 +41,34 @@ def mot():
 	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
 
 @ex.named_config
+def small_kitti_car():
+	imdb_name = "kitti_detection_Car_small_train"
+	imdbval_name = "kitti_detection_Car_small_val"
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+
+@ex.named_config
+def kitti_car():
+	imdb_name = "kitti_detection_Car_train"
+	imdbval_name = "kitti_detection_Car_small_val"
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+
+@ex.named_config
+def small_kitti_pedestrian():
+	imdb_name = "kitti_detection_Pedestrian_small_train"
+	imdbval_name = "kitti_detection_Pedestrian_small_val"
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+
+@ex.named_config
+def kitti_pedestrian():
+	imdb_name = "kitti_detection_Pedestrian_train"
+	imdbval_name = "kitti_detection_Pedestrian_small_val"
+	max_iters = 180000
+	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+
+@ex.named_config
 def res101():
 	network = "res101"
 	weights = "data/imagenet_weights/{}.pth".format(network)

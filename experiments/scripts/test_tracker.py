@@ -16,6 +16,7 @@ from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
+from tracker.kitti_sequence import KITTI_Sequence
 from tracker.tracker import Tracker
 from tracker.utils import interpolate
 from tracker.resnet import resnet50
@@ -36,6 +37,10 @@ Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
 
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+
+# Car not needed as sequences are the same
+kitti_train_pedestrian = ["train_%04d_Pedestrian"%(seq) for seq in range(21)]
+kitti_test_pedestrian = ["test_%04d_Pedestrian"%(seq) for seq in range(21)]
     
 @ex.automain
 def my_main(simple_tracker, cnn, _config):
@@ -57,10 +62,16 @@ def my_main(simple_tracker, cnn, _config):
         yaml.dump(_config, outfile, default_flow_style=False)
 
     seq = []
-    if "train" in simple_tracker['sequences']:
-        seq = seq + train
-    if "test" in simple_tracker['sequences']:
-        seq = seq + test
+    if "MOT" in simple_tracker['sequences']:
+        if "train" in simple_tracker['sequences']:
+            seq = seq + train
+        if "test" in simple_tracker['sequences']:
+            seq = seq + test
+    elif "KITTI" in simple_tracker['sequences']:
+        if "train" in simple_tracker['sequences']:
+            seq = seq + kitti_train_pedestrian
+        if "test" in simple_tracker['sequences']:
+            seq = seq + kitti_test_pedestrian
 
     ##########################
     # Initialize the modules #
@@ -98,7 +109,14 @@ def my_main(simple_tracker, cnn, _config):
         now = time.time()
 
         print("[*] Evaluating: {}".format(s))
-        db = MOT_Sequence(s)
+
+        if "MOT" in simple_tracker['sequences']:
+            db = MOT_Sequence(s)
+        elif "KITTI" in simple_tracker['sequences']:
+            db = KITTI_Sequence(s)
+        else:
+            raise NotImplementedError("Invalid sequences: {}".format(simple_tracker['sequences']))
+
         dl = DataLoader(db, batch_size=1, shuffle=False)
         for sample in dl:
             tracker.step(sample)

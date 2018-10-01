@@ -118,13 +118,13 @@ def frcnn_demo(args):
 
     # load network
     if args['net'] == 'vgg16':
-        net = vgg16(batch_size=1)
+        net = vgg16()
     elif args['net'] == 'res50':
-        net = resnetv1(batch_size=1, num_layers=50)
+        net = resnetv1(num_layers=50)
     elif args['net'] == 'res101':
-        net = resnetv1(batch_size=1, num_layers=101)
+        net = resnetv1(num_layers=101)
     elif args['net'] == 'res152':
-        net = resnetv1(batch_size=1, num_layers=152)
+        net = resnetv1(num_layers=152)
     else:
         raise NotImplementedError
     

@@ -1,10 +1,11 @@
 cnn:
-  name: test
+  name: kitti_bh_Pedestrian_1_2
   module_name: pretrain_cnn
   desription: 
   seed: 12345
-  max_epochs: 69
-  db_train: train
+  max_epochs: 151
+  # smth like MOT_train, KITTI_train_Pedestrian
+  db_train: KITTI_train_Pedestrian
   db_val: False
 
   lr_scheduler: True
@@ -26,8 +27,9 @@ cnn:
   dataloader:
     # all, small_train, small_val (small are 0.8 - 0.2 splits, they are splitted by identity)
     split: all
-    # all targets with visibility lower than this are filtered out
-    vis_threshold: 0.3
+    # all targets with visibility lower than this are filtered out, for kitti set it to
+    # a sequence with maximal [truncation, occlusion] levels
+    vis_threshold: [1,2]
     P: 18
     K: 4
     # limit maximum number of images per identity

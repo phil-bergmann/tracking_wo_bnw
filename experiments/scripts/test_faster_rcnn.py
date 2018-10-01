@@ -48,6 +48,30 @@ def mot_test():
 def mot_train():
 	imdbtest_name = "mot_2017_train"
 
+@ex.named_config
+def kitti_car_train():
+	imdbtest_name = "kitti_detection_Car_train"
+
+@ex.named_config
+def kitti_car_test():
+	imdbtest_name = "kitti_detection_Car_test"
+
+@ex.named_config
+def kitti_car_small_val():
+	imdbtest_name = "kitti_detection_Car_small_val"
+
+@ex.named_config
+def kitti_pedestrian_train():
+	imdbtest_name = "kitti_detection_Pedestrian_train"
+
+@ex.named_config
+def kitti_pedestrian_test():
+	imdbtest_name = "kitti_detection_Pedestrian_test"
+
+@ex.named_config
+def kitti_pedestrian_small_val():
+	imdbtest_name = "kitti_detection_Pedestrian_small_val"
+
 
 @ex.automain
 def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_bbox, output_name, nms_thresh, _config):

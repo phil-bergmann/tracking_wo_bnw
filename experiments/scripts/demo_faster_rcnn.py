@@ -40,7 +40,8 @@ def demo():
 	im_names = ['004545.jpg', 'tr-02-000260.jpg', 'tr-04-000424.jpg', 'tr-05-000703.jpg',
 				'tr-09-000262.jpg', 'tr-10-000058.jpg', 'tr-11-000686.jpg', 'tr-13-000510.jpg',
 				'te-01-000136.jpg', 'te-03-000886.jpg', 'te-06-000897.jpg', 'te-07-000333.jpg',
-				'te-08-000496.jpg', 'te-12-000504.jpg', 'te-14-000509.jpg']
+				'te-08-000496.jpg', 'te-12-000504.jpg', 'te-14-000509.jpg', '000153.png',
+				'000154.png', '000156.png', '000161.png']
 	
 @ex.automain
 def my_main(imdb_name, network, cfg_file, set_cfgs, tag, max_iters, im_names, score_thresh, clip_bbox):

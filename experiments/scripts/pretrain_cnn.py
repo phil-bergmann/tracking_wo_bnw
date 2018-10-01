@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
+from tracker.kitti_siamese_wrapper import KITTI_Siamese_Wrapper
 from tracker.resnet import resnet50
 
 ex = Experiment()
@@ -46,13 +47,25 @@ def my_main(_config, cnn):
 	print("[*] Initializing Dataloader")
 
 	dataloader = cnn['dataloader']
-	db_train = MOT_Siamese_Wrapper(cnn['db_train'], dataloader)
-	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+	if "MOT" in cnn['db_train']:
+		db_train = MOT_Siamese_Wrapper(cnn['db_train'], dataloader)
+		db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+	elif "KITTI" in cnn['db_train']:
+		db_train = KITTI_Siamese_Wrapper(cnn['db_train'], dataloader)
+		db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+	else:
+		raise NotImplementedError("Image set: {}".format(cnn['db_train']))
 
 	if cnn['db_val']:
 		dataloader['split'] = "small_val"
-		db_val = MOT_Siamese_Wrapper(cnn['db_val'], dataloader)
-		db_val = DataLoader(db_val, batch_size=1, shuffle=True)
+		if "MOT" in cnn['db_val']:
+			db_val = MOT_Siamese_Wrapper(cnn['db_val'], dataloader)
+			db_val = DataLoader(db_val, batch_size=1, shuffle=True)
+		elif "KITTI" in cnn['db_val']:
+			db_val = KITTI_Siamese_Wrapper(cnn['db_val'], dataloader)
+			db_val = DataLoader(db_val, batch_size=1, shuffle=True)
+		else:
+			raise NotImplementedError("Image set: {}".format(cnn['db_val']))
 	else:
 		db_val = None
 	

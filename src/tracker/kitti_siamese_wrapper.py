@@ -1,10 +1,10 @@
 from torch.utils.data import Dataset
 import torch
 
-from .mot_siamese import MOT_Siamese
+from .kitti_siamese import KITTI_Siamese
 
 
-class MOT_Siamese_Wrapper(Dataset):
+class KITTI_Siamese_Wrapper(Dataset):
 	"""Multiple Object Tracking Dataset.
 
 	Wrapper class for combining different sequences into one dataset for the MOT_Siamese
@@ -12,21 +12,19 @@ class MOT_Siamese_Wrapper(Dataset):
 	"""
 
 	def __init__(self, image_set, dataloader):
-		self.prec_conv = False
 		self.image_set = image_set
 
-		if "train" in image_set:
-			self._train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
-				'MOT17-11', 'MOT17-13']
-		elif "mot-09" in image_set:
-			self._train_folders = ["MOT17-09"]
+		if "train_Car" in image_set:
+			self._train_folders = ["train_%04d_Car"%(seq) for seq in range(21)]
+		elif "train_Pedestrian" in image_set:
+			self._train_folders = ["train_%04d_Pedestrian"%(seq) for seq in range(21)]
 		else:
 			raise NotImplementedError("Image set: {}".format(image_set))
 
-		self._dataloader = MOT_Siamese(None, **dataloader)
+		self._dataloader = KITTI_Siamese(None, **dataloader)
 
 		for seq in self._train_folders:
-			d = MOT_Siamese(seq, **dataloader)
+			d = KITTI_Siamese(seq, **dataloader)
 			for sample in d.data:
 				self._dataloader.data.append(sample)
 

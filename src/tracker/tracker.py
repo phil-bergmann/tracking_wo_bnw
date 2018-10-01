@@ -57,10 +57,10 @@ class Tracker():
 		self.inactive_tracks += new_inactive
 		self.tracks = tracks
 
-	def add(self, new_det_pos, new_det_features):
+	def add(self, new_det_pos, new_det_scores, new_det_features):
 		num_new = new_det_pos.size(0)
 		for i in range(num_new):
-			self.tracks.append(Track(new_det_pos[i].view(1,-1), self.track_num + i, new_det_features[i].view(1,-1),
+			self.tracks.append(Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1,-1),
 																	self.inactive_patience, self.max_features_num))
 		self.track_num += num_new
 
@@ -84,6 +84,7 @@ class Tracker():
 		s = []
 		for i in range(len(self.tracks)-1,-1,-1):
 			t = self.tracks[i]
+			t.score = scores[i]
 			if scores[i] <= self.regression_person_thresh:
 				self.tracks.remove(t)
 				self.inactive_tracks.append(t)
@@ -119,7 +120,7 @@ class Tracker():
 			features = torch.zeros(0).cuda()
 		return features
 
-	def reid(self, blob, new_det_pos):
+	def reid(self, blob, new_det_pos, new_det_scores):
 		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
 			# calculate appearance distances
@@ -165,11 +166,13 @@ class Tracker():
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
 				new_det_pos = new_det_pos[keep]
+				new_det_scores = new_det_scores[keep]
 				new_det_features = new_det_features[keep]
 			else:
 				new_det_pos = torch.zeros(0).cuda()
+				new_det_scores = torch.zeros(0).cuda()
 				new_det_features = torch.zeros(0).cuda()
-		return new_det_pos, new_det_features
+		return new_det_pos, new_det_scores, new_det_features
 
 	def clear_inactive(self):
 		to_remove = []
@@ -330,13 +333,14 @@ class Tracker():
 
 		if nms_inp_det.nelement() > 0:
 			new_det_pos = nms_inp_det[:,:4]
+			new_det_scores = nms_inp_det[:,4]
 
 			# try to redientify tracks
-			new_det_pos, new_det_features = self.reid(blob, new_det_pos)
+			new_det_pos, new_det_scores, new_det_features = self.reid(blob, new_det_pos, new_det_scores)
 
 			# add new
 			if new_det_pos.nelement() > 0:
-				self.add(new_det_pos, new_det_features)
+				self.add(new_det_pos, new_det_scores, new_det_features)
 
 		####################
 		# Generate Results #
@@ -347,7 +351,8 @@ class Tracker():
 			if track_ind not in self.results.keys():
 				self.results[track_ind] = {}
 			pos = t.pos[0] / blob['im_info'][0][2]
-			self.results[track_ind][self.im_index] = pos.cpu().numpy()
+			sc = t.score
+			self.results[track_ind][self.im_index] = np.concatenate([pos.cpu().numpy(), np.array([sc])])
 
 		self.im_index += 1
 		self.last_image = blob['data'][0][0]
@@ -363,9 +368,10 @@ class Tracker():
 
 class Track(object):
 
-	def __init__(self, pos, track_id, features, inactive_patience, max_features_num):
+	def __init__(self, pos, score, track_id, features, inactive_patience, max_features_num):
 		self.id = track_id
 		self.pos = pos
+		self.score = score
 		self.features = deque([features])
 		self.ims = deque([])
 		self.count_inactive = 0
