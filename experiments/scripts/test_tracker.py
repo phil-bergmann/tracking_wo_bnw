@@ -38,9 +38,11 @@ Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
 test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
 train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 
-# Car not needed as sequences are the same
+
 kitti_train_pedestrian = ["train_%04d_Pedestrian"%(seq) for seq in range(21)]
 kitti_test_pedestrian = ["test_%04d_Pedestrian"%(seq) for seq in range(21)]
+kitti_train_car = ["train_%04d_Car"%(seq) for seq in range(21)]
+kitti_test_car = ["test_%04d_Car"%(seq) for seq in range(21)]
     
 @ex.automain
 def my_main(simple_tracker, cnn, _config):
@@ -68,10 +70,16 @@ def my_main(simple_tracker, cnn, _config):
         if "test" in simple_tracker['sequences']:
             seq = seq + test
     elif "KITTI" in simple_tracker['sequences']:
-        if "train" in simple_tracker['sequences']:
-            seq = seq + kitti_train_pedestrian
-        if "test" in simple_tracker['sequences']:
-            seq = seq + kitti_test_pedestrian
+        if "Pedestrian" in simple_tracker['sequences']:
+            if "train" in simple_tracker['sequences']:
+                seq = seq + kitti_train_pedestrian
+            if "test" in simple_tracker['sequences']:
+                seq = seq + kitti_test_pedestrian
+        if "Car" in simple_tracker['sequences']:
+            if "train" in simple_tracker['sequences']:
+                seq = seq + kitti_train_car
+            if "test" in simple_tracker['sequences']:
+                seq = seq + kitti_test_car
 
     ##########################
     # Initialize the modules #
