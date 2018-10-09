@@ -113,7 +113,7 @@ class KITTI_Sequence(Dataset):
 			truncation[i] = {}
 			occlusion[i] = {}
 
-		if osp.exists(gt_file):
+		if gt_file and osp.exists(gt_file):
 			with open(gt_file, "r") as inf:
 				reader = csv.reader(inf, delimiter=' ')
 				for row in reader:
@@ -169,4 +169,4 @@ class KITTI_Sequence(Dataset):
 					x2 = bb[2]
 					y2 = bb[3]
 					score = bb[4]
-					writer.writerow([frame, i, 0, 0, 0, x1, y1, x2, y2, 0, 0, 0, 0, 0, 0, 0, score])
+					writer.writerow([frame, i, self._cl, 0, 0, 0, x1, y1, x2, y2, 0, 0, 0, 0, 0, 0, 0, score])
