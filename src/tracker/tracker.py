@@ -23,7 +23,7 @@ class Tracker():
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold):
+		max_features_num, reid_iou_threshold, warp_mode, number_of_iterations, termination_eps):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
@@ -37,6 +37,10 @@ class Tracker():
 		self.reid_sim_threshold = reid_sim_threshold
 		self.reid_iou_threshold = reid_iou_threshold
 		self.do_align = do_align
+
+		self.warp_mode = eval(warp_mode)
+		self.number_of_iterations = number_of_iterations
+		self.termination_eps = termination_eps
 
 		self.reset()
 
@@ -153,7 +157,7 @@ class Tracker():
 					#print("im: {}\ncosts: {}".format(self.im_index, costs[r,c]))
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
-					t.count_dead = 0
+					t.count_inactive = 0
 					t.pos = new_det_pos[c].view(1,-1)
 					t.add_features(new_det_features[c].view(1,-1))
 					assigned.append(c)
@@ -197,11 +201,11 @@ class Tracker():
 			im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
 			im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
 			sz = im1.shape
-			warp_mode = cv2.MOTION_EUCLIDEAN
+			warp_mode = self.warp_mode
 			warp_matrix = np.eye(2, 3, dtype=np.float32)
 			#number_of_iterations = 5000
-			number_of_iterations = 50
-			termination_eps = 0.001
+			number_of_iterations = self.number_of_iterations
+			termination_eps = self.termination_eps
 			criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
 			(cc, warp_matrix) = cv2.findTransformECC (im1_gray,im2_gray,warp_matrix, warp_mode, criteria)
 			warp_matrix = torch.from_numpy(warp_matrix)
@@ -210,10 +214,13 @@ class Tracker():
 				p = t.pos[0]
 				p1 = torch.Tensor([p[0], p[1], 1]).view(3,1)
 				p2 = torch.Tensor([p[2], p[3], 1]).view(3,1)
+
 				p1_n = torch.mm(warp_matrix, p1).view(1,2)
 				p2_n = torch.mm(warp_matrix, p2).view(1,2)
 				pos = torch.cat((p1_n, p2_n), 1).cuda()
+
 				t.pos = pos.view(1,-1)
+				#t.pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
 
 			if self.do_reid:
 				for t in self.inactive_tracks:
@@ -307,7 +314,8 @@ class Tracker():
 					num_tracks = 0
 
 			else:
-				self.reset(hard=False)
+				pass
+				#self.reset(hard=False)
 
 		#####################
 		# Create new tracks #
