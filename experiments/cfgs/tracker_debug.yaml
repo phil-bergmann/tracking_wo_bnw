@@ -1,0 +1,48 @@
+simple_tracker:
+  name: test
+  # Subfolder name in output/tracker/
+  module_name: MOT_analysis
+  desription: 
+  seed: 12345
+  # vgg16 or res101
+  network: res101
+  # Path to FRCNN weights
+  frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/res101/mot_2017_train/STOP180k_NEW/res101_faster_rcnn_iter_180000.pth'
+  #frcnn_weights: 'output/frcnn/res101/kitti_detection_Pedestrian_train/KITTI_Ped_05_2_180k/res101_faster_rcnn_iter_180000.pth'
+  #frcnn_weights: 'output/frcnn/res101/kitti_detection_Car_train/KITTI_Car_05_2_180k/res101_faster_rcnn_iter_180000.pth'
+  # Path to the siamese network weights + the config file
+  cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
+  cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/ResNet_iters_25066.pth'
+  #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/sacred_config.yaml'
+  #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
+  #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml'
+  interpolate: False
+  write_images: True
+  # train or test or both (smth like train+test)
+  sequences: [MOT17-10]
+
+  tracker:
+    # FRCNN score threshold for detections
+    detection_person_thresh: 0.5
+    # FRCNN score threshold for keeping the track alive
+    regression_person_thresh: 0.5
+    # NMS threshold for detection
+    detection_nms_thresh: 0.3
+    # NMS theshold while tracking
+    regression_nms_thresh: 0.6
+    # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
+    # 0 tells the tracker to use private detections (Faster R-CNN)
+    public_detections: False
+    # How much last appearance features are to keep
+    max_features_num: 10
+    # Do camera motion compensation
+    do_align: True
+    # Use siamese network to do reid
+    do_reid: True
+    # How much timesteps dead tracks are kept and cosidered for reid
+    inactive_patience: 10
+    # How similar do image and old track need to be to be considered the same person
+    reid_sim_threshold: 2.0
+    # How much IoU do track and image need to be considered for matching
+    reid_iou_threshold: 0.2
