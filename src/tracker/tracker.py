@@ -246,6 +246,12 @@ class Tracker():
 				dets = blob['raw_dets']
 			elif self.public_detections == "DPM":
 				dets = blob['dets']
+			elif self.public_detections == "MOT17_FRCNN":
+				dets = blob['MOT17_FRCNN_dets']
+			elif self.public_detections == "MOT17_DPM":
+				dets = blob['MOT17_DPM_dets']
+			elif self.public_detections == "MOT17_SDP":
+				dets = blob['MOT17_SDP_dets']
 			else:
 				raise NotImplementedError("[!] Public detecions not understood: {}\nChoose between: ['DPM', 'DPM_RAW', False]".format(self.public_detections))
 			if len(dets) > 0:

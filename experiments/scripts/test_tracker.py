@@ -6,6 +6,7 @@ import _init_paths
 
 from sacred import Experiment
 from model.config import cfg as frcnn_cfg
+from model.config import cfg_from_list, cfg_from_file
 import os
 import os.path as osp
 import yaml
@@ -32,6 +33,7 @@ ex.add_config('experiments/cfgs/tracker.yaml')
 
 # hacky workaround to load the corresponding cnn config and not having to hardcode it here
 ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
+ex.add_config(ex.configurations[0]._conf['simple_tracker']['frcnn_config'])
 
 Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
 
@@ -40,17 +42,22 @@ train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04",
 
 
 kitti_train_pedestrian = ["train_%04d_Pedestrian"%(seq) for seq in range(21)]
-kitti_test_pedestrian = ["test_%04d_Pedestrian"%(seq) for seq in range(21)]
+kitti_test_pedestrian = ["test_%04d_Pedestrian"%(seq) for seq in range(29)]
 kitti_train_car = ["train_%04d_Car"%(seq) for seq in range(21)]
-kitti_test_car = ["test_%04d_Car"%(seq) for seq in range(21)]
+kitti_test_car = ["test_%04d_Car"%(seq) for seq in range(29)]
     
 @ex.automain
-def my_main(simple_tracker, cnn, _config):
+def my_main(simple_tracker, cnn, frcnn, _config):
     # set all seeds
     torch.manual_seed(simple_tracker['seed'])
     torch.cuda.manual_seed(simple_tracker['seed'])
     np.random.seed(simple_tracker['seed'])
     torch.backends.cudnn.deterministic = True
+
+    if frcnn['cfg_file']:
+        cfg_from_file(frcnn['cfg_file'])
+    if frcnn['set_cfgs']:
+        cfg_from_list(frcnn['set_cfgs'])
 
     print(_config)
 
