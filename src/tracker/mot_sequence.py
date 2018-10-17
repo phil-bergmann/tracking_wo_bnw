@@ -33,6 +33,7 @@ class MOT_Sequence(Dataset):
 		self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
 		self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
 		self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
+		self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT17Labels')
 
 		self._train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
 			'MOT17-11', 'MOT17-13']
@@ -73,6 +74,9 @@ class MOT_Sequence(Dataset):
 		sample['vis'] = {}
 		sample['dets'] = []
 		sample['raw_dets'] = []
+		sample['MOT17_FRCNN_dets'] = []
+		sample['MOT17_DPM_dets'] = []
+		sample['MOT17_SDP_dets'] = []
 		# resize tracks
 		for k,v in d['gt'].items():
 			sample['gt'][k] = v * sample['im_info'][2]
@@ -82,6 +86,12 @@ class MOT_Sequence(Dataset):
 			sample['dets'].append(det * sample['im_info'][2])
 		for raw_det in d['raw_dets']:
 			sample['raw_dets'].append(raw_det * sample['im_info'][2])
+		for det in d['MOT17_FRCNN_dets']:
+			sample['MOT17_FRCNN_dets'].append(det * sample['im_info'][2])
+		for det in d['MOT17_DPM_dets']:
+			sample['MOT17_DPM_dets'].append(det * sample['im_info'][2])
+		for det in d['MOT17_SDP_dets']:
+			sample['MOT17_SDP_dets'].append(det * sample['im_info'][2])
 
 		return sample
 
@@ -89,9 +99,11 @@ class MOT_Sequence(Dataset):
 		if seq_name in self._train_folders:
 			seq_path = osp.join(self._mot_dir, 'train', seq_name)
 			label_path = osp.join(self._label_dir, 'train', 'MOT16-'+seq_name[-2:])
+			mot17_label_path = osp.join(self._mot17_label_dir, 'train')
 		else:
 			seq_path = osp.join(self._mot_dir, 'test', seq_name)
 			label_path = osp.join(self._label_dir, 'test', 'MOT16-'+seq_name[-2:])
+			mot17_label_path = osp.join(self._mot17_label_dir, 'test')
 		raw_label_path = osp.join(self._raw_label_dir, 'MOT16-'+seq_name[-2:])
 			
 		config_file = osp.join(seq_path, 'seqinfo.ini')
@@ -120,12 +132,16 @@ class MOT_Sequence(Dataset):
 		boxes = {}
 		dets = {}
 		raw_dets = {}
+		mot17_dets = {'FRCNN':{}, 'DPM':{}, 'SDP':{}}
 
 		for i in range(1, seqLength+1):
 			boxes[i] = {}
 			visibility[i] = {}
 			dets[i] = []
 			raw_dets[i] = []
+			mot17_dets['FRCNN'][i] = []
+			mot17_dets['DPM'][i] = []
+			mot17_dets['SDP'][i] = []
 
 		if osp.exists(gt_file):
 			with open(gt_file, "r") as inf:
@@ -153,7 +169,8 @@ class MOT_Sequence(Dataset):
 					# This -1 accounts for the width (width of 1 x1=x2)
 					x2 = x1 + float(row[4]) - 1
 					y2 = y1 + float(row[5]) - 1
-					bb = np.array([x1,y1,x2,y2], dtype=np.float32)
+					score = float(row[6])
+					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
 					dets[int(row[0])].append(bb)
 
 		if osp.exists(raw_det_file):
@@ -165,8 +182,24 @@ class MOT_Sequence(Dataset):
 					# This -1 accounts for the width (width of 1 x1=x2)
 					x2 = x1 + float(row[4]) - 1
 					y2 = y1 + float(row[5]) - 1
-					bb = np.array([x1,y1,x2,y2], dtype=np.float32)
+					score = float(row[6])
+					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
 					raw_dets[int(row[0])].append(bb)
+
+		for s in ['DPM', 'FRCNN', 'SDP']:
+			file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], s), 'det', 'det.txt')
+			if osp.exists(file):
+				with open(file, "r") as inf:
+					reader = csv.reader(inf, delimiter=',')
+					for row in reader:
+						x1 = float(row[2]) - 1
+						y1 = float(row[3]) - 1
+						# This -1 accounts for the width (width of 1 x1=x2)
+						x2 = x1 + float(row[4]) - 1
+						y2 = y1 + float(row[5]) - 1
+						score = float(row[6])
+						bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
+						mot17_dets[s][int(row[0])].append(bb)
 
 
 		for i in range(1,seqLength+1):
@@ -177,6 +210,9 @@ class MOT_Sequence(Dataset):
 				 	   'vis':visibility[i],
 					   'dets':dets[i],
 					   'raw_dets':raw_dets[i],
+					   'MOT17_FRCNN_dets':mot17_dets['FRCNN'][i],
+					   'MOT17_DPM_dets':mot17_dets['DPM'][i],
+					   'MOT17_SDP_dets':mot17_dets['SDP'][i],
 			}
 
 			total.append(sample)
