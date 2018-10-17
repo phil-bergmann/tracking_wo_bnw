@@ -21,7 +21,7 @@ from nets.resnet_v1 import resnetv1
 
 import torch
 
-def frcnn_test(imdbtest_name, cfg_file, set_cfgs, network, model, output_dir, score_thresh, max_per_image):
+def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh, max_per_image):
     """
     args = {#'imdb_name':imdb_name,
             'imdbtest_name':imdbtest_name,
@@ -35,10 +35,10 @@ def frcnn_test(imdbtest_name, cfg_file, set_cfgs, network, model, output_dir, sc
             'model':model}
     """
 
-    if cfg_file:
-        cfg_from_file(cfg_file)
-    if set_cfgs:
-        cfg_from_list(set_cfgs)
+    #if cfg_file:
+    #    cfg_from_file(cfg_file)
+    #if set_cfgs:
+    #    cfg_from_list(set_cfgs)
 
     print('Using config:')
     pprint.pprint(cfg)

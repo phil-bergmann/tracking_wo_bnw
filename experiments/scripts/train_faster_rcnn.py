@@ -21,9 +21,12 @@ frcnn_trainval = ex.capture(frcnn_trainval)
 @ex.config
 def default():
 	set_cfgs = None
+	cfg_file = None
 	tag =  datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 	description = ""
 	timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+	pretrained_model = None
+	pretrained_full_model = None
 
 # Dataset configs
 @ex.named_config
@@ -58,26 +61,41 @@ def kitti_car():
 def small_kitti_pedestrian():
 	imdb_name = "kitti_detection_Pedestrian_small_train"
 	imdbval_name = "kitti_detection_Pedestrian_small_val"
-	max_iters = 180000
-	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+	#max_iters = 180000
+	#set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+	max_iters = 100000
+	set_cfgs = ["TRAIN.STEPSIZE", "[35000]"]
+	#set_cfgs += ["TRAIN.LEARNING_RATE", "0.0001", "TRAIN.WEIGHT_DECAY", "0.00001"]
+	# make shorter side similar to MOT size
+	set_cfgs += ["TRAIN.MAX_SIZE", "1450", "TEST.MAX_SIZE", "1450"]
+	#set_cfgs += ["TRAIN.SNAPSHOT_KEPT", "20"]
+	# contrast equalization
+	#set_cfgs += ["APPLY_CLAHE", "True"]
 
 @ex.named_config
 def kitti_pedestrian():
 	imdb_name = "kitti_detection_Pedestrian_train"
 	imdbval_name = "kitti_detection_Pedestrian_small_val"
-	max_iters = 180000
-	set_cfgs = ["TRAIN.STEPSIZE", "[125000]"]
+	max_iters = 100000
+	set_cfgs = ["TRAIN.STEPSIZE", "[35000]"]
+	# make shorter side similar to MOT size
+	set_cfgs += ["TRAIN.MAX_SIZE", "1450", "TEST.MAX_SIZE", "1450"]
+	#set_cfgs += ["TRAIN.SNAPSHOT_KEPT", "20"]
+
+@ex.named_config
+def mot_pretrained():
+	pretrained_full_model = "output/frcnn/res101/mot_2017_train/STOP180k_NEW/res101_faster_rcnn_iter_180000.pth"
 
 @ex.named_config
 def res101():
 	network = "res101"
-	weights = "data/imagenet_weights/{}.pth".format(network)
+	pretrained_model = "data/imagenet_weights/{}.pth".format(network)
 	cfg_file = "experiments/cfgs/{}.yml".format(network)
 
 @ex.named_config
 def vgg16():
 	network = "vgg16"
-	weights = "data/imagenet_weights/{}.pth".format(network)
+	pretrained_model = "data/imagenet_weights/{}.pth".format(network)
 	cfg_file = "experiments/cfgs/{}.yml".format(network)
 	
 
@@ -100,6 +118,6 @@ def my_main(tag, cfg_file, set_cfgs, imdb_name, _config):
 		if not os.path.exists(outdir):
 			os.makedirs(outdir)
 		with open(sacred_config, 'w') as outfile:
-			yaml.dump(_config, outfile, default_flow_style=False)
+			yaml.dump({'frcnn':_config}, outfile, default_flow_style=False)
 
 	frcnn_trainval()

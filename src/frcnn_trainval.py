@@ -48,7 +48,7 @@ def combined_roidb(imdb_names):
   return imdb, roidb
 
 
-def frcnn_trainval(imdb_name, imdbval_name, max_iters, weights, cfg_file, set_cfgs, network, tag):
+def frcnn_trainval(imdb_name, imdbval_name, max_iters, pretrained_model, pretrained_full_model, cfg_file, set_cfgs, network, tag):
   """
   args = {'imdb_name':imdb_name,
       'imdbval_name':imdbval_name,
@@ -106,5 +106,6 @@ def frcnn_trainval(imdb_name, imdbval_name, max_iters, weights, cfg_file, set_cf
 
     
   train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
-            pretrained_model=weights,
+            pretrained_model=pretrained_model,
+            pretrained_full_model=pretrained_full_model,
             max_iters=max_iters)

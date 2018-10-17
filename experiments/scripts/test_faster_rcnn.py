@@ -25,11 +25,11 @@ def default():
 	output_name = None
 
 	# Added so that sacred doesn't throw a key error
-	description = ""
-	timestamp = ""
-	imdbval_name = ""
-	weights = ""
-	network = ""
+	#description = ""
+	#timestamp = ""
+	#imdbval_name = ""
+	#weights = ""
+	#network = ""
 
 # Dataset configs
 @ex.named_config
@@ -74,20 +74,21 @@ def kitti_pedestrian_small_val():
 
 
 @ex.automain
-def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_bbox, output_name, nms_thresh, _config):
+def my_main(imdbtest_name, clip_bbox, output_name, nms_thresh, frcnn, _config):
 
 	# Clip bboxes after bbox reg to image boundary
 	cfg_from_list(['TEST.BBOX_CLIP', str(clip_bbox), 'TEST.NMS', str(nms_thresh)])
+	#cfg_from_list(["APPLY_CLAHE", "True"])
 
 	# Already set everything here, so the path can be determined correctly
-	if cfg_file:
-		cfg_from_file(cfg_file)
-	if set_cfgs:
-		cfg_from_list(set_cfgs)
+	if frcnn['cfg_file']:
+		cfg_from_file(frcnn['cfg_file'])
+	if frcnn['set_cfgs']:
+		cfg_from_list(frcnn['set_cfgs'])
 
 	model_dir = osp.abspath(osp.join(cfg.ROOT_DIR, 'output', 'frcnn', cfg.EXP_DIR,
-		imdb_name, tag))
-	model = osp.join(model_dir, cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(max_iters) + '.pth')
+		frcnn['imdb_name'], frcnn['tag']))
+	model = osp.join(model_dir, cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(frcnn['max_iters']) + '.pth')
 	if output_name:
 		output_dir = osp.join(model_dir, output_name)
 	else:
@@ -98,4 +99,4 @@ def my_main(imdb_name, imdbtest_name, cfg_file, set_cfgs, tag, max_iters, clip_b
 	print('Called with args:')
 	print(_config)
 
-	frcnn_test(model=model, output_dir=output_dir)
+	frcnn_test(model=model, output_dir=output_dir, network=frcnn['network'])
