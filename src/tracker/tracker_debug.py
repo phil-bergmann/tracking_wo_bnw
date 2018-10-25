@@ -171,8 +171,11 @@ class Tracker():
 					assigned.append(c)
 					remove_inactive.append(t)
 
-					self.debug[t.id][self.im_index] = {}
-					self.debug[t.id][self.im_index]["info"] = "[*] ReIded\n"
+					if self.im_index in self.debug[t.id].keys():
+						self.debug[t.id][self.im_index]["info"] += "[*] ReIded\n"
+					else:
+						self.debug[t.id][self.im_index] = {}
+						self.debug[t.id][self.im_index]["info"] = "[*] ReIded\n"
 
 
 			for t in remove_inactive:
