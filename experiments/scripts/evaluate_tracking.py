@@ -177,7 +177,10 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
     extra_info.MT = MT
     extra_info.FRA = FRA
     extra_info.idmetrics = idmetrics
-    return metrics, extra_info, switches
+
+    ML_PT_MT = [gt_ids[np.where(MT_stats == 1)[0]], gt_ids[np.where(MT_stats == 2)[0]], gt_ids[np.where(MT_stats == 3)[0]]]
+
+    return metrics, extra_info, switches, ML_PT_MT
 
    
 
@@ -249,16 +252,40 @@ def evaluate_new(results, gt_file):
             y1 = bb[1]
             x2 = bb[2]
             y2 = bb[3]
-            res.append([float(frame+1), float(i+1), float(x1+1), float(y1+1), float(x2), float(y2), float(-1), float(-1), float(-1), float(-1)])
+            res.append([float(frame+1), float(i+1), float(x1+1), float(y1+1), float(x2+1), float(y2+1), float(-1), float(-1), float(-1), float(-1)])
 
     trackDB = np.array(res)
     gtDB = read_txt_to_struct(gt_file)
 
     gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
-    metrics, extra_info, switches = evaluate_sequence(trackDB, gtDB, distractor_ids)
+    metrics, extra_info, switches, ML_PT_MT = evaluate_sequence(trackDB, gtDB, distractor_ids)
 
     print_metrics(' Evaluation', metrics)
+
+    # evaluate sizes of ML_PT_MT
+    ML_PT_MT_sizes = [[]]
+    ML_PT_MT_vis = [[]]
+    for i, p in enumerate(ML_PT_MT, 1):
+        ML_PT_MT_sizes.append([])
+        ML_PT_MT_vis.append([])
+        for tr_id in p:
+            gt_in_person = np.where(gtDB[:, 1] == tr_id)[0]
+            #w = gtDB[gt_in_person, 4]
+            h = gtDB[gt_in_person, 5] - gtDB[gt_in_person, 3]
+            #sizes = (w*h).mean()
+            ML_PT_MT_sizes[i].append(h.mean())
+            ML_PT_MT_sizes[0].append(h.mean())
+
+            vis = gtDB[gt_in_person, 8]
+            ML_PT_MT_vis[i].append(vis.mean())
+            ML_PT_MT_vis[0].append(vis.mean())
+
+    print("\theight\tvis")
+    print("MT: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[3]), np.mean(ML_PT_MT_vis[3])))
+    print("PT: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[2]), np.mean(ML_PT_MT_vis[2])))
+    print("ML: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[1]), np.mean(ML_PT_MT_vis[1])))
+    print("total: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[0]), np.mean(ML_PT_MT_vis[0])))
 
     return switches
 
@@ -323,10 +350,11 @@ def my_main(simple_tracker, cnn, _config):
             tracker.step(sample)
         results, debug = tracker.get_results()
 
-        print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
+        #print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
 
         print("Tracks found: {}".format(len(results)))
-        print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+        print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
+        #print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
 
         #db.write_results(results, osp.join(output_dir))
         
@@ -335,11 +363,11 @@ def my_main(simple_tracker, cnn, _config):
         gt_file = osp.join(cfg.DATA_DIR, "MOT17Det", "train", s, "gt", "gt.txt")
         switches = evaluate_new(results, gt_file)
 
-        with open(osp.join(output_dir, "switches.txt"), "w") as of:
-            for t,s in enumerate(switches):
-                of.write("{}:       {}\n".format(t, s))
+        #with open(osp.join(output_dir, str(s)+"_switches.txt"), "w") as of:
+        #    for t,sw in enumerate(switches):
+        #        of.write("{}:       {}\n".format(t, sw))
 
-        with open(osp.join(output_dir, "debug.txt"), "w") as of:
+        with open(osp.join(output_dir, str(s)+"_debug.txt"), "w") as of:
             for i, track in debug.items():
                 of.write("Track id: {}\n".format(i))
                 for im_index, data in track.items():
@@ -350,27 +378,70 @@ def my_main(simple_tracker, cnn, _config):
 
 
         sizes = []
-        with open(osp.join(output_dir, "sum.txt"), "w") as of:
-            for f1,s in enumerate(switches, 1):
+        gt_ids = []
+        gt_heights = []
+        gt_viss = []
+        reason_loose = { 'NMS':0, 'score':0, 'regression':0}
+        reason_find = {'created':0, 'reid':0, 'regression':0}
+
+        with open(osp.join(output_dir, str(s)+"_sum.txt"), "w") as of:
+            #for f1,sw in enumerate(switches, 1):
+            for f1, sw in switches.items():
                 of.write("[*] Frame: {}\n".format(f1))
-                for t1, (t0, f0) in s.items():
-                    sizes.append(debug[t1-1][f1-1]["pos"][3]-debug[t1-1][f1-1]["pos"][1])
-                    of.write("ID switch from track {} to {} with size {}\n".format(t0, t1, debug[t1-1][f1-1]["pos"][3]-debug[t1-1][f1-1]["pos"][1]))
+                for t1, (t0, f0, gt_id, gt_height, gt_vis) in sw.items():
+                    gt_heights.append(gt_height)
+                    gt_ids.append(gt_id)
+                    gt_viss.append(gt_vis)
+                    of.write("ID switch from track {} to {} with size {}\n".format(t0, t1, gt_height))
                     #of.write("Old Track: {}\n".format(debug[t0-1][f0-1]["pos"]))
                     #of.write("{}".format(debug[t0-1][f0-1]["info"]))
+                    #debug[t1-1][f1-1]["pos"][3]-debug[t1-1][f1-1]["pos"][1]
                     of.write("Old Track:\n")
                     for frame, value in debug[t0-1].items():
-                        of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
+                        if frame == f0-1 or frame == f0 or frame == f0+1:
+                            of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
+                        if frame == f0:
+                            if "too low score" in value["info"]:
+                                reason_loose['score'] += 1
+                            elif "NMS" in value["info"]:
+                                reason_loose['NMS'] += 1
+                            elif "Regressing" in value["info"]:
+                                reason_loose['regression'] += 1
+                    #of.write("{} {}\n{}".format(f0, debug[t0-1][f0-1]["pos"], debug[t0-1][f0-1]["info"]))
+                    #of.write("{} {}\n{}".format(f0, debug[t0-1][f0]["pos"], debug[t0-1][f0]["info"]))
+                    #of.write("{} {}\n{}".format(f0, debug[t0][f0-1]["pos"], debug[t0][f0-1]["info"]))
+
 
                     of.write("\nNew Track:\n")
                     for frame, value in debug[t1-1].items():
-                        of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
+                        if frame == f1-1 or frame == f1-2 or frame == f1-3:
+                            of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
+                        if frame == f1-1:
+                            if "Created" in value['info']:
+                                reason_find['created'] += 1
+                            elif "ReIded" in value["info"]:
+                                reason_find["reid"] += 1
+                            elif "Regressing" in value["info"]:
+                                reason_find['regression'] += 1
+                    #of.write("{} {}\n{}".format(f1, debug[t1-1][f1-1]["pos"], debug[t1-1][f1-1]["info"]))
 
                     #of.write("New Track: {}\n".format(debug[t1-1][f1-1]["pos"]))
                     #of.write("{}\n".format(debug[t1-1][f1-1]["info"]))
                     of.write("\n")
                 of.write("\n\n")
-            of.write("Sizes: {}\n".format(sizes))
+            #of.write("Sizes: {}\n".format(sizes))
+        print("[*] Number of ID switches: {}".format(len(gt_ids)))
+        print("[*] Number of gt targets involved in ID switches: {}".format(len(np.unique(gt_ids))))
+        print("[*] Mean height of ID switches: {}".format(np.mean(gt_heights)))
+        print("[*] Mean visibility of ID switches targets: {}".format(np.mean(gt_viss)))
+        print("[*] Reasons for ID swtiches:")
+        print("\tLoose:")
+        for k,v in reason_loose.items():
+            print("\t\t{}: {}".format(k,v))
+        print("\tFind:")
+        for k,v in reason_find.items():
+            print("\t\t{}: {}".format(k,v))
+        print(gt_ids)
 
     
-    print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))
+    #print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))
