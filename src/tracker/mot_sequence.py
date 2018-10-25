@@ -83,15 +83,15 @@ class MOT_Sequence(Dataset):
 		for k,v in d['vis'].items():
 			sample['vis'][k] = v
 		for det in d['dets']:
-			sample['dets'].append(det * sample['im_info'][2])
-		for raw_det in d['raw_dets']:
-			sample['raw_dets'].append(raw_det * sample['im_info'][2])
+			sample['dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
+		for det in d['raw_dets']:
+			sample['raw_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
 		for det in d['MOT17_FRCNN_dets']:
-			sample['MOT17_FRCNN_dets'].append(det * sample['im_info'][2])
+			sample['MOT17_FRCNN_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
 		for det in d['MOT17_DPM_dets']:
-			sample['MOT17_DPM_dets'].append(det * sample['im_info'][2])
+			sample['MOT17_DPM_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
 		for det in d['MOT17_SDP_dets']:
-			sample['MOT17_SDP_dets'].append(det * sample['im_info'][2])
+			sample['MOT17_SDP_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
 
 		return sample
 
