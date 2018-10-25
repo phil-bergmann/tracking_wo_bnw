@@ -153,6 +153,8 @@ class KITTI_Sequence(Dataset):
 
 		assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
 
+		output_dir = os.path.join(output_dir, self._tt + "_" + self._cl)
+
 		if not os.path.exists(output_dir):
 			os.makedirs(output_dir)
 
