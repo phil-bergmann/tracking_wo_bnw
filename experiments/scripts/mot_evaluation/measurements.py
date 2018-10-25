@@ -56,7 +56,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
     st_inds = [{} for i in range(f_gt)]
     M = [{} for i in range(f_gt)]                  # matched pairs hashing gid to sid in each frame 
     
-    switches = [{} for i in range(f_gt)]
+    switches = {i:{} for i in gt_frames}
 
     # hash the indices to speed up indexing
     for i in range(gtDB.shape[0]):
@@ -141,7 +141,12 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
                         row_2 = st_inds[last_non_empty][mlastnonemptyct]
                         id_1 = int(stDB[row_1, 1])
                         id_2 = int(stDB[row_2, 1])
-                        switches[int(gt_frames[t])][id_1] = [id_2, int(gt_frames[last_non_empty])]
+                        #print(st_ids[mlastnonemptyct])
+                        gt_row = gt_inds[t][ct]
+                        gt_id = int(gtDB[gt_row, 1])
+                        gt_height = float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3])
+                        gt_vis = float(gtDB[gt_row, 8])
+                        switches[int(gt_frames[t])][id_1] = [id_2, int(gt_frames[last_non_empty]), gt_id, gt_height, gt_vis]
 
         c[t] = len(cur_tracked)
         fp[t] = len(st_inds[t].keys())
