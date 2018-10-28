@@ -1,20 +1,21 @@
-
-from model.test import _get_blobs
-
-from .mot_sequence import MOT_Sequence
-from ..config import get_output_dir
-
-import cv2
-from PIL import Image
 import numpy as np
+import cv2
+import os
 import os.path as osp
+import configparser
+import csv
+import h5py
+from PIL import Image
 
 import torch
+from torch.utils.data import Dataset
 from torchvision.transforms import CenterCrop, Normalize, Compose, RandomHorizontalFlip, RandomCrop, ToTensor, RandomResizedCrop
 
+from ..config import cfg
 
-class MOT_Siamese(MOT_Sequence):
-	"""Multiple Object Tracking Dataset.
+
+class Market1501(Dataset):
+	"""Market1501 dataloader.
 
 	This class builds samples for training of a simaese net. It returns a tripple of 2 matching and 1 not
     matching image crop of a person. The crops con be precalculated.
@@ -22,9 +23,11 @@ class MOT_Siamese(MOT_Sequence):
 	Values for P are normally 18 and K 4
 	"""
 
-	def __init__(self, seq_name, split, vis_threshold, P, K, max_per_person, crop_H, crop_W,
+	def __init__(self, seq_name, vis_threshold, P, K, max_per_person, crop_H, crop_W,
 				transform, normalize_mean=None, normalize_std=None):
-		super().__init__(seq_name, vis_threshold=vis_threshold)
+
+		self.data_dir = osp.join(cfg.DATA_DIR, 'Market-1501-v15.09.15')
+		self.seq_name = seq_name
 
 		self.P = P
 		self.K = K
@@ -39,16 +42,18 @@ class MOT_Siamese(MOT_Sequence):
 		else:
 			raise NotImplementedError("Tranformation not understood: {}".format(transform))
 
-		self.build_samples()
-
-		if split == 'train':
-			pass
-		elif split == 'smallTrain':
-			self.data = self.data[0::5] + self.data[1::5] + self.data[2::5] + self.data[3::5]
-		elif split == 'smallVal':
-			self.data = self.data[4::5]
+		if seq_name:
+			assert seq_name in ['bounding_box_test', 'bounding_box_train', 'gt_bbox'], \
+				'Image set does not exist: {}'.format(seq_name)
+			self.data = self.load_images()
 		else:
-			raise NotImplementedError("Split: {}".format(split))
+			self.data = []
+
+		self.build_samples()
+		
+
+	def __len__(self):
+		return len(self.data)
 
 	def __getitem__(self, idx):
 		"""Return the ith triplet"""
@@ -85,23 +90,35 @@ class MOT_Siamese(MOT_Sequence):
 
 		return batch
 
+	def load_images(self):
+		im_folder = osp.join(self.data_dir, self.seq_name)
+
+		total = []
+
+		for f in os.listdir(im_folder):
+			if os.path.isfile(os.path.join(im_folder, f)) and f[-4:] == ".jpg":
+				im_path = osp.join(im_folder,f)
+				sample = {'im_path':im_path,
+					  	  'id':int(f[:4])}
+
+				total.append(sample)
+
+		return total
+
 	def build_samples(self):
-		"""Builds the samples out of the sequence."""
+		"""Builds the samples for simaese out of the data."""
 
 		tracks = {}
 
 		for sample in self.data:
 			im_path = sample['im_path']
-			gt = sample['gt']
+			identity = sample['id']
 
-			for k,v in tracks.items():
-				if k in gt.keys():
-					v.append({'id':k, 'im_path':im_path, 'gt':gt[k]})
-					del gt[k]
-
-			# For all remaining BB in gt new tracks are created
-			for k,v in gt.items():
-				tracks[k] = [{'id':k, 'im_path':im_path, 'gt':v}]
+			if identity in tracks:
+				tracks[identity].append(sample)
+			else:
+				tracks[identity] = []
+				tracks[identity].append(sample)
 
 		# sample max_per_person images and filter out tracks smaller than 4 samples
 		#outdir = get_output_dir("siamese_test")
@@ -112,36 +129,19 @@ class MOT_Siamese(MOT_Sequence):
 				pers = []
 				if l > self.max_per_person:
 					for i in np.random.choice(l, self.max_per_person, replace=False):
-						pers.append(self.build_crop(v[i]['im_path'], v[i]['gt']))
+						pers.append(self.build_crop(v[i]['im_path']))
 				else:
 					for i in range(l):
-						pers.append(self.build_crop(v[i]['im_path'], v[i]['gt']))
-
-				#for i,v in enumerate(pers):
-				#	cv2.imwrite(osp.join(outdir, str(k)+'_'+str(i)+'.png'),v)
+						pers.append(self.build_crop(v[i]['im_path']))
 				res.append(np.array(pers))
 
-		if self._seq_name:
-			print("[*] Loaded {} persons from sequence {}.".format(len(res), self._seq_name))
+		if self.seq_name:
+			print("[*] Loaded {} persons from sequence {}.".format(len(res), self.seq_name))
 
 		self.data = res
 
-	def build_crop(self, im_path, gt):
+	def build_crop(self, im_path):
 		im = cv2.imread(im_path)
-		height, width, channels = im.shape
-		#blobs, im_scales = _get_blobs(im)
-		#im = blobs['data'][0]
-		#gt = gt * im_scales[0]
-		# clip to image boundary
-		w = gt[2] - gt[0]
-		h = gt[3] - gt[1]
-		context = 0
-		gt[0] = np.clip(gt[0]-context*w, 0, width-1)
-		gt[1] = np.clip(gt[1]-context*h, 0, height-1)
-		gt[2] = np.clip(gt[2]+context*w, 0, width-1)
-		gt[3] = np.clip(gt[3]+context*h, 0, height-1)
-
-		im = im[int(gt[1]):int(gt[3]), int(gt[0]):int(gt[2])]
 
 		im = cv2.resize(im, (int(self.crop_W*1.125), int(self.crop_H*1.125)), interpolation=cv2.INTER_LINEAR)
 

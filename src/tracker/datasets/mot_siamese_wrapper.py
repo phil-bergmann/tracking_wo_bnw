@@ -11,21 +11,15 @@ class MOT_Siamese_Wrapper(Dataset):
 	Dataset.
 	"""
 
-	def __init__(self, image_set, dataloader):
-		self.image_set = image_set
+	def __init__(self, split, dataloader):
 
-		if "train" in image_set:
-			self._train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
+		train_folders = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10',
 				'MOT17-11', 'MOT17-13']
-		elif "mot-09" in image_set:
-			self._train_folders = ["MOT17-09"]
-		else:
-			raise NotImplementedError("Image set: {}".format(image_set))
 
-		self._dataloader = MOT_Siamese(None, **dataloader)
+		self._dataloader = MOT_Siamese(None, split=split, **dataloader)
 
-		for seq in self._train_folders:
-			d = MOT_Siamese(seq, **dataloader)
+		for seq in train_folders:
+			d = MOT_Siamese(seq, split=split, **dataloader)
 			for sample in d.data:
 				self._dataloader.data.append(sample)
 

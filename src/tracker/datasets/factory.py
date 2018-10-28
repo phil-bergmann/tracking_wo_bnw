@@ -2,6 +2,7 @@
 from .mot_wrapper import MOT_Wrapper
 from .mot_siamese_wrapper import MOT_Siamese_Wrapper
 from .mot15_wrapper import MOT15_Wrapper
+from .marcuhmot import MarCUHMOT
 
 
 _sets = {}
@@ -14,13 +15,17 @@ for split in ['train', 'test', '01', '02', '03', '04', '05', '06', '07', '08', '
 		name = 'mot_{}_{}'.format(split, dets)
 		_sets[name] = (lambda *args, split=split, dets=dets: MOT_Wrapper(split, dets, *args))
 
-for split in ['train', 'smallVal', 'smallTrain', '02', '04', '05', '09', '10', '11', '13']:
+for split in ['train', 'smallVal', 'smallTrain']:
 	name = 'motSiamese_{}'.format(split)
 	_sets[name] = (lambda *args, split=split: MOT_Siamese_Wrapper(split, *args))
 
 for split in ['PETS09-S2L1', 'TUD-Stadtmitte', 'TUD-Campus', 'train', 'test', 'last3train']:
 	name = 'mot15_{}'.format(split)
 	_sets[name] = (lambda *args, split=split: MOT15_Wrapper(split, *args))
+
+for split in ['smallTrain', 'smallVal', 'train']:
+	name = 'marcuhmot_{}'.format(split)
+	_sets[name] = (lambda *args, split=split: MarCUHMOT(split, *args))
 
 
 class Datasets(object):
