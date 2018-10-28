@@ -256,14 +256,9 @@ class Tracker():
 		###########################
 		self.frcnn.load_image(blob['data'][0], blob['im_info'][0])
 		if self.public_detections:
-			if self.public_detections == "DPM_RAW":
-				dets = blob['raw_dets']
-			elif self.public_detections == "DPM":
-				dets = blob['dets']
-			else:
-				raise NotImplementedError("[!] Public detecions not understood: {}\nChoose between: ['DPM', 'DPM_RAW', False]".format(self.public_detections))
+			dets = blob['dets']
 			if len(dets) > 0:
-				dets = torch.cat(dets, 0)			
+				dets = torch.cat(dets, 0)[:,:4]
 				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
