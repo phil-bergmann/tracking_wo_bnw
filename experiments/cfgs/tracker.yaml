@@ -1,5 +1,5 @@
 simple_tracker:
-  name: MOT17_EUC_SDP03
+  name: MOT17_EUC_SDP07
   # Subfolder name in output/tracker/
   module_name: MOT17
   desription: 
@@ -27,9 +27,9 @@ simple_tracker:
 
   tracker:
     # FRCNN score threshold for detections
-    detection_person_thresh: 0.3
+    detection_person_thresh: 0.7
     # FRCNN score threshold for keeping the track alive
-    regression_person_thresh: 0.5
+    regression_person_thresh: 0.7
     # NMS threshold for detection
     detection_nms_thresh: 0.3
     # NMS theshold while tracking
@@ -43,9 +43,9 @@ simple_tracker:
     do_align: True
     # Which warp mode to use (cv2.MOTION_EUCLIDEAN, cv2.MOTION_AFFINE, ...)
     warp_mode: 'cv2.MOTION_EUCLIDEAN'
-    # maximal number of iterations
+    # maximal number of iterations (original 50)
     number_of_iterations: 100
-    # Threshold increment between two iterations
+    # Threshold increment between two iterations (original 0.001)
     termination_eps: 0.00001
     # Use siamese network to do reid
     do_reid: True

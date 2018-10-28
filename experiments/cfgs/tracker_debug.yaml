@@ -1,5 +1,5 @@
 simple_tracker:
-  name: test
+  name: mot15
   # Subfolder name in output/tracker/
   module_name: MOT_analysis
   desription: 
@@ -20,7 +20,7 @@ simple_tracker:
   interpolate: False
   write_images: True
   # train or test or both (smth like train+test)
-  sequences: [MOT17-10]
+  dataset: mot15_last3train
 
   tracker:
     # FRCNN score threshold for detections
@@ -33,7 +33,8 @@ simple_tracker:
     regression_nms_thresh: 0.6
     # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
     # 0 tells the tracker to use private detections (Faster R-CNN)
-    public_detections: False
+    # only true or false, detections provided by dataloader
+    public_detections: True
     # How much last appearance features are to keep
     max_features_num: 10
     # Do camera motion compensation
