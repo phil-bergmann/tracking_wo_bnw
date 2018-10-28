@@ -14,6 +14,7 @@ from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
 from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
 from tracker.kitti_siamese_wrapper import KITTI_Siamese_Wrapper
+from tracker.datasets.factory import Datasets
 from tracker.resnet import resnet50
 
 ex = Experiment()
@@ -46,26 +47,12 @@ def my_main(_config, cnn):
 	#########################
 	print("[*] Initializing Dataloader")
 
-	dataloader = cnn['dataloader']
-	if "MOT" in cnn['db_train']:
-		db_train = MOT_Siamese_Wrapper(cnn['db_train'], dataloader)
-		db_train = DataLoader(db_train, batch_size=1, shuffle=True)
-	elif "KITTI" in cnn['db_train']:
-		db_train = KITTI_Siamese_Wrapper(cnn['db_train'], dataloader)
-		db_train = DataLoader(db_train, batch_size=1, shuffle=True)
-	else:
-		raise NotImplementedError("Image set: {}".format(cnn['db_train']))
+	db_train = Datasets(cnn['db_train'], cnn['dataloader'])
+	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
 	if cnn['db_val']:
-		dataloader['split'] = "small_val"
-		if "MOT" in cnn['db_val']:
-			db_val = MOT_Siamese_Wrapper(cnn['db_val'], dataloader)
-			db_val = DataLoader(db_val, batch_size=1, shuffle=True)
-		elif "KITTI" in cnn['db_val']:
-			db_val = KITTI_Siamese_Wrapper(cnn['db_val'], dataloader)
-			db_val = DataLoader(db_val, batch_size=1, shuffle=True)
-		else:
-			raise NotImplementedError("Image set: {}".format(cnn['db_val']))
+		pass
+		#db_val = DataLoader(db_val, batch_size=1, shuffle=True)
 	else:
 		db_val = None
 	
@@ -82,18 +69,18 @@ def my_main(_config, cnn):
 	##################
 	print("[*] Solving ...")
 	
-	if cnn['lr_scheduler']:
-		# build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
-		# from Hermans et al.
-		lr = cnn['solver']['optim_args']['lr']
-		iters_per_epoch = len(db_train)
-		# we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
-		l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
+	# build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
+	# from Hermans et al.
+	lr = cnn['solver']['optim_args']['lr']
+	iters_per_epoch = len(db_train)
+	# we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
+	l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
 																iters_per_epoch,  iters_per_epoch))
-	else:
-		l = None
+	#else:
+	#	l = None
+	max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
 	solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
-	solver.train(network, db_train, db_val, cnn['max_epochs'], 100, model_args=cnn['model_args'])
+	solver.train(network, db_train, db_val, max_epochs, 100, model_args=cnn['model_args'])
 	
 	
 	
