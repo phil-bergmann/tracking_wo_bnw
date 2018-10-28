@@ -22,6 +22,7 @@ from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
 from tracker.mot_sequence import MOT_Sequence
 from tracker.kitti_sequence import KITTI_Sequence
+from tracker.datasets.factory import Datasets
 from tracker.tracker_debug import Tracker
 from tracker.utils import interpolate
 from tracker.resnet import resnet50
@@ -106,7 +107,11 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
     minvis: minimum tolerent visibility
     """
     trackDB, gtDB = preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis)
-    mme, c, fp, g, missed, d, M, allfps, switches = clear_mot_hungarian(trackDB, gtDB, iou_thres)
+    mme, c, fp, g, missed, d, M, allfps, clear_mot_info = clear_mot_hungarian(trackDB, gtDB, iou_thres)
+    #print(mme)
+    #print(c)
+    #print(fp)
+    #print(g)
 
     gt_frames = np.unique(gtDB[:, 0])
     gt_ids = np.unique(gtDB[:, 1])
@@ -180,7 +185,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
 
     ML_PT_MT = [gt_ids[np.where(MT_stats == 1)[0]], gt_ids[np.where(MT_stats == 2)[0]], gt_ids[np.where(MT_stats == 3)[0]]]
 
-    return metrics, extra_info, switches, ML_PT_MT
+    return metrics, extra_info, clear_mot_info, ML_PT_MT
 
    
 
@@ -257,9 +262,15 @@ def evaluate_new(results, gt_file):
     trackDB = np.array(res)
     gtDB = read_txt_to_struct(gt_file)
 
+    # manipulate mot15 to fit mot16
+    """gtDB[:,7] = gtDB[:,6]
+    gtDB[:,6] = 1
+    gtDB[:,8] = 1
+    gtDB = gtDB[:,:9]"""
+
     gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
-    metrics, extra_info, switches, ML_PT_MT = evaluate_sequence(trackDB, gtDB, distractor_ids)
+    metrics, extra_info, clear_mot_info, ML_PT_MT = evaluate_sequence(trackDB, gtDB, distractor_ids)
 
     print_metrics(' Evaluation', metrics)
 
@@ -281,13 +292,13 @@ def evaluate_new(results, gt_file):
             ML_PT_MT_vis[i].append(vis.mean())
             ML_PT_MT_vis[0].append(vis.mean())
 
-    print("\theight\tvis")
-    print("MT: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[3]), np.mean(ML_PT_MT_vis[3])))
-    print("PT: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[2]), np.mean(ML_PT_MT_vis[2])))
-    print("ML: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[1]), np.mean(ML_PT_MT_vis[1])))
-    print("total: \t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[0]), np.mean(ML_PT_MT_vis[0])))
+    print("\t\theight\tvis")
+    print("MT: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[3]), np.mean(ML_PT_MT_vis[3])))
+    print("PT: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[2]), np.mean(ML_PT_MT_vis[2])))
+    print("ML: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[1]), np.mean(ML_PT_MT_vis[1])))
+    print("total (mean of\t{:.2f}\t{:.2f}\ntrack means):".format(np.mean(ML_PT_MT_sizes[0]), np.mean(ML_PT_MT_vis[0])))
 
-    return switches
+    return clear_mot_info
 
 @ex.automain
 def my_main(simple_tracker, cnn, _config):
@@ -331,19 +342,19 @@ def my_main(simple_tracker, cnn, _config):
 
     #train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
 
-    for s in simple_tracker['sequences']:
+    for db in Datasets(simple_tracker['dataset']):
         tracker.reset()
 
         now = time.time()
 
-        print("[*] Evaluating: {}".format(s))
+        print("[*] Evaluating: {}".format(db))
 
         output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
 
         if not osp.exists(output_dir):
             os.makedirs(output_dir)
         
-        db = MOT_Sequence(s)
+        #db = MOT_Sequence(s)
 
         dl = DataLoader(db, batch_size=1, shuffle=False)
         for sample in dl:
@@ -360,14 +371,14 @@ def my_main(simple_tracker, cnn, _config):
         
         #if simple_tracker['write_images']:
         #    plot_sequence(results, db, osp.join(output_dir, s))
-        gt_file = osp.join(cfg.DATA_DIR, "MOT17Det", "train", s, "gt", "gt.txt")
-        switches = evaluate_new(results, gt_file)
+        gt_file = osp.join(cfg.DATA_DIR, "2DMOT2015", "train", str(db), "gt", "gt.txt")
+        (switches, gt_mean_height, gt_mean_vis) = evaluate_new(results, gt_file)
 
         #with open(osp.join(output_dir, str(s)+"_switches.txt"), "w") as of:
         #    for t,sw in enumerate(switches):
         #        of.write("{}:       {}\n".format(t, sw))
 
-        with open(osp.join(output_dir, str(s)+"_debug.txt"), "w") as of:
+        with open(osp.join(output_dir, str(db)+"_debug.txt"), "w") as of:
             for i, track in debug.items():
                 of.write("Track id: {}\n".format(i))
                 for im_index, data in track.items():
@@ -384,7 +395,7 @@ def my_main(simple_tracker, cnn, _config):
         reason_loose = { 'NMS':0, 'score':0, 'regression':0}
         reason_find = {'created':0, 'reid':0, 'regression':0}
 
-        with open(osp.join(output_dir, str(s)+"_sum.txt"), "w") as of:
+        with open(osp.join(output_dir, str(db)+"_sum.txt"), "w") as of:
             #for f1,sw in enumerate(switches, 1):
             for f1, sw in switches.items():
                 of.write("[*] Frame: {}\n".format(f1))
@@ -434,6 +445,8 @@ def my_main(simple_tracker, cnn, _config):
         print("[*] Number of gt targets involved in ID switches: {}".format(len(np.unique(gt_ids))))
         print("[*] Mean height of ID switches: {}".format(np.mean(gt_heights)))
         print("[*] Mean visibility of ID switches targets: {}".format(np.mean(gt_viss)))
+        print("[*] Mean height of tracked boxes: {}".format(np.mean(gt_mean_height)))
+        print("[*] Mean visibility of tracked boxes: {}".format(np.mean(gt_mean_vis)))
         print("[*] Reasons for ID swtiches:")
         print("\tLoose:")
         for k,v in reason_loose.items():
