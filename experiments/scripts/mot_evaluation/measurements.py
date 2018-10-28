@@ -137,16 +137,18 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
 
                         #row_st = st_inds[t][M[t - 1][mappings[k]]]
                         #stDB[row_st, 2:6]
-                        row_1 = st_inds[t][mtct]
-                        row_2 = st_inds[last_non_empty][mlastnonemptyct]
-                        id_1 = int(stDB[row_1, 1])
-                        id_2 = int(stDB[row_2, 1])
-                        #print(st_ids[mlastnonemptyct])
-                        gt_row = gt_inds[t][ct]
+                        row_new = st_inds[t][mtct]
+                        row_old = st_inds[last_non_empty][mlastnonemptyct]
+                        id_new = int(stDB[row_new, 1])
+                        id_old = int(stDB[row_old, 1])
+                        
+                        # extract height and visibility at dissapearing point
+                        gt_row = gt_inds[last_non_empty][ct]
                         gt_id = int(gtDB[gt_row, 1])
                         gt_height = float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3])
                         gt_vis = float(gtDB[gt_row, 8])
-                        switches[int(gt_frames[t])][id_1] = [id_2, int(gt_frames[last_non_empty]), gt_id, gt_height, gt_vis]
+                        
+                        switches[int(gt_frames[t])][id_new] = [id_old, int(gt_frames[last_non_empty]), gt_id, gt_height, gt_vis]
 
         c[t] = len(cur_tracked)
         fp[t] = len(st_inds[t].keys())
@@ -158,7 +160,18 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
             row_gt = gt_inds[t][ct]
             row_st = st_inds[t][est]
             d[t][ct] = bbox_overlap(stDB[row_st, 2:6], gtDB[row_gt, 2:6])
-    return mme, c, fp, g, missed, d, M, allfps, switches
+
+    # calculate mean vis and mean height over all matches
+    gt_height_list = []
+    gt_vis_list = []
+    for t,v in enumerate(M):
+        for gt in v.keys():
+            gt_row = gt_inds[t][gt]
+            gt_height_list.append(float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3]))
+            gt_vis_list.append(float(gtDB[gt_row, 8]))
+
+
+    return mme, c, fp, g, missed, d, M, allfps, (switches, np.mean(gt_height_list), np.mean(gt_vis_list))
 
 def idmeasures(gtDB, stDB, threshold):
     """
