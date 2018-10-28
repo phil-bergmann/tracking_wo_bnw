@@ -2,6 +2,7 @@ from random import shuffle
 import numpy as np
 import os
 import time
+import fnmatch
 
 import torch
 from torch.autograd import Variable
@@ -57,6 +58,22 @@ class Solver(object):
 		filename = os.path.join(self.output_dir, filename)
 		torch.save(model.state_dict(), filename)
 		print('Wrote snapshot to: {:s}'.format(filename))
+
+		# Delete old snapshots (keep minimum 3 latest)
+		snapshots_iters = []
+
+		onlyfiles = [f for f in os.listdir(self.output_dir) if os.path.isfile(os.path.join(self.output_dir, f))]
+
+		for f in onlyfiles:
+			if fnmatch.fnmatch(f, 'ResNet_iters_*.pth'):
+				snapshots_iters.append(int(f.split('_')[2][:-4]))
+
+		snapshots_iters.sort()
+
+		for i in range(len(snapshots_iters) - 3):
+			filename = model.name + '_iter_{:d}'.format(snapshots_iters[i]) + '.pth'
+			filename = os.path.join(self.output_dir, filename)
+			os.remove(filename)
 
 	def train(self, model, train_loader, val_loader=None, num_epochs=10, log_nth=0, model_args={}):
 		"""
