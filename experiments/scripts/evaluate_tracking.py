@@ -263,10 +263,10 @@ def evaluate_new(results, gt_file):
     gtDB = read_txt_to_struct(gt_file)
 
     # manipulate mot15 to fit mot16
-    """gtDB[:,7] = gtDB[:,6]
+    gtDB[:,7] = gtDB[:,6]
     gtDB[:,6] = 1
     gtDB[:,8] = 1
-    gtDB = gtDB[:,:9]"""
+    gtDB = gtDB[:,:9]
 
     gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
@@ -456,5 +456,5 @@ def my_main(simple_tracker, cnn, _config):
             print("\t\t{}: {}".format(k,v))
         print(gt_ids)
 
-    
-    #print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))
+        if simple_tracker['write_images']:
+            plot_sequence(results, db, osp.join(output_dir, str(db)))
