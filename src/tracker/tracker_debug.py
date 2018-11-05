@@ -23,7 +23,7 @@ class Tracker():
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold):
+		max_features_num, reid_iou_threshold, oracle):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
@@ -37,6 +37,7 @@ class Tracker():
 		self.reid_sim_threshold = reid_sim_threshold
 		self.reid_iou_threshold = reid_iou_threshold
 		self.do_align = do_align
+		self.use_oracle = oracle
 
 		self.reset()
 
@@ -246,6 +247,27 @@ class Tracker():
 					pos = torch.cat((p1_n, p2_n), 1).cuda()
 					t.pos = pos.view(1,-1)
 
+	def oracle(self, blob):
+		gt = blob['gt']
+		boxes = torch.cat(list(gt.values()), 0).cuda()
+
+		if len(self.tracks) > 0:
+			dist_mat = []
+			pos = self.get_pos()
+
+			# calculate IoU distances
+			iou_neg = 1 - bbox_overlaps(pos, boxes)
+			dist_mat = iou_neg.cpu().numpy()
+
+			row_ind, col_ind = linear_sum_assignment(dist_mat)
+
+			assigned = []
+			remove_inactive = []
+			for r,c in zip(row_ind, col_ind):
+				if dist_mat[r,c] < 1:
+					t = self.tracks[r]
+					t.pos = boxes[c].view(1,-1)
+
 	def step(self, blob):
 
 		# only the class person used here
@@ -298,6 +320,8 @@ class Tracker():
 			# align
 			if self.do_align:
 				self.align(blob)
+			if self.use_oracle:
+				self.oracle(blob)
 			#regress
 			person_scores = self.regress_tracks(blob)
 			
