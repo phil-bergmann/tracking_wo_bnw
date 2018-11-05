@@ -1,5 +1,5 @@
 simple_tracker:
-  name: mot15
+  name: oracle
   # Subfolder name in output/tracker/
   module_name: MOT_analysis
   desription: 
@@ -20,9 +20,11 @@ simple_tracker:
   interpolate: False
   write_images: True
   # train or test or both (smth like train+test)
-  dataset: mot15_last3train
+  dataset: mot_train_DPM17
 
   tracker:
+    # move bb to gt every time before regression
+    oracle: True
     # FRCNN score threshold for detections
     detection_person_thresh: 0.5
     # FRCNN score threshold for keeping the track alive

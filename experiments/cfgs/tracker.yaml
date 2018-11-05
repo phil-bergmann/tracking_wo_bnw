@@ -1,7 +1,7 @@
 simple_tracker:
-  name: MOT17_EUC_SDP07
+  name: pub_5536
   # Subfolder name in output/tracker/
-  module_name: MOT17
+  module_name: MOT15
   desription: 
   seed: 12345
   # vgg16 or res101
@@ -21,22 +21,22 @@ simple_tracker:
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml'
   interpolate: False
-  write_images: False
-  # train or test or both (smth like train+test)
-  sequences: MOT_train+test
+  write_images: True
+  # dataset (look into tracker/datasets/factory.py)
+  dataset: mot15_test
 
   tracker:
     # FRCNN score threshold for detections
-    detection_person_thresh: 0.7
+    detection_person_thresh: 0.5
     # FRCNN score threshold for keeping the track alive
-    regression_person_thresh: 0.7
+    regression_person_thresh: 0.5
     # NMS threshold for detection
     detection_nms_thresh: 0.3
     # NMS theshold while tracking
     regression_nms_thresh: 0.6
     # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
     # 0 tells the tracker to use private detections (Faster R-CNN)
-    public_detections: MOT17_SDP
+    public_detections: True
     # How much last appearance features are to keep
     max_features_num: 10
     # Do camera motion compensation

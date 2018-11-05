@@ -1,11 +1,11 @@
 cnn:
-  name: marcuhmot_small
+  name: bh4-smallTrain
   module_name: pretrain_cnn
   desription: 
   seed: 12345
   #max_epochs: 181
   # smth like MOT_train, KITTI_train_Pedestrian
-  db_train: marcuhmot_smallTrain
+  db_train: motSiamese_smallTrain
   db_val: False
 
   #lr_scheduler: True
