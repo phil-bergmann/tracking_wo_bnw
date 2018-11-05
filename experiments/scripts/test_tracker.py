@@ -16,8 +16,7 @@ from tracker.rfrcnn import FRCNN as rFRCNN
 from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import cfg, get_output_dir
 from tracker.utils import plot_sequence
-from tracker.mot_sequence import MOT_Sequence
-from tracker.kitti_sequence import KITTI_Sequence
+from tracker.datasets.factory import Datasets
 from tracker.tracker import Tracker
 from tracker.utils import interpolate
 from tracker.resnet import resnet50
@@ -70,24 +69,6 @@ def my_main(simple_tracker, cnn, frcnn, _config):
     with open(sacred_config, 'w') as outfile:
         yaml.dump(_config, outfile, default_flow_style=False)
 
-    seq = []
-    if "MOT" in simple_tracker['sequences']:
-        if "train" in simple_tracker['sequences']:
-            seq = seq + train
-        if "test" in simple_tracker['sequences']:
-            seq = seq + test
-    elif "KITTI" in simple_tracker['sequences']:
-        if "Pedestrian" in simple_tracker['sequences']:
-            if "train" in simple_tracker['sequences']:
-                seq = seq + kitti_train_pedestrian
-            if "test" in simple_tracker['sequences']:
-                seq = seq + kitti_test_pedestrian
-        if "Car" in simple_tracker['sequences']:
-            if "train" in simple_tracker['sequences']:
-                seq = seq + kitti_train_car
-            if "test" in simple_tracker['sequences']:
-                seq = seq + kitti_test_car
-
     ##########################
     # Initialize the modules #
     ##########################
@@ -118,19 +99,12 @@ def my_main(simple_tracker, cnn, frcnn, _config):
 
     time_ges = 0
 
-    for s in seq:
+    for db in Datasets(simple_tracker['dataset']):
         tracker.reset()
 
         now = time.time()
 
-        print("[*] Evaluating: {}".format(s))
-
-        if "MOT" in simple_tracker['sequences']:
-            db = MOT_Sequence(s)
-        elif "KITTI" in simple_tracker['sequences']:
-            db = KITTI_Sequence(s)
-        else:
-            raise NotImplementedError("Invalid sequences: {}".format(simple_tracker['sequences']))
+        print("[*] Evaluating: {}".format(db))
 
         dl = DataLoader(db, batch_size=1, shuffle=False)
         for sample in dl:
@@ -142,7 +116,7 @@ def my_main(simple_tracker, cnn, frcnn, _config):
         time_ges += time.time() - now
 
         print("Tracks found: {}".format(len(results)))
-        print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+        print("[*] Time needed for {} evaluation: {:.3f} s".format(db, time.time() - now))
 
         if simple_tracker['interpolate']:
             results = interpolate(results)
@@ -150,6 +124,6 @@ def my_main(simple_tracker, cnn, frcnn, _config):
         db.write_results(results, osp.join(output_dir))
         
         if simple_tracker['write_images']:
-            plot_sequence(results, db, osp.join(output_dir, s))
+            plot_sequence(results, db, osp.join(output_dir, str(db)))
     
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))
