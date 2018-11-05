@@ -16,6 +16,8 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 from tracker.rfrcnn import FRCNN as rFRCNN
 from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import cfg, get_output_dir
@@ -34,13 +36,6 @@ from mot_evaluation.bbox import bbox_overlap
 from mot_evaluation.measurements import clear_mot_hungarian, idmeasures
 
 ex = Experiment()
-
-ex.add_config('experiments/cfgs/tracker_debug.yaml')
-
-# hacky workaround to load the corresponding cnn config and not having to hardcode it here
-ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
-
-Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
 
 def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
     """
@@ -88,12 +83,12 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
         has_duplicates = uniq_frame_id_pairs.shape[0] < frame_id_pairs.shape[0]
         assert not has_duplicates, 'Duplicate ID in same frame [Frame ID: %d].'%i
     keep_idx = np.where(res_keep == 1)[0]
-    print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes, remaining %d/%d computed boxes'%(len(keep_idx), len(res_keep)))
+    #print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes, remaining %d/%d computed boxes'%(len(keep_idx), len(res_keep)))
     trackDB = trackDB[keep_idx, :]
-    print('Distractors:', distractor_ids)
+    #print('Distractors:', distractor_ids)
     #keep_idx = np.array([i for i in xrange(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids and gtDB[i, 8] >= minvis])
     keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0] )
-    print('[GT PREPROCESSING]: Removing distractor boxes, remaining %d/%d computed boxes'%(len(keep_idx), gtDB.shape[0]))
+    #print('[GT PREPROCESSING]: Removing distractor boxes, remaining %d/%d computed boxes'%(len(keep_idx), gtDB.shape[0]))
     gtDB = gtDB[keep_idx, :]
     return trackDB, gtDB
 
@@ -185,7 +180,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
 
     ML_PT_MT = [gt_ids[np.where(MT_stats == 1)[0]], gt_ids[np.where(MT_stats == 2)[0]], gt_ids[np.where(MT_stats == 3)[0]]]
 
-    return metrics, extra_info, clear_mot_info, ML_PT_MT
+    return metrics, extra_info, clear_mot_info, ML_PT_MT, M
 
    
 
@@ -249,64 +244,21 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
     all_metrics = evaluate_bm(all_info)
     print_metrics('Summary Evaluation', all_metrics)
 
-def evaluate_new(results, gt_file):
-    res = []
-    for i, track in results.items():
-        for frame, bb in track.items():
-            x1 = bb[0]
-            y1 = bb[1]
-            x2 = bb[2]
-            y2 = bb[3]
-            res.append([float(frame+1), float(i+1), float(x1+1), float(y1+1), float(x2+1), float(y2+1), float(-1), float(-1), float(-1), float(-1)])
+def evaluate_new(stDB, gtDB, distractor_ids):
+    
+    #trackDB = read_txt_to_struct(results)
+    #gtDB = read_txt_to_struct(gt_file)
 
-    trackDB = np.array(res)
-    gtDB = read_txt_to_struct(gt_file)
+    #gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
-    # manipulate mot15 to fit mot16
-    #gtDB[:,7] = gtDB[:,6]
-    #gtDB[:,6] = 1
-    #gtDB[:,8] = 1
-    #gtDB = gtDB[:,:9]
+    metrics, extra_info, clear_mot_info, ML_PT_MT, M = evaluate_sequence(stDB, gtDB, distractor_ids)
 
-    gtDB, distractor_ids = extract_valid_gt_data(gtDB)
+    #print_metrics(' Evaluation', metrics)
 
-    metrics, extra_info, clear_mot_info, ML_PT_MT = evaluate_sequence(trackDB, gtDB, distractor_ids)
-
-    print_metrics(' Evaluation', metrics)
-
-    # evaluate sizes of ML_PT_MT
-    ML_PT_MT_sizes = [[]]
-    ML_PT_MT_vis = [[]]
-    for i, p in enumerate(ML_PT_MT, 1):
-        ML_PT_MT_sizes.append([])
-        ML_PT_MT_vis.append([])
-        for tr_id in p:
-            gt_in_person = np.where(gtDB[:, 1] == tr_id)[0]
-            #w = gtDB[gt_in_person, 4]
-            h = gtDB[gt_in_person, 5] - gtDB[gt_in_person, 3]
-            #sizes = (w*h).mean()
-            ML_PT_MT_sizes[i].append(h.mean())
-            ML_PT_MT_sizes[0].append(h.mean())
-
-            vis = gtDB[gt_in_person, 8]
-            ML_PT_MT_vis[i].append(vis.mean())
-            ML_PT_MT_vis[0].append(vis.mean())
-
-    print("\t\theight\tvis")
-    print("MT: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[3]), np.mean(ML_PT_MT_vis[3])))
-    print("PT: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[2]), np.mean(ML_PT_MT_vis[2])))
-    print("ML: \t\t{:.2f}\t{:.2f}".format(np.mean(ML_PT_MT_sizes[1]), np.mean(ML_PT_MT_vis[1])))
-    print("total (mean of\t{:.2f}\t{:.2f}\ntrack means):".format(np.mean(ML_PT_MT_sizes[0]), np.mean(ML_PT_MT_vis[0])))
-
-    return clear_mot_info
+    return clear_mot_info, M
 
 @ex.automain
-def my_main(simple_tracker, cnn, _config):
-    # set all seeds
-    torch.manual_seed(simple_tracker['seed'])
-    torch.cuda.manual_seed(simple_tracker['seed'])
-    np.random.seed(simple_tracker['seed'])
-    torch.backends.cudnn.deterministic = True
+def my_main(_config):
 
     print(_config)
 
@@ -314,147 +266,163 @@ def my_main(simple_tracker, cnn, _config):
     # Initialize the modules #
     ##########################
     
-    print("[*] Building FRCNN")
-
-    if simple_tracker['network'] == 'vgg16':
-        frcnn = vFRCNN()
-    elif simple_tracker['network'] == 'res101':
-        frcnn = rFRCNN(num_layers=101)
-    else:
-        raise NotImplementedError("Network not understood: {}".format(simple_tracker['network']))
-
-    frcnn.create_architecture(2, tag='default',
-        anchor_scales=frcnn_cfg.ANCHOR_SCALES,
-        anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
-    frcnn.eval()
-    frcnn.cuda()
-    frcnn.load_state_dict(torch.load(simple_tracker['frcnn_weights']))
-    
-    cnn = resnet50(pretrained=False, **cnn['cnn'])
-    cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
-    cnn.eval()
-    cnn.cuda()
-    tracker = Tracker(frcnn=frcnn, cnn=cnn)
-
     print("[*] Beginning evaluation...")
+    output_dir = osp.join(get_output_dir('MOT_analysis'), 'occlusion')
+    if not osp.exists(output_dir):
+        os.makedirs(output_dir)
 
-    time_ges = 0
+    sequences_raw = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+    detections = "SDP"
+    sequences = ["{}-{}".format(s, detections) for s in sequences_raw]
+    
+    tracker = ["FRCNN", "DMAN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM",  "FWT_17", "jCC", "MHT_DAM_17", "SST"]
+    #tracker = ["FRCNN"]
+    # "PHD_GSDL17" does not work, error
+    #tracker = tracker[-4:]
 
-    #train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+    for t in tracker:
+        print("[*] Evaluating {}".format(t))
+        coverage = []
+        id_recovered = []
+        for s in sequences:
+            ########################################
+            # Get DPM / GT coverage for each track #
+            ########################################
 
-    for db in Datasets(simple_tracker['dataset']):
-        tracker.reset()
+            gt_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", s, "gt", "gt.txt")
+            det_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", s, "det", "det.txt")
+            res_file = osp.join(output_dir, t, s+".txt")
 
-        now = time.time()
+            #gtDB = read_txt_to_struct(gt_file)
+            #gtDB = gtDB[gtDB[:,7] == 1]
 
-        print("[*] Evaluating: {}".format(db))
+            stDB = read_txt_to_struct(res_file)
+            gtDB = read_txt_to_struct(gt_file)
 
-        output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
+            gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
-        if not osp.exists(output_dir):
-            os.makedirs(output_dir)
-        
-        #db = MOT_Sequence(s)
+            (switches, gt_mean_height, gt_mean_vis), M = evaluate_new(stDB, gtDB, distractor_ids)
 
-        dl = DataLoader(db, batch_size=1, shuffle=False)
-        for sample in dl:
-            tracker.step(sample)
-        results, debug = tracker.get_results()
+            gt_frames = np.unique(gtDB[:, 0])
+            st_ids = np.unique(stDB[:, 1])
+            gt_ids = np.unique(gtDB[:, 1])
+            f_gt = len(gt_frames)
+            n_gt = len(gt_ids)
+            n_st = len(st_ids)
 
-        #print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
+            gt_inds = [{} for i in range(f_gt)]
+            st_inds = [{} for i in range(f_gt)]
 
-        print("Tracks found: {}".format(len(results)))
-        print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
-        #print("[*] Time needed for {} evaluation: {:.3f} s".format(s, time.time() - now))
+            # hash the indices to speed up indexing
+            for i in range(gtDB.shape[0]):
+                frame = np.where(gt_frames == gtDB[i, 0])[0][0]
+                gid = np.where(gt_ids == gtDB[i, 1])[0][0]
+                gt_inds[frame][gid] = i
 
-        #db.write_results(results, osp.join(output_dir))
-        
-        #if simple_tracker['write_images']:
-        #    plot_sequence(results, db, osp.join(output_dir, s))
-        gt_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", str(db)+"-DPM", "gt", "gt.txt")
-        (switches, gt_mean_height, gt_mean_vis) = evaluate_new(results, gt_file)
-
-        #with open(osp.join(output_dir, str(s)+"_switches.txt"), "w") as of:
-        #    for t,sw in enumerate(switches):
-        #        of.write("{}:       {}\n".format(t, sw))
-
-        with open(osp.join(output_dir, str(db)+"_debug.txt"), "w") as of:
-            for i, track in debug.items():
-                of.write("Track id: {}\n".format(i))
-                for im_index, data in track.items():
-                    of.write("Frame: {}\n".format(im_index))
-                    of.write("Pos: {}\n".format(data["pos"]))
-                    of.write("{}".format(data["info"]))
-                of.write("\n\n")
-
-
-        sizes = []
-        gt_ids = []
-        gt_heights = []
-        gt_viss = []
-        reason_loose = { 'NMS':0, 'score':0, 'regression':0}
-        reason_find = {'created':0, 'reid':0, 'regression':0}
-
-        with open(osp.join(output_dir, str(db)+"_sum.txt"), "w") as of:
-            #for f1,sw in enumerate(switches, 1):
-            for f1, sw in switches.items():
-                of.write("[*] Frame: {}\n".format(f1))
-                for t1, (t0, f0, gt_id, gt_height, gt_vis) in sw.items():
-                    gt_heights.append(gt_height)
-                    gt_ids.append(gt_id)
-                    gt_viss.append(gt_vis)
-                    of.write("ID switch from track {} to {} with size {}\n".format(t0, t1, gt_height))
-                    #of.write("Old Track: {}\n".format(debug[t0-1][f0-1]["pos"]))
-                    #of.write("{}".format(debug[t0-1][f0-1]["info"]))
-                    #debug[t1-1][f1-1]["pos"][3]-debug[t1-1][f1-1]["pos"][1]
-                    of.write("Old Track:\n")
-                    for frame, value in debug[t0-1].items():
-                        if frame == f0-1 or frame == f0 or frame == f0+1:
-                            of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
-                        if frame == f0:
-                            if "too low score" in value["info"]:
-                                reason_loose['score'] += 1
-                            elif "NMS" in value["info"]:
-                                reason_loose['NMS'] += 1
-                            elif "Regressing" in value["info"]:
-                                reason_loose['regression'] += 1
-                    #of.write("{} {}\n{}".format(f0, debug[t0-1][f0-1]["pos"], debug[t0-1][f0-1]["info"]))
-                    #of.write("{} {}\n{}".format(f0, debug[t0-1][f0]["pos"], debug[t0-1][f0]["info"]))
-                    #of.write("{} {}\n{}".format(f0, debug[t0][f0-1]["pos"], debug[t0][f0-1]["info"]))
+            # Loop thorugh all gt and find gaps (visibility < 0.5)
+            visible = [[0 for j in range(f_gt)] for i in range(n_gt)] # format visible[track][frame] = {0,1}
+            for gid in range(n_gt):
+                for frame in range(f_gt):
+                    if gid in gt_inds[frame]:
+                        line = gt_inds[frame][gid]
+                        vis = gtDB[line, 8]
+                        #print(vis, frame, gid)
+                        if vis >= 0.5:
+                            visible[gid][frame] = 1
 
 
-                    of.write("\nNew Track:\n")
-                    for frame, value in debug[t1-1].items():
-                        if frame == f1-1 or frame == f1-2 or frame == f1-3:
-                            of.write("{} {}\n{}".format(frame, value["pos"], value["info"]))
-                        if frame == f1-1:
-                            if "Created" in value['info']:
-                                reason_find['created'] += 1
-                            elif "ReIded" in value["info"]:
-                                reason_find["reid"] += 1
-                            elif "Regressing" in value["info"]:
-                                reason_find['regression'] += 1
-                    #of.write("{} {}\n{}".format(f1, debug[t1-1][f1-1]["pos"], debug[t1-1][f1-1]["info"]))
+            """for gid in range(n_gt):
+                f0 = -1
+                count = 0
+                for frame in range(f_gt):
+                    if gid in gt_inds[frame]:
+                        vis = gtDB[gt_inds[frame][gid], 8]
+                        if vis < 0.5 and f0 != -1:
+                            count += 1
+                        elif vis >= 0.5:
+                            if count != 0:
+                                print("Gap found {} - {} ({})".format(gid, frame, count))
+                                count = 0
+                            # set to current frame
+                            f0 = frame"""
 
-                    #of.write("New Track: {}\n".format(debug[t1-1][f1-1]["pos"]))
-                    #of.write("{}\n".format(debug[t1-1][f1-1]["info"]))
-                    of.write("\n")
-                of.write("\n\n")
-            #of.write("Sizes: {}\n".format(sizes))
-        print("[*] Number of ID switches: {}".format(len(gt_ids)))
-        print("[*] Number of gt targets involved in ID switches: {}".format(len(np.unique(gt_ids))))
-        print("[*] Mean height of ID switches: {}".format(np.mean(gt_heights)))
-        print("[*] Mean visibility of ID switches targets: {}".format(np.mean(gt_viss)))
-        print("[*] Mean height of tracked boxes: {}".format(np.mean(gt_mean_height)))
-        print("[*] Mean visibility of tracked boxes: {}".format(np.mean(gt_mean_vis)))
-        print("[*] Reasons for ID swtiches:")
-        print("\tLoose:")
-        for k,v in reason_loose.items():
-            print("\t\t{}: {}".format(k,v))
-        print("\tFind:")
-        for k,v in reason_find.items():
-            print("\t\t{}: {}".format(k,v))
-        print(gt_ids)
 
-        if simple_tracker['write_images']:
-            plot_sequence(results, db, osp.join(output_dir, str(db)))
+
+            # Now iterate through the tracks and check if covered / id kept in comparison to occlusion
+            for gid, vis in enumerate(visible):
+                f0 = -1
+                count = 0
+                n_cov = 0
+                for frame, v in enumerate(vis):
+                    if v == 0 and f0 != -1:
+                        count += 1
+                        if gid in M[frame].keys():
+                            n_cov += 1
+                    elif v == 1:
+                        # gap ended
+                        if count != 0:
+                            coverage.append([count, n_cov])
+
+                            last_non_empty = -1
+                            for j in range(f0, -1, -1):
+                                if gid in M[j].keys():
+                                    last_non_empty = j
+                                    break
+                            next_non_empty = -1
+                            for j in range(f0+count+1, f_gt):
+                                if gid in M[j]:
+                                    next_non_empty = j
+                                    break
+
+                            if next_non_empty != -1 and last_non_empty != -1:
+                                sid0 = M[last_non_empty][gid]
+                                sid1 = M[next_non_empty][gid]
+                                if sid1 == sid0:
+                                    id_recovered.append([count, 1])
+                                else:
+                                    id_recovered.append([count, 0])
+                            count = 0
+                            n_cov = 0
+                        # set to current frame
+                        f0 = frame
+
+        coverage = np.array(coverage)
+        id_recovered = np.array(id_recovered)
+
+        #for c in coverage:
+        #    print(c)
+        xmax = 50
+
+        # build values for plot
+        x_val = np.arange(1,xmax+1)
+        y_val = np.zeros(xmax)
+
+        for x in x_val:
+            y = np.mean(coverage[coverage[:,0] == x, 1] / coverage[coverage[:,0] == x, 0])
+            y_val[x-1] = y
+
+        #plt.plot([0,1], [0,1], 'r-')
+        plt.figure()
+        plt.scatter(coverage[:,0], coverage[:,1]/coverage[:,0], s=2**2)
+        plt.plot(x_val, y_val, 'rx')
+        plt.xlabel('gap length')
+        plt.xlim((0, xmax))
+        plt.ylabel('tracker coverage')
+        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'GAP_COV')), format='pdf')
+
+        # build values for plot
+        x_val = np.arange(1,xmax+1)
+        y_val = np.zeros(xmax)
+
+        for x in x_val:
+            y = np.mean(id_recovered[id_recovered[:,0] == x, 1])
+            y_val[x-1] = y
+
+        plt.figure()
+        plt.plot(x_val, y_val, 'rx')
+        plt.scatter(id_recovered[:,0], id_recovered[:,1], s=2**2)
+        plt.xlabel('gap length')
+        plt.xlim((0, xmax))
+        plt.ylabel('part id recovered')
+        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'GAP_ID')), format='pdf')
+        plt.close()

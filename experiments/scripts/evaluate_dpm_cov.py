@@ -15,6 +15,8 @@ import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import numpy as np
+from scipy.interpolate import interp1d
+from scipy.integrate import simps
 
 import matplotlib.pyplot as plt
 
@@ -82,12 +84,12 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
         has_duplicates = uniq_frame_id_pairs.shape[0] < frame_id_pairs.shape[0]
         #assert not has_duplicates, 'Duplicate ID in same frame [Frame ID: %d].'%i
     keep_idx = np.where(res_keep == 1)[0]
-    print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes, remaining %d/%d computed boxes'%(len(keep_idx), len(res_keep)))
+    #print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes, remaining %d/%d computed boxes'%(len(keep_idx), len(res_keep)))
     trackDB = trackDB[keep_idx, :]
-    print('Distractors:', distractor_ids)
+    #print('Distractors:', distractor_ids)
     #keep_idx = np.array([i for i in xrange(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids and gtDB[i, 8] >= minvis])
     keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0] )
-    print('[GT PREPROCESSING]: Removing distractor boxes, remaining %d/%d computed boxes'%(len(keep_idx), gtDB.shape[0]))
+    #print('[GT PREPROCESSING]: Removing distractor boxes, remaining %d/%d computed boxes'%(len(keep_idx), gtDB.shape[0]))
     gtDB = gtDB[keep_idx, :]
     return trackDB, gtDB
 
@@ -103,11 +105,15 @@ def my_main(_config):
     print("[*] Beginning evaluation...")
     output_dir = osp.join(get_output_dir('MOT_analysis'), 'coverage')
 
-    sequences = ["MOT17-13-DPM", "MOT17-11-DPM", "MOT17-10-DPM", "MOT17-09-DPM", "MOT17-05-DPM", "MOT17-04-DPM", "MOT17-02-DPM", ]
-    tracker = ["FRCNN", "FWT_17", "jCC", "MHT_DAM_17", "SST"]
-    tracker = ["FRCNN"]
+    sequences_raw = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+    detections = "DPM"
+    sequences = ["{}-{}".format(s, detections) for s in sequences_raw]
+    
+    tracker = ["FRCNN", "DMAN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "PHD_GSDL17", "FWT_17", "jCC", "MHT_DAM_17"]
+    #tracker = ["FRCNN"]
 
     for t in tracker:
+        print("[*] Evaluating {}".format(t))
         data_points = []
         for s in sequences:
             ########################################
@@ -195,9 +201,35 @@ def my_main(_config):
                 data_points.append([gt_tracked[k], tr_matched[k] / gt_ges[k]])
 
         data_points = np.array(data_points)
-        plt.plot([0,1], [0,1], 'r-')
-        plt.scatter(data_points[:,0], data_points[:,1], s=2**2)
-        plt.xlabel('DPM coverage')
+        # add mean values
+        grid_step = 0.02
+        grid = np.arange(-grid_step/2, 1.0+grid_step, grid_step)
+        x_mean = np.arange(0.0, 1.0+grid_step, grid_step)
+        bins = int(1.0/grid_step) + 1
+        y_mean = np.zeros(bins)
+        y_std = np.zeros(bins)
+        for i in range(bins):
+            vals = (data_points[:,0] >= grid[i]) * (data_points[:,0] < grid[i+1])
+            mean = np.mean(data_points[vals, 1])
+            y_mean[i] = mean
+            y_std[i] = np.sqrt(np.mean((vals - mean)**2))
+
+        y_poly = np.poly1d(np.polyfit(x_mean, y_mean, 5))
+        x_new = np.linspace(0, 1, num=101, endpoint=True)
+
+        area = simps(y_poly(x_new), x_new)
+
+        plt.plot(x_new, y_poly(x_new), label="{} {:.3f}".format(t, area))
+        plt.errorbar(x_mean, y_poly(x_mean), yerr=y_std, fmt='o')
+        #if t == "FRCNN":
+        #    plt.plot(x_mean, y_mean)
+        #plt.plot([0,1], [0,1], 'r-')
+        #plt.scatter(data_points[:,0], data_points[:,1], s=2**2)
+        plt.xlabel('{} coverage'.format(detections))
         plt.ylabel('tracker coverage')
-        plt.savefig(osp.join(output_dir, t+".eps"), format='eps')
-        plt.close()
+        #plt.savefig(osp.join(output_dir, "{}-{}.pdf".format(t, detections)), format='pdf')
+        #plt.close()
+    plt.plot([0,1], [0,1], 'r-')
+    plt.legend()
+    plt.savefig(osp.join(output_dir, "coverage-{}-err.pdf".format(detections)), format='pdf')
+    plt.close()
