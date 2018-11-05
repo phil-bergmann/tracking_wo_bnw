@@ -15,8 +15,7 @@ from model.config import cfg as frcnn_cfg
 from tracker.config import get_output_dir, get_tb_dir
 #from tracker.alex import alex
 from tracker.resnet import resnet50
-from tracker.kitti_siamese_wrapper import KITTI_Siamese_Wrapper
-from tracker.kitti_siamese import KITTI_Siamese
+from tracker.datasets.factory import Datasets
 from tracker.triplet_loss import _get_anchor_positive_triplet_mask, _get_anchor_negative_triplet_mask
 
 from torchvision.transforms import CenterCrop, Normalize, ToTensor, Compose, Resize, ToPILImage
@@ -25,16 +24,19 @@ from torch.autograd import Variable
 ex = Experiment()
 #ex.add_config('output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml')
 #weights = 'output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth'
+ex.add_config('output/tracker/pretrain_cnn/bh4-smallTrain/sacred_config.yaml')
+weights = 'output/tracker/pretrain_cnn/bh4-smallTrain/ResNet_iter_25254.pth'
+#ex.add_config('output/tracker/pretrain_cnn/marcuhmot_small/sacred_config.yaml')
+#weights = 'output/tracker/pretrain_cnn/marcuhmot_small/ResNet_iter_26496.pth'
+#ex.add_config('output/tracker/pretrain_cnn/marcuhmot_small/sacred_config.yaml')
+#weights = 'output/tracker/pretrain_cnn/marcuhmot/ResNet_iter_27200.pth'
 #ex.add_config('output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml')
 #weights =  'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
-ex.add_config('output/tracker/pretrain_cnn/kitti_small_bh_Car_1_2/sacred_config.yaml')
-weights = 'output/tracker/pretrain_cnn/kitti_small_bh_Car_1_2/ResNet_iters_24624.pth'
-dataset = 'train_Car'
+#ex.add_config('output/tracker/pretrain_cnn/kitti_small_bh_Car_1_2/sacred_config.yaml')
+#weights = 'output/tracker/pretrain_cnn/kitti_small_bh_Car_1_2/ResNet_iters_24624.pth'
+dataset = 'motSiamese_smallVal'
 #thresholds = [6.0, 6.5, 7.0, 7.5, 8.0]
-thresholds = np.arange(1.3,3.0,0.1)
-train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-sequences = ["train"]
-#sequences = ["MOT17-09"]
+thresholds = np.arange(1.0,3.0,0.1)
 
 def calcScores(network, data, thresholds):
     # calculate labels
@@ -110,16 +112,13 @@ def my_main(_config, cnn):
     #########################
     print("[*] Initializing Dataloader")
 
-    dataloader = {'P':18, 'K':4, 'vis_threshold':[1,2], 'max_per_person':40, 'crop_H':256, 'crop_W':128,
-                    'transform': 'center', 'split':'small_val'}
-    for s in sequences:
-        if s == "train":
-            db_train = KITTI_Siamese_Wrapper(dataset, dataloader)
-            data = db_train._dataloader.data
-            print("[*] Evaluating whole train set...")
-            calcScores(network, data, thresholds)
-        else:
-            db_train = KITTI_Siamese(s, **dataloader)
-            data = db_train.data
-            print("[*] Evaluating {}...".format(s))
-            calcScores(network, data, thresholds)
+    #dataloader = {'P':18, 'K':4, 'vis_threshold':0.5, 'max_per_person':40, 'crop_H':256, 'crop_W':128,
+    #                'transform': 'center', 'split':'small_val'}
+    #                'transform': 'center'}
+    dataloader = cnn['dataloader']
+    dataloader['transform'] = 'center'
+    dataloader['max_per_person'] = 40
+    db = Datasets(dataset, dataloader)
+    print("[*] Evaluating {}".format(db))
+    data = db._data._dataloader.data
+    calcScores(network, data, thresholds)
