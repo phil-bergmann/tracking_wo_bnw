@@ -44,6 +44,9 @@ class Datasets(object):
 		"""
 		assert dataset in _sets, "[!] Dataset not found: {}".format(dataset)
 
+		if len(args) == 0:
+			args = [{}]
+
 		self._data = _sets[dataset](*args)
 
 	def __len__(self):

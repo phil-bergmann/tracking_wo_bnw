@@ -21,14 +21,15 @@ class MOT_Sequence(Dataset):
 	handled one should inherit from this class.
 	"""
 
-	def __init__(self, seq_name=None, vis_threshold=0.0, normalize_mean=[0.485, 0.456, 0.406], normalize_std=[0.229, 0.224, 0.225]):
+	def __init__(self, seq_name=None, dets='', vis_threshold=0.0, normalize_mean=[0.485, 0.456, 0.406], normalize_std=[0.229, 0.224, 0.225]):
 		"""
 		Args:
 			seq_name (string): Sequence to take
 			vis_threshold (float): Threshold of visibility of persons above which they are selected
 		"""
 		self._seq_name = seq_name
-		self.vis_threshold = vis_threshold
+		self._vis_threshold = vis_threshold
+		self._dets = dets
 
 		self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
 		self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
@@ -73,10 +74,6 @@ class MOT_Sequence(Dataset):
 		sample['gt'] = {}
 		sample['vis'] = {}
 		sample['dets'] = []
-		sample['raw_dets'] = []
-		sample['MOT17_FRCNN_dets'] = []
-		sample['MOT17_DPM_dets'] = []
-		sample['MOT17_SDP_dets'] = []
 		# resize tracks
 		for k,v in d['gt'].items():
 			sample['gt'][k] = v * sample['im_info'][2]
@@ -84,14 +81,6 @@ class MOT_Sequence(Dataset):
 			sample['vis'][k] = v
 		for det in d['dets']:
 			sample['dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
-		for det in d['raw_dets']:
-			sample['raw_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
-		for det in d['MOT17_FRCNN_dets']:
-			sample['MOT17_FRCNN_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
-		for det in d['MOT17_DPM_dets']:
-			sample['MOT17_DPM_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
-		for det in d['MOT17_SDP_dets']:
-			sample['MOT17_SDP_dets'].append(np.hstack([det[:4] * sample['im_info'][2], det[4:5]]))
 
 		return sample
 
@@ -121,8 +110,6 @@ class MOT_Sequence(Dataset):
 
 		imDir = osp.join(seq_path, imDir)
 		gt_file = osp.join(seq_path, 'gt', 'gt.txt')
-		det_file = osp.join(label_path, 'det', 'det.txt')
-		raw_det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
 
 		total = []
 		train = []
@@ -131,24 +118,18 @@ class MOT_Sequence(Dataset):
 		visibility = {}
 		boxes = {}
 		dets = {}
-		raw_dets = {}
-		mot17_dets = {'FRCNN':{}, 'DPM':{}, 'SDP':{}}
 
 		for i in range(1, seqLength+1):
 			boxes[i] = {}
 			visibility[i] = {}
 			dets[i] = []
-			raw_dets[i] = []
-			mot17_dets['FRCNN'][i] = []
-			mot17_dets['DPM'][i] = []
-			mot17_dets['SDP'][i] = []
 
 		if osp.exists(gt_file):
 			with open(gt_file, "r") as inf:
 				reader = csv.reader(inf, delimiter=',')
 				for row in reader:
 					# class person, certainity 1, visibility >= 0.25
-					if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self.vis_threshold:
+					if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self._vis_threshold:
 						# Make pixel indexes 0-based, should already be 0-based (or not)
 						x1 = int(row[2]) - 1
 						y1 = int(row[3]) - 1
@@ -159,6 +140,19 @@ class MOT_Sequence(Dataset):
 						boxes[int(row[0])][int(row[1])] = bb
 						visibility[int(row[0])][int(row[1])] = float(row[8])
 
+
+		if self._dets == "DPM":
+			det_file = osp.join(label_path, 'det', 'det.txt')
+		elif self._dets == "DPM_RAW16":
+			det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
+		elif self._dets == "DPM17":
+			det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "DPM"), 'det', 'det.txt')
+		elif self._dets == "FRCNN17":
+			det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "FRCNN"), 'det', 'det.txt')
+		elif self._dets == "SDP17":
+			det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "SDP"), 'det', 'det.txt')
+		else:
+			det_file = ""
 
 		if osp.exists(det_file):
 			with open(det_file, "r") as inf:
@@ -173,35 +167,6 @@ class MOT_Sequence(Dataset):
 					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
 					dets[int(row[0])].append(bb)
 
-		if osp.exists(raw_det_file):
-			with open(raw_det_file, "r") as inf:
-				reader = csv.reader(inf, delimiter=',')
-				for row in reader:
-					x1 = float(row[2]) - 1
-					y1 = float(row[3]) - 1
-					# This -1 accounts for the width (width of 1 x1=x2)
-					x2 = x1 + float(row[4]) - 1
-					y2 = y1 + float(row[5]) - 1
-					score = float(row[6])
-					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
-					raw_dets[int(row[0])].append(bb)
-
-		for s in ['DPM', 'FRCNN', 'SDP']:
-			file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], s), 'det', 'det.txt')
-			if osp.exists(file):
-				with open(file, "r") as inf:
-					reader = csv.reader(inf, delimiter=',')
-					for row in reader:
-						x1 = float(row[2]) - 1
-						y1 = float(row[3]) - 1
-						# This -1 accounts for the width (width of 1 x1=x2)
-						x2 = x1 + float(row[4]) - 1
-						y2 = y1 + float(row[5]) - 1
-						score = float(row[6])
-						bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
-						mot17_dets[s][int(row[0])].append(bb)
-
-
 		for i in range(1,seqLength+1):
 			im_path = osp.join(imDir,"{:06d}.jpg".format(i))
 
@@ -209,10 +174,6 @@ class MOT_Sequence(Dataset):
 				 	   'im_path':im_path,
 				 	   'vis':visibility[i],
 					   'dets':dets[i],
-					   'raw_dets':raw_dets[i],
-					   'MOT17_FRCNN_dets':mot17_dets['FRCNN'][i],
-					   'MOT17_DPM_dets':mot17_dets['DPM'][i],
-					   'MOT17_SDP_dets':mot17_dets['SDP'][i],
 			}
 
 			total.append(sample)
@@ -222,6 +183,9 @@ class MOT_Sequence(Dataset):
 				val.append(sample)
 
 		return total
+
+	def __str__(self):
+		return self._seq_name
 
 	def write_results(self, all_tracks, output_dir):
 		"""Write the tracks in the format for MOT16/MOT17 sumbission

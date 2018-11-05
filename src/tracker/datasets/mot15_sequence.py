@@ -108,7 +108,7 @@ class MOT15_Sequence(Dataset):
 				reader = csv.reader(inf, delimiter=',')
 				for row in reader:
 					# 
-					if int(row[6]) == 1 and float(row[8]) >= self.vis_threshold:
+					if int(row[6]) == 1: #and float(row[8]) >= self.vis_threshold:
 						# Make pixel indexes 0-based, should already be 0-based (or not)
 						x1 = int(row[2]) - 1
 						y1 = int(row[3]) - 1
@@ -131,7 +131,6 @@ class MOT15_Sequence(Dataset):
 					score = float(row[6])
 					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
 					dets[int(row[0])].append(bb)
-
 
 		for i in range(1,seq_length+1):
 			im_path = osp.join(im_dir,"{:06d}.jpg".format(i))
@@ -177,7 +176,7 @@ class MOT15_Sequence(Dataset):
 		if not os.path.exists(output_dir):
 			os.makedirs(output_dir)
 
-		file = osp.join(output_dir, 'MOT16-'+self._seq_name[6:8]+'.txt')
+		file = osp.join(output_dir, self._seq_name+'.txt')
 
 		print("[*] Writing to: {}".format(file))
 

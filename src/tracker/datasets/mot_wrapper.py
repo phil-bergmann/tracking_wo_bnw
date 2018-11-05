@@ -7,7 +7,7 @@ from .mot_sequence import MOT_Sequence
 class MOT_Wrapper(Dataset):
 	"""A Wrapper for the MOT_Sequence class to return multiple sequences."""
 
-	def __init__(self, split, dataloader):
+	def __init__(self, split, dets, dataloader):
 		"""Initliazes all subset of the dataset.
 
 		Keyword arguments:
@@ -29,7 +29,7 @@ class MOT_Wrapper(Dataset):
 		self._data = []
 
 		for s in sequences:
-			self._data.append(MOT_Sequence(seq_name=s, *dataloader))
+			self._data.append(MOT_Sequence(seq_name=s, dets=dets, **dataloader))
 
 	def __len__(self):
 		return len(self._data)
