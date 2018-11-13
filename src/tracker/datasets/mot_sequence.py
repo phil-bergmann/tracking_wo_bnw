@@ -219,7 +219,10 @@ class MOT_Sequence(Dataset):
 		if not os.path.exists(output_dir):
 			os.makedirs(output_dir)
 
-		file = osp.join(output_dir, 'MOT16-'+self._seq_name[6:8]+'.txt')
+		if "17" in self._dets:
+			file = osp.join(output_dir, 'MOT17-'+self._seq_name[6:8]+"-"+self._dets[:-2]+'.txt')
+		else:
+			file = osp.join(output_dir, 'MOT16-'+self._seq_name[6:8]+'.txt')
 
 		print("[*] Writing to: {}".format(file))
 

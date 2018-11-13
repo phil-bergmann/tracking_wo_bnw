@@ -109,8 +109,8 @@ def my_main(_config):
     detections = "DPM"
     sequences = ["{}-{}".format(s, detections) for s in sequences_raw]
     
-    tracker = ["FRCNN", "DMAN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "PHD_GSDL17", "FWT_17", "jCC", "MHT_DAM_17"]
-    #tracker = ["FRCNN"]
+    tracker = ["FRCNN", "DMAN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
+    #tracker = ["DMAN"]
 
     for t in tracker:
         print("[*] Evaluating {}".format(t))
@@ -125,6 +125,7 @@ def my_main(_config):
 
             gtDB = read_txt_to_struct(gt_file)
             dpmDB = read_txt_to_struct(dpm_file)
+            
             gtDB, distractor_ids = extract_valid_gt_data(gtDB)
             dpmDB, gtDB = preprocessingDB(dpmDB, gtDB, distractor_ids, 0.5, 0)
 
@@ -220,16 +221,19 @@ def my_main(_config):
         area = simps(y_poly(x_new), x_new)
 
         plt.plot(x_new, y_poly(x_new), label="{} {:.3f}".format(t, area))
-        plt.errorbar(x_mean, y_poly(x_mean), yerr=y_std, fmt='o')
+        #plt.errorbar(x_mean, y_poly(x_mean), yerr=y_std, fmt='o')
         #if t == "FRCNN":
         #    plt.plot(x_mean, y_mean)
         #plt.plot([0,1], [0,1], 'r-')
         #plt.scatter(data_points[:,0], data_points[:,1], s=2**2)
-        plt.xlabel('{} coverage'.format(detections))
-        plt.ylabel('tracker coverage')
+        #plt.xlabel('{} coverage'.format(detections))
+        #plt.ylabel('tracker coverage')
         #plt.savefig(osp.join(output_dir, "{}-{}.pdf".format(t, detections)), format='pdf')
         #plt.close()
+    
     plt.plot([0,1], [0,1], 'r-')
     plt.legend()
-    plt.savefig(osp.join(output_dir, "coverage-{}-err.pdf".format(detections)), format='pdf')
+    plt.xlabel('{} coverage'.format(detections))
+    plt.ylabel('tracker coverage')
+    plt.savefig(osp.join(output_dir, "coverage-{}.pdf".format(detections)), format='pdf')
     plt.close()

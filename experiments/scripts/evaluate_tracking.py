@@ -10,6 +10,7 @@ import os
 import os.path as osp
 import yaml
 import time
+import csv
 
 import torch
 from torch.autograd import Variable
@@ -336,11 +337,22 @@ def my_main(simple_tracker, cnn, _config):
     cnn.cuda()
     tracker = Tracker(frcnn=frcnn, cnn=cnn)
 
+    output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
+
+    sacred_config = osp.join(output_dir, 'sacred_config.yaml')
+
+    if not osp.exists(output_dir):
+        os.makedirs(output_dir)
+    with open(sacred_config, 'w') as outfile:
+        yaml.dump(_config, outfile, default_flow_style=False)
+
     print("[*] Beginning evaluation...")
 
     time_ges = 0
 
     #train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
+
+    analysis_results = []
 
     for db in Datasets(simple_tracker['dataset']):
         tracker.reset()
@@ -348,11 +360,6 @@ def my_main(simple_tracker, cnn, _config):
         now = time.time()
 
         print("[*] Evaluating: {}".format(db))
-
-        output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
-
-        if not osp.exists(output_dir):
-            os.makedirs(output_dir)
         
         #db = MOT_Sequence(s)
 
@@ -372,7 +379,7 @@ def my_main(simple_tracker, cnn, _config):
         #if simple_tracker['write_images']:
         #    plot_sequence(results, db, osp.join(output_dir, s))
         gt_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", str(db)+"-DPM", "gt", "gt.txt")
-        (switches, gt_mean_height, gt_mean_vis) = evaluate_new(results, gt_file)
+        (switches, gt_mean_height, gt_mean_vis, missed_height, missed_vis, missed_dist) = evaluate_new(results, gt_file)
 
         #with open(osp.join(output_dir, str(s)+"_switches.txt"), "w") as of:
         #    for t,sw in enumerate(switches):
@@ -456,5 +463,27 @@ def my_main(simple_tracker, cnn, _config):
             print("\t\t{}: {}".format(k,v))
         print(gt_ids)
 
+
+        detections = simple_tracker['dataset'].split("_")[2]
+        ar = [str(db)+"-"+detections, len(gt_ids), tracker.nms_killed, reason_loose['score'], reason_loose['NMS'],
+               reason_loose['regression'], reason_find['created'], reason_find["reid"], reason_find['regression'],
+               np.mean(gt_mean_height), np.mean(gt_mean_vis),
+               np.mean(gt_heights), np.mean(gt_viss),
+               missed_height, missed_vis, missed_dist]
+            
+        analysis_results.append(ar)
+
+        print(ar)
+
+        db.write_results(results, output_dir)
+
         if simple_tracker['write_images']:
             plot_sequence(results, db, osp.join(output_dir, str(db)))
+    
+    # print results to csv
+    file = osp.join(output_dir, simple_tracker['dataset'])
+    with open(file, "w") as of:
+        writer = csv.writer(of, delimiter=' ')
+        for row in analysis_results:
+            row_new = list(map(lambda x: str(x).replace(".",","), row))
+            writer.writerow(row_new)

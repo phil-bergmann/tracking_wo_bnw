@@ -23,7 +23,7 @@ class Tracker():
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold, warp_mode, number_of_iterations, termination_eps):
+		max_features_num, reid_iou_threshold, warp_mode, number_of_iterations, termination_eps, motion_model):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
@@ -37,6 +37,7 @@ class Tracker():
 		self.reid_sim_threshold = reid_sim_threshold
 		self.reid_iou_threshold = reid_iou_threshold
 		self.do_align = do_align
+		self.motion_model = motion_model
 
 		self.warp_mode = eval(warp_mode)
 		self.number_of_iterations = number_of_iterations
@@ -158,6 +159,7 @@ class Tracker():
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
 					t.count_inactive = 0
+					t.last_v = torch.Tensor([])
 					t.pos = new_det_pos[c].view(1,-1)
 					t.add_features(new_det_features[c].view(1,-1))
 					assigned.append(c)
@@ -232,6 +234,74 @@ class Tracker():
 					pos = torch.cat((p1_n, p2_n), 1).cuda()
 					t.pos = pos.view(1,-1)
 
+			if self.motion_model:
+				for t in self.tracks:
+					if t.last_pos.nelement() > 0:
+						p = t.last_pos[0]
+						p1 = torch.Tensor([p[0], p[1], 1]).view(3,1)
+						p2 = torch.Tensor([p[2], p[3], 1]).view(3,1)
+
+						p1_n = torch.mm(warp_matrix, p1).view(1,2)
+						p2_n = torch.mm(warp_matrix, p2).view(1,2)
+						pos = torch.cat((p1_n, p2_n), 1).cuda()
+
+						t.last_pos = pos.view(1,-1)
+
+	def motion(self):
+		for t in self.tracks:
+			last_pos = t.pos.clone()
+			if t.last_pos.nelement() > 0:
+				# extract center coordinates of last pos
+				x1l = t.last_pos[0,0]
+				y1l = t.last_pos[0,1]
+				x2l = t.last_pos[0,2]
+				y2l = t.last_pos[0,3]
+				cxl = (x2l + x1l)/2
+				cyl = (y2l + y1l)/2
+
+				# extract coordinates of current pos
+				x1p = t.pos[0,0]
+				y1p = t.pos[0,1]
+				x2p = t.pos[0,2]
+				y2p = t.pos[0,3]
+				cxp = (x2p + x1p)/2
+				cyp = (y2p + y1p)/2
+				wp = x2p - x1p
+				hp = y2p - y1p
+
+				# v = cp - cl, x_new = v + cp = 2cp - cl
+				cxp_new = 2*cxp - cxl
+				cyp_new = 2*cyp - cyl
+
+				t.pos[0,0] = cxp_new - wp/2
+				t.pos[0,1] = cyp_new - hp/2
+				t.pos[0,2] = cxp_new + wp/2
+				t.pos[0,3] = cyp_new + hp/2
+
+				t.last_v = torch.Tensor([cxp - cxl, cyp - cyl]).cuda()
+			t.last_pos = last_pos
+		
+		if self.do_reid:
+			for t in self.inactive_tracks:
+				if t.last_v.nelement() > 0:
+					# extract coordinates of current pos
+					x1p = t.pos[0,0]
+					y1p = t.pos[0,1]
+					x2p = t.pos[0,2]
+					y2p = t.pos[0,3]
+					cxp = (x2p + x1p)/2
+					cyp = (y2p + y1p)/2
+					wp = x2p - x1p
+					hp = y2p - y1p
+
+					cxp_new = cxp + t.last_v[0]
+					cyp_new = cyp + t.last_v[1]
+
+					t.pos[0,0] = cxp_new - wp/2
+					t.pos[0,1] = cyp_new - hp/2
+					t.pos[0,2] = cxp_new + wp/2
+					t.pos[0,3] = cyp_new + hp/2
+
 	def step(self, blob):
 
 		# only the class person used here
@@ -278,6 +348,9 @@ class Tracker():
 			# align
 			if self.do_align:
 				self.align(blob)
+			# apply motion model
+			if self.motion_model:
+				self.motion()
 			#regress
 			person_scores = self.regress_tracks(blob)
 			
@@ -380,9 +453,12 @@ class Track(object):
 		self.count_inactive = 0
 		self.inactive_patience = inactive_patience
 		self.max_features_num = max_features_num
+		self.last_pos = torch.Tensor([])
+		self.last_v = torch.Tensor([])
 
 	def is_to_purge(self):
 		self.count_inactive += 1
+		self.last_pos = torch.Tensor([])
 		if self.count_inactive > self.inactive_patience:
 			return True
 		else:

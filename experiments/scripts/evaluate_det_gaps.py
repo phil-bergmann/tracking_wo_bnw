@@ -267,7 +267,7 @@ def my_main(_config):
     ##########################
     
     print("[*] Beginning evaluation...")
-    output_dir = osp.join(get_output_dir('MOT_analysis'), 'occlusion')
+    output_dir = osp.join(get_output_dir('MOT_analysis'), 'det_cov_by_tracker')
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -275,16 +275,17 @@ def my_main(_config):
     detections = "DPM"
     sequences = ["{}-{}".format(s, detections) for s in sequences_raw]
     
-    tracker = ["FRCNN", "DMAN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
+    tracker = ["FRCNN", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
     #tracker = ["FRCNN"]
     # "PHD_GSDL17" does not work, error
     #tracker = tracker[-4:]
 
+    poly_missed_gaps_length = []
     for t in tracker:
         print("[*] Evaluating {}".format(t))
-        coverage = []
-        id_recovered = []
-        tr_id_recovered = []
+        missed_gaps_length = []
+        missed_visibilities = []
+        tracked_visibilities = []
         for s in sequences:
             ########################################
             # Get DPM / GT coverage for each track #
@@ -299,20 +300,28 @@ def my_main(_config):
 
             stDB = read_txt_to_struct(res_file)
             gtDB = read_txt_to_struct(gt_file)
+            dtDB = read_txt_to_struct(det_file)
 
             gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
             _, M = evaluate_new(stDB, gtDB, distractor_ids)
 
+            # reaload gtDB as entries not found are deleted
+            #gtDB = read_txt_to_struct(gt_file)
+
             gt_frames = np.unique(gtDB[:, 0])
             st_ids = np.unique(stDB[:, 1])
             gt_ids = np.unique(gtDB[:, 1])
+            #dt_ids = np.unique(dtDB[:, 1])
             f_gt = len(gt_frames)
             n_gt = len(gt_ids)
             n_st = len(st_ids)
 
             gt_inds = [{} for i in range(f_gt)]
             st_inds = [{} for i in range(f_gt)]
+            #dt_inds = [{} for i in range(f_gt)]
+
+            #D = [{} for i in range(f_gt)] #map detections to gt
 
             # hash the indices to speed up indexing
             for i in range(gtDB.shape[0]):
@@ -320,162 +329,152 @@ def my_main(_config):
                 gid = np.where(gt_ids == gtDB[i, 1])[0][0]
                 gt_inds[frame][gid] = i
 
-            # Loop thorugh all gt and find gaps (visibility < 0.5)
-            visible = [[0 for j in range(f_gt)] for i in range(n_gt)] # format visible[track][frame] = {0,1}
-            for gid in range(n_gt):
-                for frame in range(f_gt):
-                    if gid in gt_inds[frame]:
-                        line = gt_inds[frame][gid]
-                        vis = gtDB[line, 8]
-                        #print(vis, frame, gid)
-                        if vis >= 0.5:
-                            visible[gid][frame] = 1
+            #gt_frames_list = list(gt_frames)
+            #for i in range(stDB.shape[0]):
+                # sometimes detection missed in certain frames, thus should be assigned to groundtruth frame id for alignment
+            #    frame = gt_frames_list.index(stDB[i, 0])
+            #    sid = np.where(st_ids == stDB[i, 1])[0][0]
+            #    st_inds[frame][sid] = i
 
-            # Find gaps in the tracks
-            gt_tracked = {}
-            for f,v in enumerate(M):
-                for gt in v.keys():
-                    if gt not in gt_tracked:
-                        gt_tracked[gt] = []
-                    gt_tracked[gt].append(f)
+            for frame, m in enumerate(M):
+                for gid, line in gt_inds[frame].items():
 
-            for gid, times in gt_tracked.items():
-                times = np.array(times)
-                for i in range(len(times)-1):
-                    t0 = times[i]
-                    t1 = times[i+1]
-                    if t1 == t0+1:
+                    vis = gtDB[line, 8]
+
+                    # check if tracked
+                    if gid in m.keys():
+                        tracked_visibilities.append(vis)
                         continue
+                    
+                    missed_visibilities.append(vis)
 
+                    # get distance to last time tracked
                     last_non_empty = -1
-                    for j in range(t0, -1, -1):
+                    for j in range(frame, -1, -1):
                         if gid in M[j].keys():
                             last_non_empty = j
                             break
                     next_non_empty = -1
-                    for j in range(t1, f_gt):
-                        if gid in M[j]:
+                    for j in range(frame, f_gt):
+                        if gid in M[j].keys():
                             next_non_empty = j
                             break
 
                     if next_non_empty != -1 and last_non_empty != -1:
-                        sid0 = M[last_non_empty][gid]
-                        sid1 = M[next_non_empty][gid]
-                        if sid1 == sid0:
-                            tr_id_recovered.append([t1-t0-1, 1])
-                        else:
-                            tr_id_recovered.append([t1-t0-1, 0])
+                        gap_length = next_non_empty - last_non_empty - 1
+                        missed_gaps_length.append(gap_length)
 
-            """for gid in range(n_gt):
-                f0 = -1
-                count = 0
-                for frame in range(f_gt):
-                    if gid in gt_inds[frame]:
-                        vis = gtDB[gt_inds[frame][gid], 8]
-                        if vis < 0.5 and f0 != -1:
-                            count += 1
-                        elif vis >= 0.5:
-                            if count != 0:
-                                print("Gap found {} - {} ({})".format(gid, frame, count))
-                                count = 0
-                            # set to current frame
-                            f0 = frame"""
+            """
+            for i in range(dtDB.shape[0]):
+                # sometimes detection missed in certain frames, thus should be assigned to groundtruth frame id for alignment
+                frame = gt_frames_list.index(dtDB[i, 0])
+                did = np.where(dt_ids == dtDB[i, 1])[0][0]
+                dt_inds[frame][did] = i
 
+            
+            # find track <-> gt
+            for frame in range(f_gt):
+                gt_ids = list(gt_inds[frame].keys())
+                gt_i = list(gt_inds[frame].values())
+                gt_boxes = gtDB[gt_i, 2:6]
 
+                st_ids = list(st_inds[frame].keys())
+                st_i = list(st_inds[frame].values())
+                st_boxes = stDB[st_i, 2:6]
 
-            # Now iterate through the tracks and check if covered / id kept in comparison to occlusion
-            for gid, vis in enumerate(visible):
-                f0 = -1
-                count = 0
-                n_cov = 0
-                for frame, v in enumerate(vis):
-                    if v == 0 and f0 != -1:
-                        count += 1
-                        if gid in M[frame].keys():
-                            n_cov += 1
-                    elif v == 1:
-                        # gap ended
-                        if count != 0:
-                            coverage.append([count, n_cov])
+                overlaps = np.zeros((len(st_i), len(gt_i)), dtype=float)
+                for i in range(len(gt_i)):
+                    overlaps[:, i] = bbox_overlap(st_boxes, gt_boxes[i])
+                matched_indices = linear_assignment(1 - overlaps)
 
-                            last_non_empty = -1
-                            for j in range(f0, -1, -1):
-                                if gid in M[j].keys():
-                                    last_non_empty = j
-                                    break
-                            next_non_empty = -1
-                            for j in range(f0+count+1, f_gt):
-                                if gid in M[j]:
-                                    next_non_empty = j
-                                    break
+                for matched in matched_indices:
+                    if overlaps[matched[0], matched[1]] > 0.5:
+                        did = st_ids[matched[0]]
+                        gid = gt_ids[matched[1]]
+                        D[frame][did] = gid
 
-                            if next_non_empty != -1 and last_non_empty != -1:
-                                sid0 = M[last_non_empty][gid]
-                                sid1 = M[next_non_empty][gid]
-                                if sid1 == sid0:
-                                    id_recovered.append([count, 1])
-                                else:
-                                    id_recovered.append([count, 0])
-                            count = 0
-                            n_cov = 0
-                        # set to current frame
-                        f0 = frame
+            # Now check all detections if they were tracked
+            for frame in range(f_gt):
+                matched_dets = D[frame]
 
-        coverage = np.array(coverage)
-        id_recovered = np.array(id_recovered)
-        tr_id_recovered = np.array(tr_id_recovered)
+                for did, gid in matched_dets.items():
+                    # not matched by tracker, get visbility
+                    line = gt_inds[frame][gid]
+                    vis = gtDB[line, 8]
 
-        #for c in coverage:
-        #    print(c)
-        xmax = 50
+                    # if matched only visibility is important
+                    if gid in M[frame].keys():
+                        tracked_visibilities.append(vis)
+                        continue
+                    else:
+                        missed_visibilities.append(vis)
 
-        # build values for plot
-        x_val = np.arange(1,xmax+1)
-        y_val = np.zeros(xmax)
+                    # get distance to last time tracked
+                    last_non_empty = frame
+                    for j in range(frame, -1, -1):
+                        if gid in M[j].keys():
+                            last_non_empty = j
+                            break
+                    next_non_empty = frame
+                    for j in range(frame, f_gt):
+                        if gid in M[j]:
+                            next_non_empty = j
+                            break
 
-        for x in x_val:
-            y = np.mean(coverage[coverage[:,0] == x, 1] / coverage[coverage[:,0] == x, 0])
-            y_val[x-1] = y
+                    dist = min(frame-last_non_empty, next_non_empty-frame)
+                    # check if not tracked at all ...
+                    if dist > 0:
+                        missed_distances.append(dist)"""
+
+        missed_gaps_length = np.array(missed_gaps_length)
+        missed_visibilities = np.array(missed_visibilities)
+        tracked_visibilites = np.array(tracked_visibilities)
 
         #plt.plot([0,1], [0,1], 'r-')
         plt.figure()
-        plt.scatter(coverage[:,0], coverage[:,1]/coverage[:,0], s=2**2)
-        plt.plot(x_val, y_val, 'rx')
-        plt.xlabel('gap length')
-        plt.xlim((0, xmax))
-        plt.ylabel('tracker coverage')
-        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'GAP_COV')), format='pdf')
+        plt.hist(tracked_visibilities, bins=20, density=True)
+        plt.ylabel('occurence')
+        plt.xlabel('visibility of target')
+        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'TR_VIS')), format='pdf')
 
-        # build values for plot
-        x_val = np.arange(1,xmax+1)
-        y_val = np.zeros(xmax)
+        #plt.plot([0,1], [0,1], 'r-')
+        weights = np.zeros(missed_gaps_length.shape)
+        for i in range(missed_gaps_length.shape[0]):
+            weights[i] = 1/missed_gaps_length[i]
+        plt.figure()
+        #plt.xlim((0, 40))
+        bins = list(range(40))
+        plt.hist(missed_gaps_length, weights=weights, bins=bins, density=True)
+        plt.ylabel('occurence')
+        plt.xlabel('gap length in tracks')
+        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'MISS_DIST')), format='pdf')
 
-        for x in x_val:
-            y = np.mean(id_recovered[id_recovered[:,0] == x, 1])
-            y_val[x-1] = y
+        x = np.arange(1,41)
+        y = np.zeros(len(x))
+        ges_occurencies = 0
+        for i,b in enumerate(x):
+            occurencies = int((missed_gaps_length==b).sum())
+            occurencies = occurencies/b
+            ges_occurencies += occurencies
+            y[i] = occurencies
+        y = y/ges_occurencies
+        y_poly = np.poly1d(np.polyfit(x, y, 5))
+        poly_missed_gaps_length.append(y_poly)
 
         plt.figure()
-        plt.plot(x_val, y_val, 'rx')
-        plt.scatter(id_recovered[:,0], id_recovered[:,1], s=2**2)
-        plt.xlabel('gt gap length')
-        plt.xlim((0, xmax))
-        plt.ylabel('part id recovered')
-        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'GAP_ID')), format='pdf')
+        plt.hist(missed_visibilities, bins=20, density=True)
+        plt.ylabel('occurence')
+        #plt.xlim((0, xmax))
+        plt.xlabel('visibility of target')
+        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'MISS_VIS')), format='pdf')
         plt.close()
 
-        # tr id recovered
-        x_val = np.arange(1,xmax+1)
-        y_val = np.zeros(xmax)
-
-        for x in x_val:
-            y = np.mean(tr_id_recovered[tr_id_recovered[:,0] == x, 1])
-            y_val[x-1] = y
-
-        plt.figure()
-        plt.plot(x_val, y_val, 'rx')
-        plt.scatter(tr_id_recovered[:,0], tr_id_recovered[:,1], s=2**2)
-        plt.xlabel('track gap length')
-        plt.xlim((0, xmax))
-        plt.ylabel('part id recovered')
-        plt.savefig(osp.join(output_dir, "{}-{}-{}.pdf".format(t, detections, 'GAP_TR_ID')), format='pdf')
-        plt.close()
+    x_new = np.linspace(1, 40, num=101, endpoint=True)
+    plt.figure()
+    plt.ylabel('occurence')
+    plt.xlabel('gap length in tracks')
+    for y_poly, t in zip(poly_missed_gaps_length, tracker):
+        plt.plot(x_new, y_poly(x_new), label=t)
+    plt.legend()
+    plt.savefig(osp.join(output_dir, "ALL-{}-{}.pdf".format(detections, 'MISS_DIST')), format='pdf')
+    

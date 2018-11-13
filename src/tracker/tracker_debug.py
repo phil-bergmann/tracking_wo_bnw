@@ -23,7 +23,7 @@ class Tracker():
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold, oracle):
+		max_features_num, reid_iou_threshold, pos_oracle, regress, kill_oracle):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
@@ -37,7 +37,9 @@ class Tracker():
 		self.reid_sim_threshold = reid_sim_threshold
 		self.reid_iou_threshold = reid_iou_threshold
 		self.do_align = do_align
-		self.use_oracle = oracle
+		self.pos_oracle = pos_oracle
+		self.kill_oracle = kill_oracle
+		self.regress = regress
 
 		self.reset()
 
@@ -65,7 +67,7 @@ class Tracker():
 	def add(self, new_det_pos, new_det_scores, new_det_features):
 		num_new = new_det_pos.size(0)
 		for i in range(num_new):
-			t = Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1,-1),
+			t = Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1, -1),
 																	self.inactive_patience, self.max_features_num)
 			self.tracks.append(t)
 			self.debug[t.id] = {}
@@ -96,14 +98,15 @@ class Tracker():
 			t = self.tracks[i]
 			t.score = scores[i]
 
-			if scores[i] <= self.regression_person_thresh:
+			if scores[i] <= self.regression_person_thresh and not self.kill_oracle:
 				self.tracks.remove(t)
 				self.inactive_tracks.append(t)
 				self.debug[t.id][self.im_index]["info"] += "[!] Killed because of too low score: {}\n".format(scores[i])
 			else:
 				s.append(scores[i])
-				t.pos = pos[i].view(1,-1)
-				self.debug[t.id][self.im_index]["info"] += "[*] Regressing\n"
+				if self.regress:
+					t.pos = pos[i].view(1,-1)
+					self.debug[t.id][self.im_index]["info"] += "[*] Regressing\n"
 		return torch.Tensor(s[::-1]).cuda()
 
 	def get_pos(self):
@@ -250,10 +253,14 @@ class Tracker():
 	def oracle(self, blob):
 		gt = blob['gt']
 		boxes = torch.cat(list(gt.values()), 0).cuda()
+		ids = list(gt.keys())
+		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+		#pos = boxes[:,cl*4:(cl+1)*4]
 
 		if len(self.tracks) > 0:
-			dist_mat = []
+			
 			pos = self.get_pos()
+			dist_mat = []
 
 			# calculate IoU distances
 			iou_neg = 1 - bbox_overlaps(pos, boxes)
@@ -261,12 +268,115 @@ class Tracker():
 
 			row_ind, col_ind = linear_sum_assignment(dist_mat)
 
-			assigned = []
-			remove_inactive = []
+			matched = []
+			unmatched = []
+
+			if self.kill_oracle:
+				# check if tracks overlap and as soon as they do consider them a pair
+				tracks_iou = bbox_overlaps(pos, pos).cpu().numpy()
+				idx = np.where(tracks_iou >= 0.8)
+				tracks_ov = []
+				for r,c in zip(idx[0], idx[1]):
+					if r < c:
+						tracks_ov.append([r,c])
+			
+				# take care that matched pairs are considered right
+				for t0,t1 in tracks_ov:
+					# get the matching gt indices
+
+					gt_ids = []
+					gt_pos = []
+
+					for i,t in enumerate([t0, t1]):
+						ind = np.where(row_ind == t)[0]
+						if len(ind) > 0:
+							ind = ind[0]
+							r = t0
+							c = col_ind[ind]
+							if dist_mat[r,c] <= 0.5:
+								gt_ids.append([ids[c],i])
+								gt_pos.append(boxes[c].view(1,-1))
+							row_ind = np.delete(row_ind, ind)
+							col_ind = np.delete(col_ind, ind)
+
+					gt_ids = np.array(gt_ids)
+
+					track0 = self.tracks[t0]
+					track1 = self.tracks[t1]
+					unm = [track0, track1]
+
+					# any matches?
+					if len(gt_ids) > 0:
+						for t in list(unm):
+							match = np.where(gt_ids[:,0] == t.gt_id)[0]
+							if len(match) > 0:
+								match = match[0]
+								pos = gt_pos[match]
+								#gt_ids = np.delete(gt_ids, match, 0)
+								unm.remove(t)
+								matched.append(t)
+								if self.pos_oracle:
+									#t.gid = ids[c]
+									#t.pos = pos
+									#self.debug[t.id][self.im_index]["info"] += "[*] Regressing ORACLE\n"
+
+						"""
+						# No matches? Fall back to IoU
+						if len(unm) == 2:
+							for i,t in enumerate(list(unm)):
+								match = np.where(gt_ids[:,1] == i)[0]
+								if len(match) > 0:
+									match = match[0]
+									pos = gt_pos[match]
+									t.pos = pos
+									t.gt_id = gt_ids[match, 0]
+									unm.remove(t)
+									matched.append(t)
+									gt_pos.remove(pos)
+									gt_ids = np.delete(gt_ids, match, 0)
+						
+						# One match? Just assign last gt box to track if exists
+						if len(unm) == 1 and len(gt_ids) > 0:
+							t = unm[0]
+							t.pos = gt_pos[0]
+							t.gt_id = gt_ids[0,0]
+							matched.append(t)
+							unm.remove(t)
+						"""
+
+					unmatched += unm
+
+			# normal matching
 			for r,c in zip(row_ind, col_ind):
-				if dist_mat[r,c] < 1:
+				if dist_mat[r,c] <= 0.5:
 					t = self.tracks[r]
-					t.pos = boxes[c].view(1,-1)
+					matched.append(t)
+					if self.pos_oracle:
+						t.gid = ids[c]
+						#pos = boxes[c].view(1,-1)
+						#t.pos = pos
+						#self.debug[t.id][self.im_index]["info"] += "[*] Regressing ORACLE\n"
+
+			if self.kill_oracle:
+				# Remove unmatched NMS tracks
+				for t in unmatched:
+					if t not in matched:
+						self.tracks.remove(t)
+						self.inactive_tracks.append(t)
+						self.debug[t.id][self.im_index]["info"] += "[!] Track killed by NMS"
+						self.nms_killed += 1
+				# Remove normal
+				for t in self.tracks:
+					if t not in matched:
+						self.tracks.remove(t)
+						self.inactive_tracks.append(t)
+						self.debug[t.id][self.im_index]["info"] += "[!] Killed because of too low score: {}\n".format(0)
+		
+		# now take care that all tracks are inside the image (normaly done by regress)
+		for t in self.tracks:
+			pos = t.pos
+			pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
+			t.pos = pos
 
 	def step(self, blob):
 
@@ -320,10 +430,11 @@ class Tracker():
 			# align
 			if self.do_align:
 				self.align(blob)
-			if self.use_oracle:
+			if self.pos_oracle or self.kill_oracle:
 				self.oracle(blob)
 			#regress
-			person_scores = self.regress_tracks(blob)
+			if len(self.tracks) > 0:
+				person_scores = self.regress_tracks(blob)
 			
 			if len(self.tracks) > 0:
 				
@@ -332,7 +443,10 @@ class Tracker():
 
 				# nms here if tracks overlap
 				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1,1)),1)
-				keep = nms(nms_inp_reg, self.regression_nms_thresh)
+				if self.kill_oracle:
+					keep = torch.arange(nms_inp_reg.size(0)).long().cuda()
+				else:
+					keep = nms(nms_inp_reg, self.regression_nms_thresh)
 
 				# Plot the killed tracks for debugging
 				not_keep = list(np.arange(0,len(self.tracks)))
@@ -425,6 +539,7 @@ class Track(object):
 
 	def __init__(self, pos, score, track_id, features, inactive_patience, max_features_num):
 		self.id = track_id
+		self.gt_id = None
 		self.pos = pos
 		self.score = score
 		self.features = deque([features])

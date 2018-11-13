@@ -123,14 +123,15 @@ class MOT15_Sequence(Dataset):
 			with open(det_file, "r") as inf:
 				reader = csv.reader(inf, delimiter=',')
 				for row in reader:
-					x1 = float(row[2]) - 1
-					y1 = float(row[3]) - 1
-					# This -1 accounts for the width (width of 1 x1=x2)
-					x2 = x1 + float(row[4]) - 1
-					y2 = y1 + float(row[5]) - 1
-					score = float(row[6])
-					bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
-					dets[int(row[0])].append(bb)
+					if len(row) > 0:
+						x1 = float(row[2]) - 1
+						y1 = float(row[3]) - 1
+						# This -1 accounts for the width (width of 1 x1=x2)
+						x2 = x1 + float(row[4]) - 1
+						y2 = y1 + float(row[5]) - 1
+						score = float(row[6])
+						bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
+						dets[int(row[0])].append(bb)
 
 		for i in range(1,seq_length+1):
 			im_path = osp.join(im_dir,"{:06d}.jpg".format(i))

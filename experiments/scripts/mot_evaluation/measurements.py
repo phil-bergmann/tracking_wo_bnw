@@ -170,8 +170,33 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
             gt_height_list.append(float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3]))
             gt_vis_list.append(float(gtDB[gt_row, 8]))
 
+    gt_tracked = {}
+    for t,v in enumerate(M):
+        for gt in v.keys():
+            if gt not in gt_tracked:
+                gt_tracked[gt] = []
+            gt_tracked[gt].append(t)
+    missed_height = []
+    missed_vis = []
+    missed_dist = []
+    for gt, times in gt_tracked.items():
+        times = np.array(times)
+        t0 = times[0]
+        t1 = times[-1]
+        for t in range(t0+1,t1):
+            if t in times:
+                continue
+            ind = np.where((times<=t)==True)[0][-1]
+            missed_dist.append(np.min([t-times[ind], times[ind+1]-t]))
+            gt_row = gt_inds[t][gt]
+            height = float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3])
+            vis = float(gtDB[gt_row, 8])
+            missed_height.append(height)
+            missed_vis.append(vis)
 
-    return mme, c, fp, g, missed, d, M, allfps, (switches, np.mean(gt_height_list), np.mean(gt_vis_list))
+
+    return mme, c, fp, g, missed, d, M, allfps, \
+            (switches, np.mean(gt_height_list), np.mean(gt_vis_list), np.mean(missed_height), np.mean(missed_vis), np.mean(missed_dist))
 
 def idmeasures(gtDB, stDB, threshold):
     """

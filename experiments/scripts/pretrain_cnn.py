@@ -24,64 +24,64 @@ Solver = ex.capture(Solver, prefix='cnn.solver')
 
 @ex.automain
 def my_main(_config, cnn):
-	# set all seeds
-	torch.manual_seed(cnn['seed'])
-	torch.cuda.manual_seed(cnn['seed'])
-	np.random.seed(cnn['seed'])
-	torch.backends.cudnn.deterministic = True
+    # set all seeds
+    torch.manual_seed(cnn['seed'])
+    torch.cuda.manual_seed(cnn['seed'])
+    np.random.seed(cnn['seed'])
+    torch.backends.cudnn.deterministic = True
 
-	print(_config)
+    print(_config)
 
-	output_dir = osp.join(get_output_dir(cnn['module_name']), cnn['name'])
-	tb_dir = osp.join(get_tb_dir(cnn['module_name']), cnn['name'])
+    output_dir = osp.join(get_output_dir(cnn['module_name']), cnn['name'])
+    tb_dir = osp.join(get_tb_dir(cnn['module_name']), cnn['name'])
 
-	sacred_config = osp.join(output_dir, 'sacred_config.yaml')
+    sacred_config = osp.join(output_dir, 'sacred_config.yaml')
 
-	if not osp.exists(output_dir):
-		os.makedirs(output_dir)
-	with open(sacred_config, 'w') as outfile:
-		yaml.dump(_config, outfile, default_flow_style=False)
+    if not osp.exists(output_dir):
+        os.makedirs(output_dir)
+    with open(sacred_config, 'w') as outfile:
+        yaml.dump(_config, outfile, default_flow_style=False)
 
-	#########################
-	# Initialize dataloader #
-	#########################
-	print("[*] Initializing Dataloader")
+    #########################
+    # Initialize dataloader #
+    #########################
+    print("[*] Initializing Dataloader")
 
-	db_train = Datasets(cnn['db_train'], cnn['dataloader'])
-	db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+    db_train = Datasets(cnn['db_train'], cnn['dataloader'])
+    db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
-	if cnn['db_val']:
-		pass
-		#db_val = DataLoader(db_val, batch_size=1, shuffle=True)
-	else:
-		db_val = None
-	
-	##########################
-	# Initialize the modules #
-	##########################
-	print("[*] Building CNN")
-	network = resnet50(pretrained=True, **cnn['cnn'])
-	network.train()
-	network.cuda()
+    if cnn['db_val']:
+        pass
+        #db_val = DataLoader(db_val, batch_size=1, shuffle=True)
+    else:
+        db_val = None
+    
+    ##########################
+    # Initialize the modules #
+    ##########################
+    print("[*] Building CNN")
+    network = resnet50(pretrained=True, **cnn['cnn'])
+    network.train()
+    network.cuda()
 
-	##################
-	# Begin training #
-	##################
-	print("[*] Solving ...")
-	
-	# build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
-	# from Hermans et al.
-	lr = cnn['solver']['optim_args']['lr']
-	iters_per_epoch = len(db_train)
-	# we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
-	l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
-																iters_per_epoch,  iters_per_epoch))
-	#else:
-	#	l = None
-	max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
-	solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
-	solver.train(network, db_train, db_val, max_epochs, 100, model_args=cnn['model_args'])
-	
-	
-	
-	
+    ##################
+    # Begin training #
+    ##################
+    print("[*] Solving ...")
+    
+    # build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
+    # from Hermans et al.
+    lr = cnn['solver']['optim_args']['lr']
+    iters_per_epoch = len(db_train)
+    # we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
+    l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
+                                                                iters_per_epoch,  iters_per_epoch))
+    #else:
+    #   l = None
+    max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
+    solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
+    solver.train(network, db_train, db_val, max_epochs, 100, model_args=cnn['model_args'])
+    
+    
+    
+    
