@@ -13,72 +13,11 @@ __C = edict()
 #   from fast_rcnn_config import cfg
 cfg = __C
 
-#
-# Training options
-#
-__C.TRAIN = edict()
-
-# Initial learning rate
-__C.TRAIN.LEARNING_RATE = 0.001
-
-# Momentum
-__C.TRAIN.MOMENTUM = 0.9
-
-# Weight decay, for regularization
-__C.TRAIN.WEIGHT_DECAY = 0.0005
-
-# Number of iterations that are used to average the error
-__C.TRAIN.ERROR_AVERAGE_ITERATIONS = 100
-
-# Samples to use per minibatch
-__C.TRAIN.SMP_PER_BATCH = 1
-
-# Snapshot prefix
-__C.TRAIN.SNAPSHOT_PREFIX = "Regressor_v0.1"
-
-# Make Snapshot every Iters
-__C.TRAIN.SNAPSHOT_ITERS = 100000
-
-# Make Image every Iters
-__C.TRAIN.IMAGE_ITERS = 1000
-
-
-#
-# Testing options
-#
-__C.TEST = edict()
-
-
-#
-# LSTM settings
-#
-__C.LSTM = edict()
-
-# number of hidden neurons
-__C.LSTM.HIDDEN_NUM = 500
-
-# number of layers
-__C.LSTM.LAYERS = 1
-
-# downsample to 300xN
-__C.LSTM.SAMPLE_N = 20
-
-# permute inputs
-__C.LSTM.PERM_INP = False
-
-
-# For reproducibility
-__C.RNG_SEED = 3
-
 # Root directory of project
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 
 # Data directory
 __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
-
-# 
-
-
 
 def get_output_dir(module):
   """Return the directory where experimental artifacts are placed.

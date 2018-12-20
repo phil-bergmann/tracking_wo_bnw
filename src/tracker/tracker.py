@@ -16,10 +16,7 @@ import matplotlib.pyplot as plt
 import os
 
 class Tracker():
-	"""
-	This tracker uses the siamese appearance features to decide whether a track hast to die or not (without nms)
-	Also has euclidean alignment acitvated
-	"""
+	"""The main tracking file, here is where magic happens."""
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
@@ -55,6 +52,7 @@ class Tracker():
 			self.im_index = 0
 
 	def keep(self, keep):
+		"""Keeps only the tracks defined by keep alive and moves the remaining to inactive."""
 		tracks = []
 		for i in keep:
 			tracks.append(self.tracks[i])
@@ -63,6 +61,7 @@ class Tracker():
 		self.tracks = tracks
 
 	def add(self, new_det_pos, new_det_scores, new_det_features):
+		"""Initializes new Track objects and saves them."""
 		num_new = new_det_pos.size(0)
 		for i in range(num_new):
 			self.tracks.append(Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1,-1),
@@ -70,6 +69,7 @@ class Tracker():
 		self.track_num += num_new
 
 	def regress_tracks(self, blob):
+		"""Regress the position of the tracks and also checks their scores."""
 		cl = 1
 
 		pos = self.get_pos()
@@ -79,11 +79,6 @@ class Tracker():
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		pos = boxes[:,cl*4:(cl+1)*4]
-		#for t,p in zip(self.tracks, pos):
-		#	t.pos = p.view(1,-1)
-
-		# get scores of new regressed positions
-		#_, scores, _, _ = self.frcnn.test_rois(pos)
 		scores = scores[:,cl]
 
 		s = []
@@ -99,6 +94,7 @@ class Tracker():
 		return torch.Tensor(s[::-1]).cuda()
 
 	def get_pos(self):
+		"""Get the positions of all active tracks."""
 		if len(self.tracks) == 1:
 			pos = self.tracks[0].pos
 		elif len(self.tracks) > 1:
@@ -108,6 +104,7 @@ class Tracker():
 		return pos
 
 	def get_features(self):
+		"""Get the features of all active tracks."""
 		if len(self.tracks) == 1:
 			features = self.tracks[0].features
 		elif len(self.tracks) > 1:
@@ -117,6 +114,7 @@ class Tracker():
 		return features
 	
 	def get_inactive_features(self):
+		"""Get the features of all inactive tracks."""
 		if len(self.inactive_tracks) == 1:
 			features = self.inactive_tracks[0].features
 		elif len(self.inactive_tracks) > 1:
@@ -126,6 +124,7 @@ class Tracker():
 		return features
 
 	def reid(self, blob, new_det_pos, new_det_scores):
+		"""Tries to ReID inactive tracks with provided detections."""
 		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
 			# calculate appearance distances
@@ -181,6 +180,7 @@ class Tracker():
 		return new_det_pos, new_det_scores, new_det_features
 
 	def clear_inactive(self):
+		"""Checks if inactive tracks should be removed."""
 		to_remove = []
 		for t in self.inactive_tracks:
 			if t.is_to_purge():
@@ -189,14 +189,17 @@ class Tracker():
 			self.inactive_tracks.remove(t)
 
 	def get_appearances(self, blob):
+		"""Uses the siamese CNN to get the features for all active tracks."""
 		new_features = self.cnn.test_rois(blob['app_data'][0], self.get_pos() / blob['im_info'][0][2]).data
 		return new_features
 
 	def add_features(self, new_features):
+		"""Adds new appearance features to active tracks."""
 		for t,f in zip(self.tracks, new_features):
 			t.add_features(f.view(1,-1))
 
 	def align(self, blob):
+		"""Aligns the positions of active and inactive tracks depending on camera motion."""
 		if self.im_index > 0:
 			im1 = self.last_image.cpu().numpy()
 			im2 = blob['data'][0][0].cpu().numpy()
@@ -248,6 +251,7 @@ class Tracker():
 						t.last_pos = pos.view(1,-1)
 
 	def motion(self):
+		"""Applies a simple linear motion model that only consideres the positions at t-1 and t-2."""
 		for t in self.tracks:
 			last_pos = t.pos.clone()
 			if t.last_pos.nelement() > 0:
@@ -303,6 +307,9 @@ class Tracker():
 					t.pos[0,3] = cyp_new + hp/2
 
 	def step(self, blob):
+		"""This function should be called every timestep to perform tracking with a blob
+		containing the image information.
+		"""
 
 		# only the class person used here
 		cl = 1
@@ -443,6 +450,7 @@ class Tracker():
 
 
 class Track(object):
+	"""This class contains all necessary for every individual track."""
 
 	def __init__(self, pos, score, track_id, features, inactive_patience, max_features_num):
 		self.id = track_id
@@ -457,6 +465,7 @@ class Track(object):
 		self.last_v = torch.Tensor([])
 
 	def is_to_purge(self):
+		"""Tests if the object has been too long inactive and is to remove."""
 		self.count_inactive += 1
 		self.last_pos = torch.Tensor([])
 		if self.count_inactive > self.inactive_patience:
@@ -465,12 +474,13 @@ class Track(object):
 			return False
 
 	def add_features(self, features):
+		"""Adds new appearance features to the object."""
 		self.features.append(features)
 		if len(self.features) > self.max_features_num:
 			self.features.popleft()
 
 	def test_features(self, test_features):
-		# feature comparison
+		"""Compares test_features to features of this Track object"""
 		if len(self.features) > 1:
 			features = torch.cat(self.features, 0)
 		else:

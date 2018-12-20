@@ -14,7 +14,7 @@ import time
 
 from tracker.rfrcnn import FRCNN as rFRCNN
 from tracker.vfrcnn import FRCNN as vFRCNN
-from tracker.config import cfg, get_output_dir
+from tracker.config import get_output_dir
 from tracker.utils import plot_sequence
 from tracker.datasets.factory import Datasets
 from tracker.tracker import Tracker
@@ -30,27 +30,18 @@ ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracker.yaml')
 
-# hacky workaround to load the corresponding cnn config and not having to hardcode it here
-ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
-ex.add_config(ex.configurations[0]._conf['simple_tracker']['frcnn_config'])
+# hacky workaround to load the corresponding configs and not having to hardcode paths here
+ex.add_config(ex.configurations[0]._conf['tracker']['siamese_config'])
+ex.add_config(ex.configurations[0]._conf['tracker']['frcnn_config'])
 
-Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
-
-test = ["MOT17-01", "MOT17-03", "MOT17-06", "MOT17-07", "MOT17-08", "MOT17-12", "MOT17-14"]
-train = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-
-
-kitti_train_pedestrian = ["train_%04d_Pedestrian"%(seq) for seq in range(21)]
-kitti_test_pedestrian = ["test_%04d_Pedestrian"%(seq) for seq in range(29)]
-kitti_train_car = ["train_%04d_Car"%(seq) for seq in range(21)]
-kitti_test_car = ["test_%04d_Car"%(seq) for seq in range(29)]
+Tracker = ex.capture(Tracker, prefix='tracker.tracker')
     
 @ex.automain
-def my_main(simple_tracker, cnn, frcnn, _config):
+def my_main(tracker, siamese, frcnn, _config):
     # set all seeds
-    torch.manual_seed(simple_tracker['seed'])
-    torch.cuda.manual_seed(simple_tracker['seed'])
-    np.random.seed(simple_tracker['seed'])
+    torch.manual_seed(tracker['seed'])
+    torch.cuda.manual_seed(tracker['seed'])
+    np.random.seed(tracker['seed'])
     torch.backends.cudnn.deterministic = True
 
     if frcnn['cfg_file']:
@@ -60,7 +51,7 @@ def my_main(simple_tracker, cnn, frcnn, _config):
 
     print(_config)
 
-    output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
+    output_dir = osp.join(get_output_dir(tracker['module_name']), tracker['name'])
     
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
     
@@ -75,32 +66,32 @@ def my_main(simple_tracker, cnn, frcnn, _config):
     
     print("[*] Building FRCNN")
 
-    if simple_tracker['network'] == 'vgg16':
+    if tracker['network'] == 'vgg16':
         frcnn = vFRCNN()
-    elif simple_tracker['network'] == 'res101':
+    elif tracker['network'] == 'res101':
         frcnn = rFRCNN(num_layers=101)
     else:
-        raise NotImplementedError("Network not understood: {}".format(simple_tracker['network']))
+        raise NotImplementedError("Network not understood: {}".format(tracker['network']))
 
     frcnn.create_architecture(2, tag='default',
         anchor_scales=frcnn_cfg.ANCHOR_SCALES,
         anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
     frcnn.eval()
     frcnn.cuda()
-    frcnn.load_state_dict(torch.load(simple_tracker['frcnn_weights']))
+    frcnn.load_state_dict(torch.load(tracker['frcnn_weights']))
     
-    cnn = resnet50(pretrained=False, **cnn['cnn'])
-    cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+    cnn = resnet50(pretrained=False, **siamese['cnn'])
+    cnn.load_state_dict(torch.load(tracker['siamese_weights']))
     cnn.eval()
     cnn.cuda()
-    tracker = Tracker(frcnn=frcnn, cnn=cnn)
+    tr = Tracker(frcnn=frcnn, cnn=cnn)
 
     print("[*] Beginning evaluation...")
 
     time_ges = 0
 
-    for db in Datasets(simple_tracker['dataset']):
-        tracker.reset()
+    for db in Datasets(tracker['dataset']):
+        tr.reset()
 
         now = time.time()
 
@@ -108,22 +99,20 @@ def my_main(simple_tracker, cnn, frcnn, _config):
 
         dl = DataLoader(db, batch_size=1, shuffle=False)
         for sample in dl:
-            tracker.step(sample)
-        results = tracker.get_results()
-
-        #tracker.write_debug(osp.join(output_dir, "debug_{}.txt".format(s)))
+            tr.step(sample)
+        results = tr.get_results()
 
         time_ges += time.time() - now
 
         print("Tracks found: {}".format(len(results)))
         print("[*] Time needed for {} evaluation: {:.3f} s".format(db, time.time() - now))
 
-        if simple_tracker['interpolate']:
+        if tracker['interpolate']:
             results = interpolate(results)
 
         db.write_results(results, osp.join(output_dir))
         
-        if simple_tracker['write_images']:
+        if tracker['write_images']:
             plot_sequence(results, db, osp.join(output_dir, str(db)))
     
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))

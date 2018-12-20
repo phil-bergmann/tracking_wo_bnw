@@ -36,12 +36,12 @@ from mot_evaluation.measurements import clear_mot_hungarian, idmeasures
 
 ex = Experiment()
 
-ex.add_config('experiments/cfgs/tracker_debug.yaml')
+ex.add_config('experiments/cfgs/oracle_tracker.yaml')
 
 # hacky workaround to load the corresponding cnn config and not having to hardcode it here
-ex.add_config(ex.configurations[0]._conf['simple_tracker']['cnn_config'])
+ex.add_config(ex.configurations[0]._conf['oracle_tracker']['siamese_config'])
 
-Tracker = ex.capture(Tracker, prefix='simple_tracker.tracker')
+Tracker = ex.capture(Tracker, prefix='oracle_tracker.tracker')
 
 def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
     """
@@ -302,11 +302,11 @@ def evaluate_new(results, gt_file):
     return clear_mot_info
 
 @ex.automain
-def my_main(simple_tracker, cnn, _config):
+def my_main(oracle_tracker, siamese, _config):
     # set all seeds
-    torch.manual_seed(simple_tracker['seed'])
-    torch.cuda.manual_seed(simple_tracker['seed'])
-    np.random.seed(simple_tracker['seed'])
+    torch.manual_seed(oracle_tracker['seed'])
+    torch.cuda.manual_seed(oracle_tracker['seed'])
+    np.random.seed(oracle_tracker['seed'])
     torch.backends.cudnn.deterministic = True
 
     print(_config)
@@ -317,27 +317,27 @@ def my_main(simple_tracker, cnn, _config):
     
     print("[*] Building FRCNN")
 
-    if simple_tracker['network'] == 'vgg16':
+    if oracle_tracker['network'] == 'vgg16':
         frcnn = vFRCNN()
-    elif simple_tracker['network'] == 'res101':
+    elif oracle_tracker['network'] == 'res101':
         frcnn = rFRCNN(num_layers=101)
     else:
-        raise NotImplementedError("Network not understood: {}".format(simple_tracker['network']))
+        raise NotImplementedError("Network not understood: {}".format(oracle_tracker['network']))
 
     frcnn.create_architecture(2, tag='default',
         anchor_scales=frcnn_cfg.ANCHOR_SCALES,
         anchor_ratios=frcnn_cfg.ANCHOR_RATIOS)
     frcnn.eval()
     frcnn.cuda()
-    frcnn.load_state_dict(torch.load(simple_tracker['frcnn_weights']))
+    frcnn.load_state_dict(torch.load(oracle_tracker['frcnn_weights']))
     
-    cnn = resnet50(pretrained=False, **cnn['cnn'])
-    cnn.load_state_dict(torch.load(simple_tracker['cnn_weights']))
+    cnn = resnet50(pretrained=False, **siamese['cnn'])
+    cnn.load_state_dict(torch.load(oracle_tracker['cnn_weights']))
     cnn.eval()
     cnn.cuda()
     tracker = Tracker(frcnn=frcnn, cnn=cnn)
 
-    output_dir = osp.join(get_output_dir(simple_tracker['module_name']), simple_tracker['name'])
+    output_dir = osp.join(get_output_dir(oracle_tracker['module_name']), oracle_tracker['name'])
 
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
 
@@ -354,7 +354,7 @@ def my_main(simple_tracker, cnn, _config):
 
     analysis_results = []
 
-    for db in Datasets(simple_tracker['dataset']):
+    for db in Datasets(oracle_tracker['dataset']):
         tracker.reset()
 
         now = time.time()
@@ -368,7 +368,7 @@ def my_main(simple_tracker, cnn, _config):
             tracker.step(sample)
         results, debug = tracker.get_results()
 
-        if simple_tracker['interpolate']:
+        if oracle_tracker['interpolate']:
             results = interpolate(results)
 
         #print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
@@ -379,7 +379,7 @@ def my_main(simple_tracker, cnn, _config):
 
         #db.write_results(results, osp.join(output_dir))
         
-        #if simple_tracker['write_images']:
+        #if oracle_tracker['write_images']:
         #    plot_sequence(results, db, osp.join(output_dir, s))
         gt_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", str(db)+"-DPM", "gt", "gt.txt")
         (switches, gt_mean_height, gt_mean_vis, missed_height, missed_vis, missed_dist) = evaluate_new(results, gt_file)
@@ -467,7 +467,7 @@ def my_main(simple_tracker, cnn, _config):
         print(gt_ids)
 
 
-        detections = simple_tracker['dataset'].split("_")[2]
+        detections = oracle_tracker['dataset'].split("_")[2]
         ar = [str(db)+"-"+detections, len(gt_ids), tracker.nms_killed, reason_loose['score'], reason_loose['NMS'],
                reason_loose['regression'], reason_find['created'], reason_find["reid"], reason_find['regression'],
                np.mean(gt_mean_height), np.mean(gt_mean_vis),
@@ -480,11 +480,11 @@ def my_main(simple_tracker, cnn, _config):
 
         db.write_results(results, output_dir)
 
-        if simple_tracker['write_images']:
+        if oracle_tracker['write_images']:
             plot_sequence(results, db, osp.join(output_dir, str(db)))
     
     # print results to csv
-    file = osp.join(output_dir, simple_tracker['dataset'])
+    file = osp.join(output_dir, oracle_tracker['dataset'])
     with open(file, "w") as of:
         writer = csv.writer(of, delimiter=' ')
         for row in analysis_results:

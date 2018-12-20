@@ -1,4 +1,4 @@
-simple_tracker:
+tracker_config:
   name: SDP_5_5
   # Subfolder name in output/tracker/
   module_name: MOT17_sub
@@ -14,8 +14,8 @@ simple_tracker:
   #frcnn_weights: 'output/frcnn/res101/kitti_detection_Pedestrian_train/PREMOT_05_1_100debug/res101_faster_rcnn_iter_20000.pth'
   #frcnn_config: 'output/frcnn/res101/kitti_detection_Pedestrian_train/PREMOT_05_1_100debug/sacred_config.yaml'
   # Path to the siamese network weights + the config file
-  cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
-  cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  siamese_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
+  siamese_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/marcuhmot/ResNet_iter_27200.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/marcuhmot/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/ResNet_iters_25066.pth'

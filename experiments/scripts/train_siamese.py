@@ -18,22 +18,22 @@ from tracker.datasets.factory import Datasets
 from tracker.resnet import resnet50
 
 ex = Experiment()
-ex.add_config('experiments/cfgs/pretrain_cnn.yaml')
+ex.add_config('experiments/cfgs/siamese.yaml')
 
-Solver = ex.capture(Solver, prefix='cnn.solver')
+Solver = ex.capture(Solver, prefix='siamese.solver')
 
 @ex.automain
-def my_main(_config, cnn):
+def my_main(_config, siamese):
     # set all seeds
-    torch.manual_seed(cnn['seed'])
-    torch.cuda.manual_seed(cnn['seed'])
-    np.random.seed(cnn['seed'])
+    torch.manual_seed(siamese['seed'])
+    torch.cuda.manual_seed(siamese['seed'])
+    np.random.seed(siamese['seed'])
     torch.backends.cudnn.deterministic = True
 
     print(_config)
 
-    output_dir = osp.join(get_output_dir(cnn['module_name']), cnn['name'])
-    tb_dir = osp.join(get_tb_dir(cnn['module_name']), cnn['name'])
+    output_dir = osp.join(get_output_dir(siamese['module_name']), siamese['name'])
+    tb_dir = osp.join(get_tb_dir(siamese['module_name']), siamese['name'])
 
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
 
@@ -47,11 +47,11 @@ def my_main(_config, cnn):
     #########################
     print("[*] Initializing Dataloader")
 
-    db_train = Datasets(cnn['db_train'], cnn['dataloader'])
+    db_train = Datasets(siamese['db_train'], siamese['dataloader'])
     db_train = DataLoader(db_train, batch_size=1, shuffle=True)
 
-    if cnn['db_val']:
-        pass
+    if siamese['db_val']:
+        db_val = None
         #db_val = DataLoader(db_val, batch_size=1, shuffle=True)
     else:
         db_val = None
@@ -60,7 +60,7 @@ def my_main(_config, cnn):
     # Initialize the modules #
     ##########################
     print("[*] Building CNN")
-    network = resnet50(pretrained=True, **cnn['cnn'])
+    network = resnet50(pretrained=True, **siamese['cnn'])
     network.train()
     network.cuda()
 
@@ -71,7 +71,7 @@ def my_main(_config, cnn):
     
     # build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
     # from Hermans et al.
-    lr = cnn['solver']['optim_args']['lr']
+    lr = siamese['solver']['optim_args']['lr']
     iters_per_epoch = len(db_train)
     # we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
     l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
@@ -80,7 +80,7 @@ def my_main(_config, cnn):
     #   l = None
     max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
     solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
-    solver.train(network, db_train, db_val, max_epochs, 100, model_args=cnn['model_args'])
+    solver.train(network, db_train, db_val, max_epochs, 100, model_args=siamese['model_args'])
     
     
     

@@ -1,4 +1,4 @@
-simple_tracker:
+oracle_tracker:
   name: posCenterReidOracle_SDP
   # Subfolder name in output/tracker/
   module_name: MOT_oracle
@@ -11,8 +11,8 @@ simple_tracker:
   #frcnn_weights: 'output/frcnn/res101/kitti_detection_Pedestrian_train/KITTI_Ped_05_2_180k/res101_faster_rcnn_iter_180000.pth'
   #frcnn_weights: 'output/frcnn/res101/kitti_detection_Car_train/KITTI_Car_05_2_180k/res101_faster_rcnn_iter_180000.pth'
   # Path to the siamese network weights + the config file
-  cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
-  cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  siamese_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
+  siamese_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/ResNet_iters_25066.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'

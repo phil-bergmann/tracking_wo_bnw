@@ -1,4 +1,4 @@
-cnn:
+siamese:
   name: bh4-smallTrain
   module_name: pretrain_cnn
   desription: 
