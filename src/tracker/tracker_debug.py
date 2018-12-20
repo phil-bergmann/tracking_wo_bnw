@@ -23,7 +23,7 @@ class Tracker():
 
 	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold, pos_oracle, regress, kill_oracle, reid_oracle):
+		max_features_num, reid_iou_threshold, pos_oracle, regress, kill_oracle, reid_oracle, pos_oracle_center_only):
 		self.frcnn = frcnn
 		self.cnn = cnn
 		self.detection_person_thresh = detection_person_thresh
@@ -41,6 +41,7 @@ class Tracker():
 		self.kill_oracle = kill_oracle
 		self.reid_oracle = reid_oracle
 		self.regress = regress
+		self.pos_oracle_center_only = pos_oracle_center_only
 
 		self.reset()
 
@@ -340,14 +341,6 @@ class Tracker():
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		#pos = boxes[:,cl*4:(cl+1)*4]
 
-		# regress
-		if self.pos_oracle:
-			for t in self.tracks:
-				if t.gt_id in gt.keys():
-					new_pos = gt[t.gt_id]
-					t.pos = new_pos.cuda()
-					self.debug[t.id][self.im_index]["info"] += "[*] Regressing ORACLE\n"
-
 		if len(self.tracks) > 0:
 			
 			pos = self.get_pos()
@@ -360,8 +353,9 @@ class Tracker():
 			row_ind, col_ind = linear_sum_assignment(dist_mat)
 
 			matched = []
-			unmatched = []
 
+			"""
+			unmatched = []
 			if self.kill_oracle:
 				# check if tracks overlap and as soon as they do consider them a pair
 				tracks_iou = bbox_overlaps(pos, pos).cpu().numpy()
@@ -406,6 +400,7 @@ class Tracker():
 								matched.append(t)
 
 					unmatched += unm
+			"""
 
 			# normal matching
 			for r,c in zip(row_ind, col_ind):
@@ -415,6 +410,7 @@ class Tracker():
 					t.gt_id = ids[c]
 
 			if self.kill_oracle:
+				"""
 				# Remove unmatched NMS tracks
 				for t in unmatched:
 					if t not in matched and t in self.tracks:
@@ -422,6 +418,7 @@ class Tracker():
 						self.inactive_tracks.append(t)
 						self.debug[t.id][self.im_index]["info"] += "[!] Track killed by NMS"
 						self.nms_killed += 1
+				"""
 				# Remove normal
 				for t in self.tracks:
 					if t not in matched:
@@ -429,11 +426,132 @@ class Tracker():
 						self.inactive_tracks.append(t)
 						self.debug[t.id][self.im_index]["info"] += "[!] Killed because of too low score: {}\n".format(0)
 		
+		# regress
+		if self.pos_oracle:
+			for t in self.tracks:
+				if t.gt_id in gt.keys():
+					new_pos = gt[t.gt_id].cuda()
+					if self.pos_oracle_center_only:
+						# extract center coordinates of track
+						x1t = t.pos[0,0]
+						y1t = t.pos[0,1]
+						x2t = t.pos[0,2]
+						y2t = t.pos[0,3]
+						wt = x2t - x1t
+						ht = y2t - y1t
+
+						# extract coordinates of current pos
+						new_pos = clip_boxes(Variable(new_pos), blob['im_info'][0][:2]).data
+						x1n = new_pos[0,0]
+						y1n = new_pos[0,1]
+						x2n = new_pos[0,2]
+						y2n = new_pos[0,3]
+						cxn = (x2n + x1n)/2
+						cyn = (y2n + y1n)/2
+
+						# now set track to gt center coordinates
+						t.pos[0,0] = cxn - wt/2
+						t.pos[0,1] = cyn - ht/2
+						t.pos[0,2] = cxn + wt/2
+						t.pos[0,3] = cyn + ht/2
+					else:
+						t.pos = new_pos
+					self.debug[t.id][self.im_index]["info"] += "[*] Regressing ORACLE\n"
 		# now take care that all tracks are inside the image (normaly done by regress)
 		for t in self.tracks:
 			pos = t.pos
 			pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
 			t.pos = pos
+
+	def nms_oracle(self, blob, person_scores):
+		gt = blob['gt']
+		boxes = torch.cat(list(gt.values()), 0).cuda()
+		ids = list(gt.keys())
+		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
+		#pos = boxes[:,cl*4:(cl+1)*4]
+
+		if len(self.tracks) > 0:
+			pos = self.get_pos()
+			dist_mat = []
+
+			# calculate IoU distances
+			iou_neg = 1 - bbox_overlaps(pos, boxes)
+			dist_mat = iou_neg.cpu().numpy()
+
+			row_ind, col_ind = linear_sum_assignment(dist_mat)
+
+			matched = []
+			unmatched = []
+
+			matched_index = []
+			unmatched_index = []
+			if self.kill_oracle:
+				# check if tracks overlap and as soon as they do consider them a pair
+				tracks_iou = bbox_overlaps(pos, pos).cpu().numpy()
+				idx = np.where(tracks_iou >= 0.8)
+				tracks_ov = []
+				for r,c in zip(idx[0], idx[1]):
+					if r < c:
+						tracks_ov.append([r,c])
+			
+				# take care that matched pairs are considered right
+				for t0,t1 in tracks_ov:
+					# get the matching gt indices
+
+					gt_ids = []
+					gt_pos = []
+
+					for i,t in enumerate([t0, t1]):
+						ind = np.where(row_ind == t)[0]
+						if len(ind) > 0:
+							ind = ind[0]
+							r = t
+							c = col_ind[ind]
+							if dist_mat[r,c] <= 0.5:
+								gt_ids.append([ids[c],i])
+								gt_pos.append(boxes[c].view(1,-1))
+							row_ind = np.delete(row_ind, ind)
+							col_ind = np.delete(col_ind, ind)
+
+					gt_ids = np.array(gt_ids)
+
+					track0 = self.tracks[t0]
+					track1 = self.tracks[t1]
+					unm = [track0, track1]
+					unm_index = [t0,t1]
+
+					# any matches?
+					if len(gt_ids) > 0:
+						for t in list(unm):
+							match = np.where(gt_ids[:,0] == t.gt_id)[0]
+							if len(match) > 0:
+								match = match[0]
+								unm.remove(t)
+								matched.append(t)
+
+								ind = self.tracks.index(t)
+								matched_index.append(ind)
+								unm_index.remove(ind)
+
+					unmatched += unm
+					unmatched_index += unm_index
+				
+				# Remove unmatched NMS tracks
+				for t in unmatched:
+					if t not in matched and t in self.tracks:
+						self.tracks.remove(t)
+						self.inactive_tracks.append(t)
+						self.debug[t.id][self.im_index]["info"] += "[!] Track killed by NMS"
+						self.nms_killed += 1
+
+				index_remove = []
+				for i in unmatched_index:
+					if i not in matched_index:
+						index_remove.append(i)
+
+				keep = torch.Tensor([i for i in range(person_scores.size(0)) if i not in index_remove]).long().cuda()
+
+				return person_scores[keep]
 
 	def step(self, blob):
 
@@ -492,6 +610,9 @@ class Tracker():
 			#regress
 			if len(self.tracks) > 0:
 				person_scores = self.regress_tracks(blob)
+				# now NMS step
+				if self.kill_oracle:
+					person_scores = self.nms_oracle(blob, person_scores)
 			
 			if len(self.tracks) > 0:
 				

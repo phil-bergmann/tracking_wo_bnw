@@ -1,7 +1,7 @@
 simple_tracker:
-  name: oracle
+  name: posCenterReidOracle_SDP
   # Subfolder name in output/tracker/
-  module_name: MOT_analysis
+  module_name: MOT_oracle
   desription: 
   seed: 12345
   # vgg16 or res101
@@ -18,13 +18,21 @@ simple_tracker:
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml'
   interpolate: False
-  write_images: True
+  write_images: False
   # train or test or both (smth like train+test)
-  dataset: mot_train_DPM17
+  dataset: mot_train_SDP17
 
   tracker:
+    # use last tracked gt_id to reid
+    reid_oracle: True
     # move bb to gt every time before regression
-    oracle: True
+    pos_oracle: True
+    # only shift center coordinates by pos oracle
+    pos_oracle_center_only: True
+    # use gt data to decide whether to kill track (score and nms)
+    kill_oracle: False
+    # regress tracks? - important if oracle true
+    regress: True
     # FRCNN score threshold for detections
     detection_person_thresh: 0.5
     # FRCNN score threshold for keeping the track alive
@@ -40,11 +48,11 @@ simple_tracker:
     # How much last appearance features are to keep
     max_features_num: 10
     # Do camera motion compensation
-    do_align: True
+    do_align: False
     # Use siamese network to do reid
-    do_reid: True
-    # How much timesteps dead tracks are kept and cosidered for reid
-    inactive_patience: 10
+    do_reid: False
+    # How much timesteps dead tracks are kept and considered for reid (normal 10)
+    inactive_patience: 2000
     # How similar do image and old track need to be to be considered the same person
     reid_sim_threshold: 2.0
     # How much IoU do track and image need to be considered for matching

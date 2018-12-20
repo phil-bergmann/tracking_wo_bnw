@@ -1,7 +1,7 @@
 simple_tracker:
-  name: pub_5536
+  name: SDP_5_5
   # Subfolder name in output/tracker/
-  module_name: MOT15
+  module_name: MOT17_sub
   desription: 
   seed: 12345
   # vgg16 or res101
@@ -16,14 +16,16 @@ simple_tracker:
   # Path to the siamese network weights + the config file
   cnn_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
   cnn_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
+  #cnn_weights: 'output/tracker/pretrain_cnn/marcuhmot/ResNet_iter_27200.pth'
+  #cnn_config: 'output/tracker/pretrain_cnn/marcuhmot/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/ResNet_iters_25066.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/sacred_config.yaml'
   #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
   #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml'
   interpolate: False
-  write_images: True
+  write_images: False
   # dataset (look into tracker/datasets/factory.py)
-  dataset: mot15_test
+  dataset: mot_train_SDP17
 
   tracker:
     # FRCNN score threshold for detections
@@ -34,6 +36,8 @@ simple_tracker:
     detection_nms_thresh: 0.3
     # NMS theshold while tracking
     regression_nms_thresh: 0.6
+    # use a simple velocity assumption v_t = x_t - x_t-1
+    motion_model: False
     # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
     # 0 tells the tracker to use private detections (Faster R-CNN)
     public_detections: True

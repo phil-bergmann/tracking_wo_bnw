@@ -368,6 +368,9 @@ def my_main(simple_tracker, cnn, _config):
             tracker.step(sample)
         results, debug = tracker.get_results()
 
+        if simple_tracker['interpolate']:
+            results = interpolate(results)
+
         #print("[!] Killed {} tracks by NMS".format(tracker.nms_killed))
 
         print("Tracks found: {}".format(len(results)))
