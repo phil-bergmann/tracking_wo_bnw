@@ -396,7 +396,11 @@ class Tracker():
 		# Create new tracks #
 		#####################
 
-		# create nms input and nms new detections
+		# !!! Here NMS is used to filter out detections that are already covered by tracks. This is
+		# !!! done by iterating through the active tracks one by one, assigning them a bigger score
+		# !!! than 1 (maximum score for detections) and then filtering the detections with NMS.
+		# !!! In the paper this is done by calculating the overlap with existing tracks, but the
+		# !!! result stays the same.
 		if det_pos.nelement() > 0:
 			nms_inp_det = torch.cat((det_pos, det_scores.view(-1,1)), 1)
 		else:
