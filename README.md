@@ -3,7 +3,7 @@ Tracking without Bells and Whistles
 ### Installation
 1. Clone this repository
   ```Shell
-  git clone https://github.com/timmeinhardt/sequential_tracking
+  git clone https://github.com/phil-bergmann/tracking_wo_BnW
   ´´´
 
 2. Setup a anaconda environment with the environment.yml in the repository
