@@ -12,8 +12,6 @@ from torch.utils.data import DataLoader
 
 from tracker.config import get_output_dir, get_tb_dir
 from tracker.solver import Solver
-from tracker.mot_siamese_wrapper import MOT_Siamese_Wrapper
-from tracker.kitti_siamese_wrapper import KITTI_Siamese_Wrapper
 from tracker.datasets.factory import Datasets
 from tracker.resnet import resnet50
 
