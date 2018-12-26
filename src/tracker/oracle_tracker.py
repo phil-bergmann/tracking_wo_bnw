@@ -54,15 +54,12 @@ class Tracker():
 			self.results = {}
 			self.im_index = 0
 			self.debug = {}
-			self.nms_killed = 0
 
 	def keep(self, keep):
 		tracks = []
 		for i in keep:
 			tracks.append(self.tracks[i])
 		new_inactive = [t for t in self.tracks if t not in tracks]
-		for t in new_inactive:
-			self.debug[t.id][self.im_index]["info"] += "[!] Killed Track by NMS\n"
 		self.inactive_tracks += new_inactive
 		self.tracks = tracks
 
@@ -90,9 +87,6 @@ class Tracker():
 						continue
 			#######################
 			self.tracks.append(t)
-			self.debug[t.id] = {}
-			self.debug[t.id][self.im_index] = {}
-			self.debug[t.id][self.im_index]["info"] = "[*] Created\n"
 
 		self.track_num += num_new
 
@@ -106,11 +100,6 @@ class Tracker():
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		pos = boxes[:,cl*4:(cl+1)*4]
-		#for t,p in zip(self.tracks, pos):
-		#	t.pos = p.view(1,-1)
-
-		# get scores of new regressed positions
-		#_, scores, _, _ = self.frcnn.test_rois(pos)
 		scores = scores[:,cl]
 
 		s = []
@@ -121,12 +110,10 @@ class Tracker():
 			if scores[i] <= self.regression_person_thresh and not self.kill_oracle:
 				self.tracks.remove(t)
 				self.inactive_tracks.append(t)
-				self.debug[t.id][self.im_index]["info"] += "[!] Killed because of too low score: {}\n".format(scores[i])
 			else:
 				s.append(scores[i])
 				if self.regress:
 					t.pos = pos[i].view(1,-1)
-					self.debug[t.id][self.im_index]["info"] += "[*] Regressing\n"
 		return torch.Tensor(s[::-1]).cuda()
 
 	def get_pos(self):
@@ -186,8 +173,6 @@ class Tracker():
 			remove_inactive = []
 			for r,c in zip(row_ind, col_ind):
 				if dist_mat[r,c] <= self.reid_sim_threshold:
-					#print("im: {}\ncosts: {}".format(self.im_index, costs[r,c]))
-
 					###### ADD GT ID ######
 					gt = blob['gt']
 					boxes = torch.cat(list(gt.values()), 0).cuda()
@@ -204,8 +189,6 @@ class Tracker():
 						else:
 							if self.kill_oracle:
 								continue
-					#######################
-
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
 					t.count_inactive = 0
@@ -214,16 +197,8 @@ class Tracker():
 					assigned.append(c)
 					remove_inactive.append(t)
 
-					if self.im_index in self.debug[t.id].keys():
-						self.debug[t.id][self.im_index]["info"] += "[*] ReIded\n"
-					else:
-						self.debug[t.id][self.im_index] = {}
-						self.debug[t.id][self.im_index]["info"] = "[*] ReIded\n"
-
-
 			for t in remove_inactive:
 				self.inactive_tracks.remove(t)
-				#print("matched in frame {}".format(self.im_index))
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
@@ -262,12 +237,6 @@ class Tracker():
 							self.inactive_tracks.remove(t)
 							self.tracks.append(t)
 							assigned.append(r)
-
-							if self.im_index in self.debug[t.id].keys():
-								self.debug[t.id][self.im_index]["info"] += "[*] ReIded\n"
-							else:
-								self.debug[t.id][self.im_index] = {}
-								self.debug[t.id][self.im_index]["info"] = "[*] ReIded\n"
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
@@ -322,8 +291,6 @@ class Tracker():
 				pos = torch.cat((p1_n, p2_n), 1).cuda()
 				t.pos = pos.view(1,-1)
 
-				self.debug[t.id][self.im_index]["info"] += "[*] Camera Motion Compensation\n"
-
 			if self.do_reid:
 				for t in self.inactive_tracks:
 					p = t.pos[0]
@@ -339,7 +306,6 @@ class Tracker():
 		boxes = torch.cat(list(gt.values()), 0).cuda()
 		ids = list(gt.keys())
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-		#pos = boxes[:,cl*4:(cl+1)*4]
 
 		if len(self.tracks) > 0:
 			
@@ -354,54 +320,6 @@ class Tracker():
 
 			matched = []
 
-			"""
-			unmatched = []
-			if self.kill_oracle:
-				# check if tracks overlap and as soon as they do consider them a pair
-				tracks_iou = bbox_overlaps(pos, pos).cpu().numpy()
-				idx = np.where(tracks_iou >= 0.8)
-				tracks_ov = []
-				for r,c in zip(idx[0], idx[1]):
-					if r < c:
-						tracks_ov.append([r,c])
-			
-				# take care that matched pairs are considered right
-				for t0,t1 in tracks_ov:
-					# get the matching gt indices
-
-					gt_ids = []
-					gt_pos = []
-
-					for i,t in enumerate([t0, t1]):
-						ind = np.where(row_ind == t)[0]
-						if len(ind) > 0:
-							ind = ind[0]
-							r = t
-							c = col_ind[ind]
-							if dist_mat[r,c] <= 0.5:
-								gt_ids.append([ids[c],i])
-								gt_pos.append(boxes[c].view(1,-1))
-							row_ind = np.delete(row_ind, ind)
-							col_ind = np.delete(col_ind, ind)
-
-					gt_ids = np.array(gt_ids)
-
-					track0 = self.tracks[t0]
-					track1 = self.tracks[t1]
-					unm = [track0, track1]
-
-					# any matches?
-					if len(gt_ids) > 0:
-						for t in list(unm):
-							match = np.where(gt_ids[:,0] == t.gt_id)[0]
-							if len(match) > 0:
-								match = match[0]
-								unm.remove(t)
-								matched.append(t)
-
-					unmatched += unm
-			"""
-
 			# normal matching
 			for r,c in zip(row_ind, col_ind):
 				if dist_mat[r,c] <= 0.5:
@@ -410,21 +328,11 @@ class Tracker():
 					t.gt_id = ids[c]
 
 			if self.kill_oracle:
-				"""
-				# Remove unmatched NMS tracks
-				for t in unmatched:
-					if t not in matched and t in self.tracks:
-						self.tracks.remove(t)
-						self.inactive_tracks.append(t)
-						self.debug[t.id][self.im_index]["info"] += "[!] Track killed by NMS"
-						self.nms_killed += 1
-				"""
 				# Remove normal
 				for t in self.tracks:
 					if t not in matched:
 						self.tracks.remove(t)
 						self.inactive_tracks.append(t)
-						self.debug[t.id][self.im_index]["info"] += "[!] Killed because of too low score: {}\n".format(0)
 		
 		# regress
 		if self.pos_oracle:
@@ -456,7 +364,6 @@ class Tracker():
 						t.pos[0,3] = cyn + ht/2
 					else:
 						t.pos = new_pos
-					self.debug[t.id][self.im_index]["info"] += "[*] Regressing ORACLE\n"
 		# now take care that all tracks are inside the image (normaly done by regress)
 		for t in self.tracks:
 			pos = t.pos
@@ -541,8 +448,6 @@ class Tracker():
 					if t not in matched and t in self.tracks:
 						self.tracks.remove(t)
 						self.inactive_tracks.append(t)
-						self.debug[t.id][self.im_index]["info"] += "[!] Track killed by NMS"
-						self.nms_killed += 1
 
 				index_remove = []
 				for i in unmatched_index:
@@ -597,11 +502,6 @@ class Tracker():
 		nms_inp_reg = torch.zeros(0).cuda()
 		if len(self.tracks) > 0:
 
-			for t in self.tracks:
-				self.debug[t.id][self.im_index] = {}
-				self.debug[t.id][self.im_index]["info"] = ""
-				self.debug[t.id][self.im_index]["pos"] = t.pos[0].cpu().numpy() / blob['im_info'][0][2]
-
 			# align
 			if self.do_align:
 				self.align(blob)
@@ -632,11 +532,6 @@ class Tracker():
 				for i in keep:
 					not_keep.remove(i)
 
-				for i in not_keep:
-					self.debug[self.tracks[i].id][self.im_index]["info"] += "[!] Track killed by NMS"
-
-				self.nms_killed += len(not_keep)
-				
 				if keep.nelement() > 0:
 					self.keep(keep)
 					nms_inp_reg = nms_inp_reg[keep]
@@ -686,9 +581,6 @@ class Tracker():
 			if new_det_pos.nelement() > 0:
 				self.add(new_det_pos, new_det_scores, new_det_features, blob)
 
-			for t in self.tracks:
-				self.debug[t.id][self.im_index]["pos"] = t.pos[0].cpu().numpy() / blob['im_info'][0][2]
-
 		####################
 		# Generate Results #
 		####################
@@ -710,8 +602,7 @@ class Tracker():
 		#print("len active: {}\nlen inactive: {}".format(len(self.tracks), len(self.inactive_tracks)))
 
 	def get_results(self):
-		return self.results, self.debug
-
+		return self.results
 
 class Track(object):
 

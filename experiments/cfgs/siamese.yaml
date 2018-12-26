@@ -1,15 +1,12 @@
 siamese:
-  name: bh4-smallTrain
-  module_name: pretrain_cnn
+  name: test
+  module_name: siamese
   desription: 
   seed: 12345
-  #max_epochs: 181
   # smth like MOT_train, KITTI_train_Pedestrian
   db_train: motSiamese_smallTrain
   db_val: False
 
-  #lr_scheduler: True
-  
   model_args:
     # Recommended for loss: batch_all, batch_hard 
     # Unstable, no guarantee they are working: weighted_triplet, cross_entropy

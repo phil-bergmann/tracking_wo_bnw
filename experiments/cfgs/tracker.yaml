@@ -1,31 +1,20 @@
-tracker_config:
-  name: SDP_5_5
+tracker:
+  name: normal
   # Subfolder name in output/tracker/
-  module_name: MOT17_sub
+  module_name: MOT15
   desription: 
   seed: 12345
   # vgg16 or res101
   network: res101
   # Path to FRCNN weights
-  frcnn_weights: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/res101/mot_2017_train/STOP180k_NEW/res101_faster_rcnn_iter_180000.pth'
-  frcnn_config: '/usr/stud/bergmanp/sequential_tracking/output/frcnn/res101/mot_2017_train/STOP180k_NEW/sacred_config.yaml'
-  #frcnn_weights: 'output/frcnn/res101/kitti_detection_Pedestrian_train/KITTI_Ped_05_2_180k/res101_faster_rcnn_iter_180000.pth'
-  #frcnn_weights: 'output/frcnn/res101/kitti_detection_Car_train/KITTI_Car_05_2_180k/res101_faster_rcnn_iter_180000.pth'
-  #frcnn_weights: 'output/frcnn/res101/kitti_detection_Pedestrian_train/PREMOT_05_1_100debug/res101_faster_rcnn_iter_20000.pth'
-  #frcnn_config: 'output/frcnn/res101/kitti_detection_Pedestrian_train/PREMOT_05_1_100debug/sacred_config.yaml'
-  # Path to the siamese network weights + the config file
-  siamese_weights: output/tracker/pretrain_cnn/res50-bh4-all/ResNet_iter_25245.pth
-  siamese_config: 'output/tracker/pretrain_cnn/res50-bh4-all/sacred_config.yaml'
-  #cnn_weights: 'output/tracker/pretrain_cnn/marcuhmot/ResNet_iter_27200.pth'
-  #cnn_config: 'output/tracker/pretrain_cnn/marcuhmot/sacred_config.yaml'
-  #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/ResNet_iters_25066.pth'
-  #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Pedestrian_1_2/sacred_config.yaml'
-  #cnn_weights: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/ResNet_iters_25065.pth'
-  #cnn_config: 'output/tracker/pretrain_cnn/kitti_bh_Car_1_2/sacred_config.yaml'
+  frcnn_weights: 'output/frcnn/res101/mot_2017_train/180k/res101_faster_rcnn_iter_180000.pth'
+  frcnn_config: 'output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml'
+  siamese_weights: 'output/tracker/siamese/res50-mot17-batch_hard/ResNet_iter_25245.pth'
+  siamese_config: 'output/tracker/siamese/res50-mot17-batch_hard/sacred_config.yaml'
   interpolate: False
   write_images: False
   # dataset (look into tracker/datasets/factory.py)
-  dataset: mot_train_SDP17
+  dataset: mot15_train
 
   tracker:
     # FRCNN score threshold for detections
