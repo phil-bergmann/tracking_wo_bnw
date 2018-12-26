@@ -1,4 +1,4 @@
-Sequential Tracking
+Tracking without Bells and Whistles
 
 ### Installation
 1. Clone this repository
@@ -31,10 +31,10 @@ Sequential Tracking
 5. Download MOT17Det dataset from https://motchallenge.net/data/MOT17Det.zip and paste the "MOT17Det" folder in data/ folder. As the images are the same for MOT17Det, MOT17 and MOT16 the dataloader always uses the images in the MOT17Det folder and only uses the addionaly provided label and detection files in order to avoid redundancy of image data in the folder. Download the according label and/or detection files from the benchmark and extract them in the data/ folder (e.g. MOT16Labels, MOT16-det-dpm-raw, MOT17Labels). To use the 2DMOT15 benchmark download the data https://motchallenge.net/data/2DMOT2015.zip and extract it in the data/ folder.
 
 ### Using pretrained weights
-Weights for the tracker that were used to prduce the results in the corresponding paper are provided in INSERT. Just add them in the according folders in the sequential tracking repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to train the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
+Weights for the tracker that were used to prduce the results in the corresponding paper are provided in https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i. Just add them to the according folders in the repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to retrain the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
 
 ### Training Faster R-CNN
-1. Download pretrained models for VGG16 or Res101 as described in the Readme.md under "Train your own model" and paste them inside data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth". Alternatively the same files are provided in weight storage INSERT for this project.
+1. Download pretrained models for VGG16 or Res101 as described in the Readme.md under "Train your own model" and paste them inside data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth". Alternatively the same files are provided in the google drive folder for this project https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i.
 
 2. Train the Faster R-CNN by running
   ```Shell
