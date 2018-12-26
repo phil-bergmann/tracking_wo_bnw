@@ -1,69 +1,65 @@
 Sequential Tracking
 
 ### Installation
-1. Clone the Faster R-CNN fork and follow the instructions under "Installation"
-  ```Shell
-  git clone https://github.com/phil-bergmann/pytorch-faster-rcnn
-  ´´´
-
-2. Switch pytorch-faster-rcnn to "dev" branch
-
-3. Clone this repository
+1. Clone this repository
   ```Shell
   git clone https://github.com/timmeinhardt/sequential_tracking
   ´´´
 
-4. Make a symbolic link from sequential_tracking/tracker/frcnn pointing to pytorch-faster-rcnn/lib. For example if pytorch-faster-rcnn and sequential_tracking are in the same folder:
+2. Setup a anaconda environment with the environment.yml in the repository
   ```Shell
-  cd sequential_tracking/src
+  conda env create -f environment.yml
+  ´´´
+  The name of the environment will be "tracking_wo_BnW". Activate it!
+  ```Shell
+  conda activate tracking_wo_BnW
+  ´´´
+
+3. Clone the Faster R-CNN fork, switch to dev branch.
+  ```Shell
+  git clone https://github.com/phil-bergmann/pytorch-faster-rcnn
+  git checkout dev
+  ´´´
+  Now follow the instructions in Readme.md under "Installation". If run into any problems to run the compiled modules try to use nvcc tool of version 9.0 as the whole project is based on an old PyTorch version.
+
+4. Make a symbolic link from sequential_tracking/tracker/frcnn pointing to pytorch-faster-rcnn/lib. For example if pytorch-faster-rcnn and tracking_wo_BnW are in the same folder:
+  ```Shell
+  cd tracking_wo_BnW/src
   ln -s ../../pytorch-faster-rcnn/lib/ frcnn
   ´´´
 
+5. Download MOT17Det dataset from https://motchallenge.net/data/MOT17Det.zip and paste the "MOT17Det" folder in data/ folder. As the images are the same for MOT17Det, MOT17 and MOT16 the dataloader always uses the images in the MOT17Det folder and only uses the addionaly provided label and detection files in order to avoid redundancy of image data in the folder. Download the according label and/or detection files from the benchmark and extract them in the data/ folder (e.g. MOT16Labels, MOT16-det-dpm-raw, MOT17Labels). To use the 2DMOT15 benchmark download the data https://motchallenge.net/data/2DMOT2015.zip and extract it in the data/ folder.
+
+### Using pretrained weights
+Weights for the tracker that were used to prduce the results in the corresponding paper are provided in INSERT. Just add them in the according folders in the sequential tracking repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to train the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
+
 ### Training Faster R-CNN
-1. Download MOT17Det dataset and paste the "MOT17Det" folder in sequential_tracking/data/
+1. Download pretrained models for VGG16 or Res101 as described in the Readme.md under "Train your own model" and paste them inside data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth". Alternatively the same files are provided in weight storage INSERT for this project.
 
-2. Download pretrained models for VGG16 or Res101 as described in https://github.com/phil-bergmann/pytorch-faster-rcnn under "Train your own model" and paste them inside sequential_tracking/data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth"
-
-3. Train the Faster R-CNN by running
+2. Train the Faster R-CNN by running
   ```Shell
   python experiments/scripts/train_faster_rcnn.py with {vgg16, res101} {mot, small_mot} tag={%name} description={%description}
   ´´´
-  inside sequential_tracking. The "name" and "description" parameters are optional. If no "tag" is provided a timestamp will be used.
-
+  inside the root folder. The "name" and "description" parameters are optional. If no "tag" is provided a timestamp will be used.
 
 ### Training the Siamese CNN
 For reidentification a siamese CNN has to be trained. Follow these instructions to do so:
-1. If not done before download MOT17Det dataset and paste the "MOT17Det" folder in sequential_tracking/data/
 
-2. Modify sequential_tracking/experiments/cfgs/pretrain_cnn.yaml to your needs.
+1. Modify experiments/cfgs/siamese.yaml to your needs.
 
-3. From within sequential_tracking run
+2. From within sequential_tracking run
   ```Shell
-  python experiments/pretrain_cnn.py
+  python experiments/train_siamese.py
   ´´´
 
-
 ### Evaluating the Tracker
-1. Download the MOT16Labels and MOT16-det-dpm-raw and paste them into sequential_tracking/data/
 
-2. Modify sequential_tracking/experiments/cfgs/tracker.yaml to your needs, especially frcnn_weights, cnn_weights and cnn_config need to point to the right places.
+1. Modify experiments/cfgs/tracker.yaml to your needs, especially frcnn_weights, frcnn_config, siamese_weights and siamese_config need to point to the right places.
 
-3. Run the tracker from within sequential_tracking folder:
+2. Run the tracker from within the root folder:
   ```Shell
   python experiments/scripts/test_tracker.py
   ´´´
 
-
 ### Devkit
-To evaluate the results install the official MOTChallenge devkit from https://bitbucket.org/amilan/motchallenge-devkit. Paste it into sequential_tracking/data/ and build it with compile.m.
-
-test frcnn:
-python experiments/scripts/test_faster_rcnn.py with {path_to_sacred_config}
-
-Requirements:
-install pyfrcnn
-install coco into pyfrcnn/data not sequential_tracking/data
-tensorboardX
-sacred
-pyyaml
-tensorboard+tensorflow
+To evaluate the results install the official MOTChallenge devkit from https://bitbucket.org/amilan/motchallenge-devkit.
