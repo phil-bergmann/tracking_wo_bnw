@@ -307,33 +307,6 @@ class Tracker():
 		ids = list(gt.keys())
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 
-		if len(self.tracks) > 0:
-			
-			pos = self.get_pos()
-			dist_mat = []
-
-			# calculate IoU distances
-			iou_neg = 1 - bbox_overlaps(pos, boxes)
-			dist_mat = iou_neg.cpu().numpy()
-
-			row_ind, col_ind = linear_sum_assignment(dist_mat)
-
-			matched = []
-
-			# normal matching
-			for r,c in zip(row_ind, col_ind):
-				if dist_mat[r,c] <= 0.5:
-					t = self.tracks[r]
-					matched.append(t)
-					t.gt_id = ids[c]
-
-			if self.kill_oracle:
-				# Remove normal
-				for t in self.tracks:
-					if t not in matched:
-						self.tracks.remove(t)
-						self.inactive_tracks.append(t)
-		
 		# regress
 		if self.pos_oracle:
 			for t in self.tracks:
@@ -369,6 +342,33 @@ class Tracker():
 			pos = t.pos
 			pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
 			t.pos = pos
+
+		if len(self.tracks) > 0:
+
+			pos = self.get_pos()
+			dist_mat = []
+
+			# calculate IoU distances
+			iou_neg = 1 - bbox_overlaps(pos, boxes)
+			dist_mat = iou_neg.cpu().numpy()
+
+			row_ind, col_ind = linear_sum_assignment(dist_mat)
+
+			matched = []
+
+			# normal matching
+			for r,c in zip(row_ind, col_ind):
+				if dist_mat[r,c] <= 0.5:
+					t = self.tracks[r]
+					matched.append(t)
+					t.gt_id = ids[c]
+
+			if self.kill_oracle:
+				# Remove normal
+				for t in self.tracks:
+					if t not in matched:
+						self.tracks.remove(t)
+						self.inactive_tracks.append(t)
 
 	def nms_oracle(self, blob, person_scores):
 		gt = blob['gt']
