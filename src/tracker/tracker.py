@@ -379,7 +379,7 @@ class Tracker():
 				if keep.nelement() > 0:
 					self.keep(keep)
 					nms_inp_reg = nms_inp_reg[keep]
-					new_features[keep]
+					new_features = new_features[keep]
 					self.add_features(new_features)
 					num_tracks = nms_inp_reg.size(0)
 				else:
