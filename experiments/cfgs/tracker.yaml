@@ -1,7 +1,7 @@
 tracker:
-  name: normal
+  name: bnw_test
   # Subfolder name in output/tracker/
-  module_name: MOT15
+  module_name: MOT16
   desription: 
   seed: 12345
   # vgg16 or res101
@@ -14,7 +14,7 @@ tracker:
   interpolate: False
   write_images: False
   # dataset (look into tracker/datasets/factory.py)
-  dataset: mot15_train
+  dataset: mot_test_DPM_RAW16
 
   tracker:
     # FRCNN score threshold for detections

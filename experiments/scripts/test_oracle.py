@@ -17,7 +17,7 @@ from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import get_output_dir
 from tracker.utils import plot_sequence
 from tracker.datasets.factory import Datasets
-from tracker.tracker import Tracker
+from tracker.oracle_tracker import Tracker
 from tracker.utils import interpolate
 from tracker.resnet import resnet50
 
@@ -51,7 +51,7 @@ def my_main(oracle, siamese, frcnn, _config):
 
     print(_config)
 
-    output_dir = osp.join(get_output_dir(oralce['module_name']), oralce['name'])
+    output_dir = osp.join(get_output_dir(oracle['module_name']), oracle['name'])
     
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
     
@@ -66,7 +66,7 @@ def my_main(oracle, siamese, frcnn, _config):
     
     print("[*] Building FRCNN")
 
-    if oralce['network'] == 'vgg16':
+    if oracle['network'] == 'vgg16':
         frcnn = vFRCNN()
     elif oracle['network'] == 'res101':
         frcnn = rFRCNN(num_layers=101)
