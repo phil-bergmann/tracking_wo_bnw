@@ -26,7 +26,7 @@
   git clone -b dev https://github.com/phil-bergmann/pytorch-faster-rcnn
   ```
 
-4. Make a symbolic link from `pytorch-faster-rcnn/lib` to `tracking_wo_BnW/src/frcnn`:
+4. Make a symbolic link from `pytorch-faster-rcnn/lib` to `src/frcnn`:
   ```
   cd src
   ln -s pytorch-faster-rcnn/lib/ frcnn
@@ -34,7 +34,10 @@
 
 5. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. If you run into any problems to run the compiled modules try to use nvcc tool of version 9.0 as the whole project is based on an old PyTorch version.
 
-6. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 the PyTorch data loader always uses the images in the MOT17Det folder and only uses the additonaly provided labels and detection files in order to avoid redundancy of image data in the folder. Download the according label and/or detection files from the benchmark [website](https://motchallenge.net/) and extract them in the `data` folder (e.g. MOT16Labels, MOT16-det-dpm-raw, MOT17Labels). If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
+6. Download MOT Challenge data:
+    1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
+    2. Download the benchmark label and/or detection files for [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16Labels.zip), [MOT16Labels](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and extract them in the `data` folder. 
+    3. If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
 
 ## Using pretrained weights
 Weights for the tracker that were used to prduce the results in the corresponding paper are provided in a [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i). Just add them to the according folders in the repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to retrain the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
@@ -53,19 +56,17 @@ For reidentification a siamese CNN has to be trained. Follow these instructions 
 
 1. Modify experiments/cfgs/siamese.yaml to your needs.
 
-2. From within sequential_tracking run
+2. Run from the root folder:
   ```
-  python experiments/train_siamese.py
+  python experiments/scripts/train_siamese.py
   ```
 
 ## Evaluating the Tracker
 
 1. Modify experiments/cfgs/tracker.yaml to your needs, especially frcnn_weights, frcnn_config, siamese_weights and siamese_config need to point to the right places.
 
-2. Run the tracker from within the root folder:
+2. Run the tracker from the root folder:
   ```
   python experiments/scripts/test_tracker.py
   ```
-
-## Devkit
 To evaluate the results install the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).

@@ -1,5 +1,6 @@
 pytorch-faster-rcnn
 src/frcnn
+motchallenge-devkit
 
 # C/C++ compiler
 *.so

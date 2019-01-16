@@ -1,7 +1,7 @@
 tracker:
-  name: bnw_test
+  name: baseline
   # Subfolder name in output/tracker/
-  module_name: MOT16
+  module_name: MOT17
   desription:
   seed: 12345
   # vgg16 or res101
@@ -14,7 +14,7 @@ tracker:
   interpolate: False
   write_images: False
   # dataset (look into tracker/datasets/factory.py)
-  dataset: mot_train_FRCNN17
+  dataset: mot_train_DPM17
 
   tracker:
     # FRCNN score threshold for detections
@@ -33,7 +33,7 @@ tracker:
     # How much last appearance features are to keep
     max_features_num: 10
     # Do camera motion compensation
-    do_align: True
+    do_align: False
     # Which warp mode to use (cv2.MOTION_EUCLIDEAN, cv2.MOTION_AFFINE, ...)
     warp_mode: 'cv2.MOTION_EUCLIDEAN'
     # maximal number of iterations (original 50)
@@ -41,7 +41,7 @@ tracker:
     # Threshold increment between two iterations (original 0.001)
     termination_eps: 0.00001
     # Use siamese network to do reid
-    do_reid: True
+    do_reid: False
     # How much timesteps dead tracks are kept and cosidered for reid
     inactive_patience: 10
     # How similar do image and old track need to be to be considered the same person
