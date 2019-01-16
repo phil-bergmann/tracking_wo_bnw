@@ -1,3 +1,6 @@
+pytorch-faster-rcnn
+src/frcnn
+
 # C/C++ compiler
 *.so
 *.a

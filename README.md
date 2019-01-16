@@ -1,34 +1,40 @@
 # Tracking without Bells and Whistles
 
 ## Installation
-1. Clone this repository
+
+1. Clone and enter this repository:
   ```
   git clone https://github.com/phil-bergmann/tracking_wo_BnW
+  cd tracking_wo_BnW
   ```
 
-2. Setup a anaconda environment with the environment.yml in the repository
+2. Setup an [Anaconda](https://conda.io/docs/user-guide/install/index.html) environment with the given `environment.yml`:
   ```
   conda env create -f environment.yml
   ```
-  The name of the environment will be "tracking_wo_BnW". Activate it!
+  The name of the environment will be *tracking_wo_BnW*. Activate it:
   ```
   conda activate tracking_wo_BnW
   ```
-
-3. Clone the Faster R-CNN fork, switch to dev branch.
+  Manually install the following packages:
   ```
-  git clone https://github.com/phil-bergmann/pytorch-faster-rcnn
-  git checkout dev
-  ```
-  Now follow the instructions in Readme.md under "Installation". If run into any problems to run the compiled modules try to use nvcc tool of version 9.0 as the whole project is based on an old PyTorch version.
-
-4. Make a symbolic link from sequential_tracking/tracker/frcnn pointing to pytorch-faster-rcnn/lib. For example if pytorch-faster-rcnn and tracking_wo_BnW are in the same folder:
-  ```
-  cd tracking_wo_BnW/src
-  ln -s ../../pytorch-faster-rcnn/lib/ frcnn
+  pip install easydict sacred pyyaml tensorboardX opencv-python h5py
   ```
 
-5. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and paste the "MOT17Det" folder in data/ folder. As the images are the same for MOT17Det, MOT17 and MOT16 the dataloader always uses the images in the MOT17Det folder and only uses the addionaly provided label and detection files in order to avoid redundancy of image data in the folder. Download the according label and/or detection files from the [benchmark website](https://motchallenge.net/) and extract them in the data/ folder (e.g. MOT16Labels, MOT16-det-dpm-raw, MOT17Labels). If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the data/ folder.
+3. Clone the `dev` branch of our Faster R-CNN fork:
+  ```
+  git clone -b dev https://github.com/phil-bergmann/pytorch-faster-rcnn
+  ```
+
+4. Make a symbolic link from `pytorch-faster-rcnn/lib` to `tracking_wo_BnW/src/frcnn`:
+  ```
+  cd src
+  ln -s pytorch-faster-rcnn/lib/ frcnn
+  ```
+
+5. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. If you run into any problems to run the compiled modules try to use nvcc tool of version 9.0 as the whole project is based on an old PyTorch version.
+
+6. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 the PyTorch data loader always uses the images in the MOT17Det folder and only uses the additonaly provided labels and detection files in order to avoid redundancy of image data in the folder. Download the according label and/or detection files from the benchmark [website](https://motchallenge.net/) and extract them in the `data` folder (e.g. MOT16Labels, MOT16-det-dpm-raw, MOT17Labels). If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
 
 ## Using pretrained weights
 Weights for the tracker that were used to prduce the results in the corresponding paper are provided in a [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i). Just add them to the according folders in the repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to retrain the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
