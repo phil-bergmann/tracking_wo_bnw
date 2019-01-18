@@ -32,7 +32,7 @@
   ln -s pytorch-faster-rcnn/lib/ frcnn
   ```
 
-5. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. If you run into any problems to run the compiled modules try to use nvcc tool of version 9.0 as the whole project is based on an old PyTorch version.
+5. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. The compilation requires CUDA 9.0 and its corresponding `nvcc` compiler.
 
 6. Download MOT Challenge data:
     1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.

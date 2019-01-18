@@ -113,6 +113,6 @@ def my_main(tracker, siamese, frcnn, _config):
         db.write_results(results, osp.join(output_dir))
         
         if tracker['write_images']:
-            plot_sequence(results, db, osp.join(output_dir, str(db)))
+            plot_sequence(results, db, osp.join(output_dir, oracle['dataset'], str(db)))
     
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))

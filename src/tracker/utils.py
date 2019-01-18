@@ -87,7 +87,7 @@ def plot_sequence(tracks, db, output_dir):
 	Args:
 		tracks (dict): The dictionary containing the track dictionaries in the form tracks[track_id][frame] = bb
 		db (torch.utils.data.Dataset): The dataset with the images belonging to the tracks (e.g. MOT_Sequence object)
-		output_dir (String): Directory where to save the resultind images
+		output_dir (String): Directory where to save the resulting images
 	"""
 
 	print("[*] Plotting whole sequence to {}".format(output_dir))
