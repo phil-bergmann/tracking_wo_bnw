@@ -7,21 +7,26 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import frcnn
-from model.test import test_net
-from model.config import cfg, cfg_from_file, cfg_from_list
-from datasets.factory import get_imdb
+
+import cv2
+import matplotlib.pyplot as plt
+from os import path as osp
 import argparse
 import pprint
 import time, os, sys
 
+# import frcnn
+from model.test import test_net
+from model.config import cfg, cfg_from_file, cfg_from_list
+from datasets.factory import get_imdb
+
 from nets.vgg16 import vgg16
 from nets.resnet_v1 import resnetv1
-#from nets.mobilenet_v1 import mobilenetv1
 
 import torch
 
-def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh, max_per_image):
+def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh,
+               max_per_image, write_images=False):
     """
     args = {#'imdb_name':imdb_name,
             'imdbtest_name':imdbtest_name,
@@ -72,4 +77,32 @@ def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh, max_per_
     net.load_state_dict(torch.load(model))
     print('Loaded.')
 
-    test_net(net, imdb_test, output_dir, max_per_image=max_per_image, thresh=score_thresh)
+    all_boxes = test_net(net, imdb_test, output_dir, max_per_image=max_per_image, thresh=score_thresh)
+
+    if write_images:
+        num_images = len(imdb_test.image_index)
+
+        for i in range(num_images):
+            im_path = imdb_test.image_path_at(i)
+            im = cv2.imread(im_path)
+            im = im[:, :, (2, 1, 0)]
+
+            fig, ax = plt.subplots(1,1)
+            ax.imshow(im, aspect='equal')
+
+            for t_i in all_boxes[1][i]:
+                ax.add_patch(
+                plt.Rectangle((t_i[0], t_i[1]),
+                          t_i[2] - t_i[0],
+                          t_i[3] - t_i[1], fill=False,
+                          linewidth=1.0)
+                )
+
+            im_name = osp.basename(im_path)
+            im_output = osp.join(output_dir, im_name)
+            plt.axis('off')
+            plt.tight_layout()
+            plt.draw()
+            plt.savefig(im_output)
+            plt.close()
+

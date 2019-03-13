@@ -84,7 +84,7 @@ def my_main(oracle, siamese, frcnn, _config):
     cnn.load_state_dict(torch.load(oracle['siamese_weights']))
     cnn.eval()
     cnn.cuda()
-    tr = Tracker(frcnn=frcnn, cnn=cnn)
+    tr = Tracker(obj_detect=frcnn, reid_network=cnn)
 
     print("[*] Beginning evaluation...")
 
@@ -104,7 +104,7 @@ def my_main(oracle, siamese, frcnn, _config):
 
         time_ges += time.time() - now
 
-        print("Tracks found: {}".format(len(results)))
+        print("[*] Tracks found: {}".format(len(results)))
         print("[*] Time needed for {} evaluation: {:.3f} s".format(db, time.time() - now))
 
         if oracle['interpolate']:

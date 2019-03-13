@@ -20,13 +20,13 @@ frcnn_trainval = ex.capture(frcnn_trainval)
 
 @ex.config
 def default():
-	set_cfgs = None
-	cfg_file = None
-	tag =  datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-	description = ""
-	timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-	pretrained_model = None
-	pretrained_full_model = None
+    set_cfgs = None
+    cfg_file = None
+    tag =  datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    description = ""
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    pretrained_model = None
+    pretrained_full_model = None
 
 # Dataset configs
 @ex.named_config
@@ -97,7 +97,7 @@ def vgg16():
 	network = "vgg16"
 	pretrained_model = "data/imagenet_weights/{}.pth".format(network)
 	cfg_file = "experiments/cfgs/{}.yml".format(network)
-	
+
 
 @ex.automain
 def my_main(tag, cfg_file, set_cfgs, imdb_name, _config):

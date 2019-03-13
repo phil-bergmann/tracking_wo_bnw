@@ -21,11 +21,11 @@ class Tracker():
 	Also has euclidean alignment acitvated
 	"""
 
-	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
+	def __init__(self, obj_detect, reid_network, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
 		max_features_num, reid_iou_threshold, pos_oracle, regress, kill_oracle, reid_oracle, pos_oracle_center_only):
-		self.frcnn = frcnn
-		self.cnn = cnn
+		self.obj_detect = obj_detect
+		self.reid_network = reid_network
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
@@ -68,7 +68,7 @@ class Tracker():
 		for i in range(num_new):
 			t = Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1, -1),
 																	self.inactive_patience, self.max_features_num)
-			
+
 			###### ADD GT ID ######
 			gt = blob['gt']
 			boxes = torch.cat(list(gt.values()), 0).cuda()
@@ -96,7 +96,7 @@ class Tracker():
 		pos = self.get_pos()
 
 		# regress
-		_, scores, bbox_pred, rois = self.frcnn.test_rois(pos)
+		_, scores, bbox_pred, rois = self.obj_detect.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		pos = boxes[:,cl*4:(cl+1)*4]
@@ -133,7 +133,7 @@ class Tracker():
 		else:
 			features = torch.zeros(0).cuda()
 		return features
-	
+
 	def get_inactive_features(self):
 		if len(self.inactive_tracks) == 1:
 			features = self.inactive_tracks[0].features
@@ -144,7 +144,7 @@ class Tracker():
 		return features
 
 	def reid(self, blob, new_det_pos, new_det_scores):
-		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
+		new_det_features = self.reid_network.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
 			# calculate appearance distances
 			dist_mat = []
@@ -209,7 +209,7 @@ class Tracker():
 				new_det_pos = torch.zeros(0).cuda()
 				new_det_scores = torch.zeros(0).cuda()
 				new_det_features = torch.zeros(0).cuda()
-			
+
 		if len(self.inactive_tracks) >= 1 and self.reid_oracle:
 			gt = blob['gt']
 			gt_pos = torch.cat(list(gt.values()), 0).cuda()
@@ -259,7 +259,7 @@ class Tracker():
 			self.inactive_tracks.remove(t)
 
 	def get_appearances(self, blob):
-		new_features = self.cnn.test_rois(blob['app_data'][0], self.get_pos() / blob['im_info'][0][2]).data
+		new_features = self.reid_network.test_rois(blob['app_data'][0], self.get_pos() / blob['im_info'][0][2]).data
 		return new_features
 
 	def add_features(self, new_features):
@@ -400,7 +400,7 @@ class Tracker():
 				for r,c in zip(idx[0], idx[1]):
 					if r < c:
 						tracks_ov.append([r,c])
-			
+
 				# take care that matched pairs are considered right
 				for t0,t1 in tracks_ov:
 					# get the matching gt indices
@@ -442,7 +442,7 @@ class Tracker():
 
 					unmatched += unm
 					unmatched_index += unm_index
-				
+
 				# Remove unmatched NMS tracks
 				for t in unmatched:
 					if t not in matched and t in self.tracks:
@@ -466,16 +466,16 @@ class Tracker():
 		###########################
 		# Look for new detections #
 		###########################
-		self.frcnn.load_image(blob['data'][0], blob['im_info'][0])
+		self.obj_detect.load_image(blob['data'][0], blob['im_info'][0])
 		if self.public_detections:
 			dets = blob['dets']
 			if len(dets) > 0:
 				dets = torch.cat(dets, 0)[:,:4]
-				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
+				_, scores, bbox_pred, rois = self.obj_detect.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
 		else:
-			_, scores, bbox_pred, rois = self.frcnn.detect()
+			_, scores, bbox_pred, rois = self.obj_detect.detect()
 
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
@@ -513,9 +513,9 @@ class Tracker():
 				# now NMS step
 				if self.kill_oracle:
 					person_scores = self.nms_oracle(blob, person_scores)
-			
+
 			if len(self.tracks) > 0:
-				
+
 				# create nms input
 				new_features = self.get_appearances(blob)
 

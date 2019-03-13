@@ -12,8 +12,6 @@ import os.path as osp
 import yaml
 import time
 
-from tracker.rfrcnn import FRCNN as rFRCNN
-from tracker.vfrcnn import FRCNN as vFRCNN
 from tracker.config import get_output_dir
 from tracker.utils import plot_sequence
 from tracker.datasets.factory import Datasets
@@ -35,7 +33,7 @@ ex.add_config(ex.configurations[0]._conf['tracker']['siamese_config'])
 ex.add_config(ex.configurations[0]._conf['tracker']['frcnn_config'])
 
 Tracker = ex.capture(Tracker, prefix='tracker.tracker')
-    
+
 @ex.automain
 def my_main(tracker, siamese, frcnn, _config):
     # set all seeds
@@ -52,9 +50,8 @@ def my_main(tracker, siamese, frcnn, _config):
     print(_config)
 
     output_dir = osp.join(get_output_dir(tracker['module_name']), tracker['name'])
-    
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
-    
+
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
     with open(sacred_config, 'w') as outfile:
@@ -63,13 +60,16 @@ def my_main(tracker, siamese, frcnn, _config):
     ##########################
     # Initialize the modules #
     ##########################
-    
+
     print("[*] Building FRCNN")
 
+    # object detection
     if tracker['network'] == 'vgg16':
-        frcnn = vFRCNN()
+        from tracker.vfrcnn import FRCNN
+        frcnn = FRCNN()
     elif tracker['network'] == 'res101':
-        frcnn = rFRCNN(num_layers=101)
+        from tracker.rfrcnn import FRCNN
+        frcnn = FRCNN(num_layers=101)
     else:
         raise NotImplementedError("Network not understood: {}".format(tracker['network']))
 
@@ -79,12 +79,15 @@ def my_main(tracker, siamese, frcnn, _config):
     frcnn.eval()
     frcnn.cuda()
     frcnn.load_state_dict(torch.load(tracker['frcnn_weights']))
-    
+
+    # reid
     cnn = resnet50(pretrained=False, **siamese['cnn'])
     cnn.load_state_dict(torch.load(tracker['siamese_weights']))
     cnn.eval()
     cnn.cuda()
-    tr = Tracker(frcnn=frcnn, cnn=cnn)
+
+    # tracker
+    tr = Tracker(obj_detect=frcnn, reid_network=cnn)
 
     print("[*] Beginning evaluation...")
 
@@ -104,15 +107,15 @@ def my_main(tracker, siamese, frcnn, _config):
 
         time_ges += time.time() - now
 
-        print("Tracks found: {}".format(len(results)))
+        print("[*] Tracks found: {}".format(len(results)))
         print("[*] Time needed for {} evaluation: {:.3f} s".format(db, time.time() - now))
 
         if tracker['interpolate']:
             results = interpolate(results)
 
         db.write_results(results, osp.join(output_dir))
-        
+
         if tracker['write_images']:
             plot_sequence(results, db, osp.join(output_dir, oracle['dataset'], str(db)))
-    
+
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_ges))

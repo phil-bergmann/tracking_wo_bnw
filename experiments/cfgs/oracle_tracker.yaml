@@ -1,5 +1,5 @@
 oracle:
-  name: oracle_kill
+  name: Oracle-Kill
   # Subfolder name in output/tracker/
   module_name: MOT17
   desription:

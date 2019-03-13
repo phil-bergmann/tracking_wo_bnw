@@ -18,11 +18,11 @@ import os
 class Tracker():
 	"""The main tracking file, here is where magic happens."""
 
-	def __init__(self, frcnn, cnn, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
+	def __init__(self, obj_detect, reid_network, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
 		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
 		max_features_num, reid_iou_threshold, warp_mode, number_of_iterations, termination_eps, motion_model):
-		self.frcnn = frcnn
-		self.cnn = cnn
+		self.obj_detect = obj_detect
+		self.reid_network = reid_network
 		self.detection_person_thresh = detection_person_thresh
 		self.regression_person_thresh = regression_person_thresh
 		self.detection_nms_thresh = detection_nms_thresh
@@ -75,7 +75,7 @@ class Tracker():
 		pos = self.get_pos()
 
 		# regress
-		_, scores, bbox_pred, rois = self.frcnn.test_rois(pos)
+		_, scores, bbox_pred, rois = self.obj_detect.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 		pos = boxes[:,cl*4:(cl+1)*4]
@@ -112,7 +112,7 @@ class Tracker():
 		else:
 			features = torch.zeros(0).cuda()
 		return features
-	
+
 	def get_inactive_features(self):
 		"""Get the features of all inactive tracks."""
 		if len(self.inactive_tracks) == 1:
@@ -125,7 +125,7 @@ class Tracker():
 
 	def reid(self, blob, new_det_pos, new_det_scores):
 		"""Tries to ReID inactive tracks with provided detections."""
-		new_det_features = self.cnn.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
+		new_det_features = self.reid_network.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
 			# calculate appearance distances
 			dist_mat = []
@@ -190,7 +190,7 @@ class Tracker():
 
 	def get_appearances(self, blob):
 		"""Uses the siamese CNN to get the features for all active tracks."""
-		new_features = self.cnn.test_rois(blob['app_data'][0], self.get_pos() / blob['im_info'][0][2]).data
+		new_features = self.reid_network.test_rois(blob['app_data'][0], self.get_pos() / blob['im_info'][0][2]).data
 		return new_features
 
 	def add_features(self, new_features):
@@ -317,16 +317,16 @@ class Tracker():
 		###########################
 		# Look for new detections #
 		###########################
-		self.frcnn.load_image(blob['data'][0], blob['im_info'][0])
+		self.obj_detect.load_image(blob['data'][0], blob['im_info'][0])
 		if self.public_detections:
 			dets = blob['dets']
 			if len(dets) > 0:
-				dets = torch.cat(dets, 0)[:,:4]		
-				_, scores, bbox_pred, rois = self.frcnn.test_rois(dets)
+				dets = torch.cat(dets, 0)[:,:4]
+				_, scores, bbox_pred, rois = self.obj_detect.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
 		else:
-			_, scores, bbox_pred, rois = self.frcnn.detect()
+			_, scores, bbox_pred, rois = self.obj_detect.detect()
 
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
