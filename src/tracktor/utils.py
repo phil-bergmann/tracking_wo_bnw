@@ -2,24 +2,27 @@
 # Still ugly file with helper functions #
 #########################################
 
-from .config import cfg, get_output_dir
+import io
+import os
+from collections import defaultdict
+from os import path as osp
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-from os import path as osp
-import cv2
-import io
-from PIL import Image
-from scipy.optimize import linear_sum_assignment
-from cycler import cycler as cy
-from collections import defaultdict
-from scipy.interpolate import interp1d
-
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+from cycler import cycler as cy
+from PIL import Image
+from scipy.interpolate import interp1d
+from scipy.optimize import linear_sum_assignment
+from torch.autograd import Variable
+
+import cv2
+
+from .config import cfg, get_output_dir
 
 
 # https://matplotlib.org/cycler/
@@ -81,6 +84,7 @@ def bbox_overlaps(boxes, query_boxes):
 	overlaps = iw * ih / ua
 	return out_fn(overlaps)
 
+
 def plot_sequence(tracks, db, output_dir):
 	"""Plots a whole sequence
 
@@ -125,6 +129,7 @@ def plot_sequence(tracks, db, output_dir):
 		plt.draw()
 		plt.savefig(im_output)
 		plt.close()
+
 
 def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
 	#output_dir = get_output_dir("anchor_gt_demo")
@@ -197,8 +202,11 @@ def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
 	plt.close()
 	return image
 
+
 def interpolate(tracks):
 	interpolated = {}
+	# print(tracks)
+	# print(tracks.keys())
 	for i, track in tracks.items():
 		interpolated[i] = {}
 		frames = []
@@ -206,7 +214,7 @@ def interpolate(tracks):
 		y0 = []
 		x1 = []
 		y1 = []
-		
+
 		for f, bb in track.items():
 			frames.append(f)
 			x0.append(bb[0])
@@ -219,11 +227,59 @@ def interpolate(tracks):
 			y0_inter = interp1d(frames, y0)
 			x1_inter = interp1d(frames, x1)
 			y1_inter = interp1d(frames, y1)
-		
+
 			for f in range(min(frames), max(frames)+1):
 				bb = np.array([x0_inter(f), y0_inter(f), x1_inter(f), y1_inter(f)])
 				interpolated[i][f] = bb
 		else:
 			interpolated[i][frames[0]] = np.array([x0[0], y0[0], x1[0], y1[0]])
 
+	# print(interpolated.keys())
 	return interpolated
+
+
+def bbox_transform_inv(boxes, deltas):
+  # Input should be both tensor or both Variable and on the same device
+  if len(boxes) == 0:
+    return deltas.detach() * 0
+
+  widths = boxes[:, 2] - boxes[:, 0] + 1.0
+  heights = boxes[:, 3] - boxes[:, 1] + 1.0
+  ctr_x = boxes[:, 0] + 0.5 * widths
+  ctr_y = boxes[:, 1] + 0.5 * heights
+
+  dx = deltas[:, 0::4]
+  dy = deltas[:, 1::4]
+  dw = deltas[:, 2::4]
+  dh = deltas[:, 3::4]
+
+  pred_ctr_x = dx * widths.unsqueeze(1) + ctr_x.unsqueeze(1)
+  pred_ctr_y = dy * heights.unsqueeze(1) + ctr_y.unsqueeze(1)
+  pred_w = torch.exp(dw) * widths.unsqueeze(1)
+  pred_h = torch.exp(dh) * heights.unsqueeze(1)
+
+  pred_boxes = torch.cat(
+      [_.unsqueeze(2) for _ in [pred_ctr_x - 0.5 * pred_w,
+                                pred_ctr_y - 0.5 * pred_h,
+                                pred_ctr_x + 0.5 * pred_w,
+                                pred_ctr_y + 0.5 * pred_h]], 2).view(len(boxes), -1)
+  return pred_boxes
+
+
+def clip_boxes(boxes, im_shape):
+  """
+  Clip boxes to image boundaries.
+  boxes must be tensor or Variable, im_shape can be anything but Variable
+  """
+
+  if not hasattr(boxes, 'data'):
+    boxes_ = boxes.numpy()
+
+  boxes = boxes.view(boxes.size(0), -1, 4)
+  boxes = torch.stack(
+      [boxes[:, :, 0].clamp(0, im_shape[1] - 1),
+       boxes[:, :, 1].clamp(0, im_shape[0] - 1),
+       boxes[:, :, 2].clamp(0, im_shape[1] - 1),
+       boxes[:, :, 3].clamp(0, im_shape[0] - 1)], 2).view(boxes.size(0), -1)
+
+  return boxes

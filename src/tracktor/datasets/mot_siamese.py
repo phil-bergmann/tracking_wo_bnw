@@ -1,5 +1,4 @@
-
-from model.test import _get_blobs
+# from model.test import _get_blobs
 
 from .mot_sequence import MOT_Sequence
 from ..config import get_output_dir

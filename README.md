@@ -21,20 +21,14 @@
   pip install easydict sacred pyyaml tensorboardX opencv-python h5py
   ```
 
-3. Clone the `dev` branch of our Faster R-CNN fork into the `src` directory:
+3. Install the Faster R-CNN + FPN object detector::
   ```
-  git clone -b dev https://github.com/phil-bergmann/pytorch-faster-rcnn src
-  ```
-
-4. Make a symbolic link from `src/pytorch-faster-rcnn/lib` to `src/frcnn`:
-  ```
-  cd src
-  ln -s pytorch-faster-rcnn/lib/ frcnn
+  pip install https://github.com/timmeinhardt/FPN_Pytorch/archive/tracking_wo_bnw.zip
   ```
 
-5. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. The compilation requires CUDA 9.0 and its corresponding `nvcc` compiler.
+4. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. The compilation requires CUDA 9.0 and its corresponding `nvcc` compiler.
 
-6. Download MOT Challenge data:
+5. Download MOT Challenge data:
     1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
     2. Download the benchmark label and/or detection files for [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16Labels.zip), [MOT16Labels](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and extract them in the `data` folder.
     3. If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
@@ -67,12 +61,12 @@ For reidentification a siamese CNN has to be trained. Follow these instructions 
   python experiments/scripts/train_siamese.py
   ```
 
-## Evaluating the Tracker
+## Evaluating our Tracktor++
 
 1. Modify experiments/cfgs/tracker.yaml to your needs, especially frcnn_weights, frcnn_config, siamese_weights and siamese_config need to point to the right places.
 
 2. Run the tracker from the root folder:
   ```
-  python experiments/scripts/test_tracker.py
+  python experiments/scripts/test_tracktor.py
   ```
 To evaluate the results install the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).

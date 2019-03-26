@@ -277,7 +277,7 @@ def my_main(_config):
     #sequences = sequences[:1]
 
     #tracker = ["FRCNN_Base", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
-    tracker = ["Tracktor", "Tracktor++", "FWT", "jCC", "MOTDT", "MHT_DAM"]
+    tracker = ["Tracktor", "Tracktor++", "FWT", "jCC", "MOTDT17", "MHT_DAM"]
     #tracker = ["Baseline"]
     # "PHD_GSDL17" does not work, error
     #tracker = tracker[-4:]
@@ -633,7 +633,7 @@ def my_main(_config):
         color='white'
     if "SDP" in detections:
         color='white'
-    plt.ylabel('Tracked bounding boxes per length (\%)', fontsize=fontsize, color=color)
+    plt.ylabel('Tracked objects per length (\%)', fontsize=fontsize, color=color)
     plt.xlim((np.min(det_gaps),x_max))
     plt.ylim((0,1.0))
     color='black'

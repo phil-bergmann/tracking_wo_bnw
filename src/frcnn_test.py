@@ -3,27 +3,25 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Zheqi he, Xinlei Chen, based on code from Ross Girshick
 # --------------------------------------------------------
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import argparse
+import os
+import pprint
+import sys
+import time
+from os import path as osp
+
+import matplotlib.pyplot as plt
+import torch
 
 import cv2
-import matplotlib.pyplot as plt
-from os import path as osp
-import argparse
-import pprint
-import time, os, sys
+from frcnn.datasets.factory import get_imdb
+from frcnn.model.config import cfg, cfg_from_file, cfg_from_list
+from frcnn.model.test import test_net
+from frcnn.nets.resnet_v1 import resnetv1
+from frcnn.nets.vgg16 import vgg16
 
-# import frcnn
-from model.test import test_net
-from model.config import cfg, cfg_from_file, cfg_from_list
-from datasets.factory import get_imdb
-
-from nets.vgg16 import vgg16
-from nets.resnet_v1 import resnetv1
-
-import torch
 
 def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh,
                max_per_image, write_images=False):
@@ -71,6 +69,11 @@ def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh,
         anchor_ratios=cfg.ANCHOR_RATIOS)
 
     net.eval()
+
+    # def count_parameters(model):
+    #     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # print(count_parameters(net))
+    # exit()
     net.cuda()
 
     print(('Loading model check point from {:s}').format(model))
@@ -105,4 +108,3 @@ def frcnn_test(imdbtest_name, network, model, output_dir, score_thresh,
             plt.draw()
             plt.savefig(im_output)
             plt.close()
-

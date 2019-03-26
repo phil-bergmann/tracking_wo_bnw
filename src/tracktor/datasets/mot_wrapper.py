@@ -21,13 +21,14 @@ class MOT_Wrapper(Dataset):
 			sequences = train_sequences
 		elif "test" == split:
 			sequences = test_sequences
-		elif split in train_sequences or split in test_sequences:
-			train_folders = [split]
+		elif f"MOT17-{split}" in train_sequences:
+			sequences = [train_sequences[train_sequences.index(f"MOT17-{split}")]]
+		elif f"MOT17-{split}" in test_sequences:
+			sequences = [test_sequences[test_sequences.index(f"MOT17-{split}")]]
 		else:
-			raise NotImplementedError("Image set: {}".format(image_set))
+			raise NotImplementedError("MOT split not available.")
 
 		self._data = []
-
 		for s in sequences:
 			self._data.append(MOT_Sequence(seq_name=s, dets=dets, **dataloader))
 

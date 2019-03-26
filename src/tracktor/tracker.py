@@ -1,44 +1,41 @@
-from model.bbox_transform import bbox_transform_inv, clip_boxes
-from model.nms_wrapper import nms
-from .utils import bbox_overlaps
-
-import torch
-from torch.autograd import Variable
-import torch.nn.functional as F
-from torchvision.transforms import Resize, Compose, ToPILImage, ToTensor, Normalize
+import os
+from collections import deque
 
 import numpy as np
+import torch
+import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
-from collections import deque
+from torch.autograd import Variable
+
 import cv2
-import matplotlib.pyplot as plt
-import os
+from frcnn.model.nms_wrapper import nms
+
+from .utils import bbox_overlaps, bbox_transform_inv, clip_boxes
+
 
 class Tracker():
 	"""The main tracking file, here is where magic happens."""
 
-	def __init__(self, obj_detect, reid_network, detection_person_thresh, regression_person_thresh, detection_nms_thresh,
-		regression_nms_thresh, public_detections, do_reid, inactive_patience, do_align, reid_sim_threshold,
-		max_features_num, reid_iou_threshold, warp_mode, number_of_iterations, termination_eps, motion_model):
+	def __init__(self, obj_detect, reid_network, tracker_cfg):
 		self.obj_detect = obj_detect
 		self.reid_network = reid_network
-		self.detection_person_thresh = detection_person_thresh
-		self.regression_person_thresh = regression_person_thresh
-		self.detection_nms_thresh = detection_nms_thresh
-		self.regression_nms_thresh = regression_nms_thresh
-		self.public_detections = public_detections
-		self.inactive_patience = inactive_patience
-		self.do_reid = do_reid
-		self.max_features_num = max_features_num
-		self.reid_sim_threshold = reid_sim_threshold
-		self.reid_iou_threshold = reid_iou_threshold
-		self.do_align = do_align
-		self.motion_model = motion_model
+		self.detection_person_thresh = tracker_cfg['detection_person_thresh']
+		self.regression_person_thresh = tracker_cfg['regression_person_thresh']
+		self.detection_nms_thresh = tracker_cfg['detection_nms_thresh']
+		self.regression_nms_thresh = tracker_cfg['regression_nms_thresh']
+		self.public_detections = tracker_cfg['public_detections']
+		self.inactive_patience = tracker_cfg['inactive_patience']
+		self.do_reid = tracker_cfg['do_reid']
+		self.max_features_num = tracker_cfg['max_features_num']
+		self.reid_sim_threshold = tracker_cfg['reid_sim_threshold']
+		self.reid_iou_threshold = tracker_cfg['reid_iou_threshold']
+		self.do_align = tracker_cfg['do_align']
+		self.motion_model = tracker_cfg['motion_model']
 
-		self.warp_mode = eval(warp_mode)
-		self.number_of_iterations = number_of_iterations
-		self.termination_eps = termination_eps
+		self.warp_mode = eval(tracker_cfg['warp_mode'])
+		self.number_of_iterations = tracker_cfg['number_of_iterations']
+		self.termination_eps = tracker_cfg['termination_eps']
 
 		self.reset()
 
@@ -57,6 +54,8 @@ class Tracker():
 		for i in keep:
 			tracks.append(self.tracks[i])
 		new_inactive = [t for t in self.tracks if t not in tracks]
+		for t in new_inactive:
+			t.pos = t.last_pos
 		self.inactive_tracks += new_inactive
 		self.tracks = tracks
 
@@ -90,6 +89,7 @@ class Tracker():
 				self.inactive_tracks.append(t)
 			else:
 				s.append(scores[i])
+				# t.prev_pos = t.pos
 				t.pos = pos[i].view(1,-1)
 		return torch.Tensor(s[::-1]).cuda()
 
@@ -253,38 +253,39 @@ class Tracker():
 	def motion(self):
 		"""Applies a simple linear motion model that only consideres the positions at t-1 and t-2."""
 		for t in self.tracks:
-			last_pos = t.pos.clone()
-			if t.last_pos.nelement() > 0:
+			# last_pos = t.pos.clone()
+			# t.last_pos = last_pos
+			# if t.last_pos.nelement() > 0:
 				# extract center coordinates of last pos
-				x1l = t.last_pos[0,0]
-				y1l = t.last_pos[0,1]
-				x2l = t.last_pos[0,2]
-				y2l = t.last_pos[0,3]
-				cxl = (x2l + x1l)/2
-				cyl = (y2l + y1l)/2
 
-				# extract coordinates of current pos
-				x1p = t.pos[0,0]
-				y1p = t.pos[0,1]
-				x2p = t.pos[0,2]
-				y2p = t.pos[0,3]
-				cxp = (x2p + x1p)/2
-				cyp = (y2p + y1p)/2
-				wp = x2p - x1p
-				hp = y2p - y1p
+			x1l = t.last_pos[0,0]
+			y1l = t.last_pos[0,1]
+			x2l = t.last_pos[0,2]
+			y2l = t.last_pos[0,3]
+			cxl = (x2l + x1l)/2
+			cyl = (y2l + y1l)/2
 
-				# v = cp - cl, x_new = v + cp = 2cp - cl
-				cxp_new = 2*cxp - cxl
-				cyp_new = 2*cyp - cyl
+			# extract coordinates of current pos
+			x1p = t.pos[0,0]
+			y1p = t.pos[0,1]
+			x2p = t.pos[0,2]
+			y2p = t.pos[0,3]
+			cxp = (x2p + x1p)/2
+			cyp = (y2p + y1p)/2
+			wp = x2p - x1p
+			hp = y2p - y1p
 
-				t.pos[0,0] = cxp_new - wp/2
-				t.pos[0,1] = cyp_new - hp/2
-				t.pos[0,2] = cxp_new + wp/2
-				t.pos[0,3] = cyp_new + hp/2
+			# v = cp - cl, x_new = v + cp = 2cp - cl
+			cxp_new = 2*cxp - cxl
+			cyp_new = 2*cyp - cyl
 
-				t.last_v = torch.Tensor([cxp - cxl, cyp - cyl]).cuda()
-			t.last_pos = last_pos
-		
+			t.pos[0,0] = cxp_new - wp/2
+			t.pos[0,1] = cyp_new - hp/2
+			t.pos[0,2] = cxp_new + wp/2
+			t.pos[0,3] = cyp_new + hp/2
+
+			t.last_v = torch.Tensor([cxp - cxl, cyp - cyl]).cuda()
+
 		if self.do_reid:
 			for t in self.inactive_tracks:
 				if t.last_v.nelement() > 0:
@@ -310,6 +311,8 @@ class Tracker():
 		"""This function should be called every timestep to perform tracking with a blob
 		containing the image information.
 		"""
+		for t in self.tracks:
+			t.last_pos = t.pos.clone()
 
 		# only the class person used here
 		cl = 1
@@ -328,6 +331,9 @@ class Tracker():
 		else:
 			_, scores, bbox_pred, rois = self.obj_detect.detect()
 
+		# torch.set_printoptions(precision=10)
+		# print(bbox_pred)
+		# exit()
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
 			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
@@ -360,11 +366,11 @@ class Tracker():
 				self.motion()
 			#regress
 			person_scores = self.regress_tracks(blob)
-			
+
 			if len(self.tracks) > 0:
-				
+
 				# create nms input
-				new_features = self.get_appearances(blob)
+				# new_features = self.get_appearances(blob)
 
 				# nms here if tracks overlap
 				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1,1)),1)
@@ -375,11 +381,17 @@ class Tracker():
 				tracks = []
 				for i in keep:
 					not_keep.remove(i)
-				
+
 				if keep.nelement() > 0:
 					self.keep(keep)
-					nms_inp_reg = nms_inp_reg[keep]
-					new_features = new_features[keep]
+					# nms_inp_reg = nms_inp_reg[keep]
+					# new_features = new_features[keep]
+
+					# self.refresh_pos()
+					nms_inp_reg = torch.cat((self.get_pos(), torch.ones(self.get_pos().size(0)).add_(3).view(-1,1).cuda()),1)
+					new_features = self.get_appearances(blob)
+
+
 					self.add_features(new_features)
 					num_tracks = nms_inp_reg.size(0)
 				else:
@@ -467,6 +479,7 @@ class Track(object):
 		self.max_features_num = max_features_num
 		self.last_pos = torch.Tensor([])
 		self.last_v = torch.Tensor([])
+		self.gt_id = None
 
 	def is_to_purge(self):
 		"""Tests if the object has been too long inactive and is to remove."""

@@ -10,7 +10,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import Normalize, Compose, ToTensor
 
-from model.test import _get_blobs
+from frcnn.model import test
 
 from ..config import cfg
 
@@ -56,7 +56,7 @@ class MOT15_Sequence(Dataset):
 		d = self.data[idx]
 		# construct image blob and return new dictionary, so blobs are not saved into this class
 		im = cv2.imread(d['im_path'])
-		blobs, im_scales = _get_blobs(im)
+		blobs, im_scales = test._get_blobs(im)
 		data = blobs['data']
 
 		sample = {}
@@ -107,7 +107,7 @@ class MOT15_Sequence(Dataset):
 			with open(gt_file, "r") as inf:
 				reader = csv.reader(inf, delimiter=',')
 				for row in reader:
-					# 
+					#
 					if int(row[6]) == 1: #and float(row[8]) >= self.vis_threshold:
 						# Make pixel indexes 0-based, should already be 0-based (or not)
 						x1 = int(row[2]) - 1
@@ -154,20 +154,20 @@ class MOT15_Sequence(Dataset):
 		<frame>, <id>, <bb_left>, <bb_top>, <bb_width>, <bb_height>, <conf>, <x>, <y>, <z>
 
 		Files to sumbit:
-		./MOT16-01.txt 
-		./MOT16-02.txt 
-		./MOT16-03.txt 
-		./MOT16-04.txt 
-		./MOT16-05.txt 
-		./MOT16-06.txt 
-		./MOT16-07.txt 
-		./MOT16-08.txt 
-		./MOT16-09.txt 
-		./MOT16-10.txt 
-		./MOT16-11.txt 
-		./MOT16-12.txt 
-		./MOT16-13.txt 
-		./MOT16-14.txt 
+		./MOT16-01.txt
+		./MOT16-02.txt
+		./MOT16-03.txt
+		./MOT16-04.txt
+		./MOT16-05.txt
+		./MOT16-06.txt
+		./MOT16-07.txt
+		./MOT16-08.txt
+		./MOT16-09.txt
+		./MOT16-10.txt
+		./MOT16-11.txt
+		./MOT16-12.txt
+		./MOT16-13.txt
+		./MOT16-14.txt
 		"""
 
 		#format_str = "{}, -1, {}, {}, {}, {}, {}, -1, -1, -1"

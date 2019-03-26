@@ -12,19 +12,19 @@ _sets = {}
 for split in ['train', 'test', '01', '02', '03', '04', '05', '06', '07', '08', '09',
               '10', '11', '12', '13', '14']:
     for dets in ['DPM16', 'DPM_RAW16', 'DPM17', 'FRCNN17', 'SDP17', '']:
-        name = 'mot_{}_{}'.format(split, dets)
+        name = f'mot_{split}_{dets}'
         _sets[name] = (lambda *args, split=split, dets=dets: MOT_Wrapper(split, dets, *args))
 
 for split in ['train', 'smallVal', 'smallTrain']:
-    name = 'motSiamese_{}'.format(split)
+    name = f'motSiamese_{split}'
     _sets[name] = (lambda *args, split=split: MOT_Siamese_Wrapper(split, *args))
 
 for split in ['PETS09-S2L1', 'TUD-Stadtmitte', 'TUD-Campus', 'train', 'test', 'last3train']:
-    name = 'mot15_{}'.format(split)
+    name = f'mot15_{split}'
     _sets[name] = (lambda *args, split=split: MOT15_Wrapper(split, *args))
 
 for split in ['smallTrain', 'smallVal', 'train']:
-    name = 'marcuhmot_{}'.format(split)
+    name = f'marcuhmot_{split}'
     _sets[name] = (lambda *args, split=split: MarCUHMOT(split, *args))
 
 

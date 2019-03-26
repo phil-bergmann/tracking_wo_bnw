@@ -11,29 +11,27 @@ Demo script showing detections in sample images.
 
 See README.md for installation instructions before running.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import matplotlib
-matplotlib.use('Agg')
-
-from model.config import cfg
-from model.test import im_detect
-from model.nms_wrapper import nms
-from datasets.factory import get_imdb
-
-from utils.timer import Timer
-import matplotlib.pyplot as plt
-import numpy as np
-import os, cv2
+import os
 import os.path as osp
 import pprint
 
-from nets.vgg16 import vgg16
-from nets.resnet_v1 import resnetv1
-
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
+
+import cv2
+from frcnn.datasets.factory import get_imdb
+from frcnn.model.config import cfg
+from frcnn.model.nms_wrapper import nms
+from frcnn.model.test import im_detect
+from frcnn.nets.resnet_v1 import resnetv1
+from frcnn.nets.vgg16 import vgg16
+from frcnn.utils.timer import Timer
+
+matplotlib.use('Agg')
 
 #CLASSES = ('__background__',
 #           'aeroplane', 'bicycle', 'bird', 'boat',
@@ -127,7 +125,7 @@ def frcnn_demo(args):
         net = resnetv1(num_layers=152)
     else:
         raise NotImplementedError
-    
+
     # load model
     net.create_architecture(imdb.num_classes, tag='default',
         anchor_scales=cfg.ANCHOR_SCALES,

@@ -1,6 +1,7 @@
+FPN_Pytorch
 pytorch-faster-rcnn
-src/frcnn
 motchallenge-devkit
+*.sbatch
 
 # C/C++ compiler
 *.so
@@ -17,6 +18,7 @@ motchallenge-devkit
 *$py.class
 .python-version
 __pycache__
+*.egg-info
 
 # MacOSX
 .DS_Store

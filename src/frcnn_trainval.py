@@ -3,24 +3,21 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Zheqi He, Xinlei Chen, based on code from Ross Girshick
 # --------------------------------------------------------
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import torch
-
-import frcnn
-from model.train_val import get_training_roidb, train_net
-from model.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, get_output_tb_dir
-from datasets.factory import get_imdb
-import datasets.imdb
 import pprint
-import numpy as np
 import sys
 
-from nets.vgg16 import vgg16
-from nets.resnet_v1 import resnetv1
-#from nets.mobilenet_v1 import mobilenetv1
+import numpy as np
+import torch
+
+from frcnn.datasets import imdb
+from frcnn.datasets.factory import get_imdb
+from frcnn.model.config import (cfg, cfg_from_file, cfg_from_list,
+                                get_output_dir, get_output_tb_dir)
+from frcnn.model.train_val import get_training_roidb, train_net
+from frcnn.nets.resnet_v1 import resnetv1
+from frcnn.nets.vgg16 import vgg16
 
 
 def combined_roidb(imdb_names):
@@ -104,7 +101,7 @@ def frcnn_trainval(imdb_name, imdbval_name, max_iters, pretrained_model, pretrai
   else:
     raise NotImplementedError
 
-    
+
   train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
             pretrained_model=pretrained_model,
             pretrained_full_model=pretrained_full_model,
