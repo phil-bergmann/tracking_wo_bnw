@@ -4,12 +4,12 @@ tracktor:
   module_name: MOT17
   desription:
   seed: 12345
-  # vgg16 or res101
-  network: frcnn_res101
+  # frcnn or fpn
+  network: fpn
   obj_detect_weights: 'output/frcnn/res101/mot_2017_train/180k/res101_faster_rcnn_iter_180000.pth'
   obj_detect_config: 'output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml'
-  reid_network_weights: 'output/tracker/siamese/res50-mot17-batch_hard/ResNet_iter_25245.pth'
-  reid_network_config: 'output/tracker/siamese/res50-mot17-batch_hard/sacred_config.yaml'
+  reid_network_weights: 'output/tracktor/siamese/res50-mot17-batch_hard/ResNet_iter_25245.pth'
+  reid_network_config: 'output/tracktor/siamese/res50-mot17-batch_hard/sacred_config.yaml'
   interpolate: False
   # compile video with: `ffmpeg -f image2 -framerate 30 -i %06d.jpg -vcodec libx264 -y movie.mp4 -vf scale=320:-1`
   write_images: False

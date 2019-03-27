@@ -25,20 +25,30 @@ class OracleTracker(Tracker):
 
 		self.reset()
 
-	def add(self, new_det_pos, new_det_scores, new_det_features, blob):
-		num_new = new_det_pos.size(0)
-		for i in range(num_new):
-			t = Track(new_det_pos[i].view(1,-1), new_det_scores[i], self.track_num + i, new_det_features[i].view(1, -1),
-																	self.inactive_patience, self.max_features_num)
+	def tracks_to_inactive(self, tracks):
+		super(OracleTracker, self).tracks_to_inactive(tracks)
 
-			###### ADD GT ID ######
+		# only allow one track per GT in reid patience buffer
+		if self.reid_oracle:
+			inactive_tracks = []
+			for t in reversed(self.inactive_tracks):
+				if t.gt_id not in [t.gt_id for t in inactive_tracks]:
+					inactive_tracks.append(t)
+			self.inactive_tracks = inactive_tracks
+
+	def add(self, new_det_pos, new_det_scores, new_det_features, blob):
+		super(OracleTracker, self).add(
+			new_det_pos, new_det_scores, new_det_features)
+
+		num_new = new_det_pos.size(0)
+		for t in self.tracks[-num_new:]:
 			gt = blob['gt']
 			boxes = torch.cat(list(gt.values()), 0).cuda()
 			tracks_iou = bbox_overlaps(t.pos, boxes).cpu().numpy()
-			ind = np.where(tracks_iou==np.max(tracks_iou))[1]
+			ind = np.where(tracks_iou == np.max(tracks_iou))[1]
 			if len(ind) > 0:
 				ind = ind[0]
-				overlap = tracks_iou[0,ind]
+				overlap = tracks_iou[0, ind]
 				if overlap >= 0.5:
 					gt_id = list(gt.keys())[ind]
 					t.gt_id = gt_id
@@ -47,22 +57,16 @@ class OracleTracker(Tracker):
 				else:
 					if self.kill_oracle:
 						continue
-			#######################
-			self.tracks.append(t)
-
-		self.track_num += num_new
 
 	def regress_tracks(self, blob):
-		cl = 1
-
 		pos = self.get_pos()
 
 		# regress
 		_, scores, bbox_pred, rois = self.obj_detect.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-		pos = boxes[:,cl*4:(cl+1)*4]
-		scores = scores[:,cl]
+		pos = boxes[:, self.cl*4:(self.cl+1)*4]
+		scores = scores[:, self.cl]
 
 		s = []
 		for i in range(len(self.tracks)-1,-1,-1):
@@ -70,8 +74,7 @@ class OracleTracker(Tracker):
 			t.score = scores[i]
 
 			if scores[i] <= self.regression_person_thresh and not self.kill_oracle:
-				self.tracks.remove(t)
-				self.inactive_tracks.append(t)
+				self.tracks_to_inactive([t])
 			else:
 				s.append(scores[i])
 				if self.regress:
@@ -164,11 +167,8 @@ class OracleTracker(Tracker):
 
 					# loop thorugh inactive in inversed order to get newest dead track
 					for i in range(len(self.inactive_tracks)-1, -1, -1):
-					# for i in range(len(self.inactive_tracks)):
 						t = self.inactive_tracks[i]
-						if t.gt_id == gt_id and t.gt_id:# not in [tr.gt_id for tr in self.tracks]:
-							# if t.gt_id in [tr.gt_id for tr in self.tracks]:
-							# 	print(t.gt_id)
+						if t.gt_id == gt_id:
 							if self.pos_oracle:
 								t.pos = gt_pos[c].view(1,-1)
 							else:
@@ -176,11 +176,6 @@ class OracleTracker(Tracker):
 							self.inactive_tracks.remove(t)
 							self.tracks.append(t)
 							assigned.append(r)
-
-							# only reids one inactive track if multiple inactive tracks belong to same GT track
-							# found_track = True
-							break
-					# self.inactive_tracks = [t for t in self.inactive_tracks if not t.gt_id == gt_id]
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
@@ -236,8 +231,7 @@ class OracleTracker(Tracker):
 			pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
 			t.pos = pos
 
-		if len(self.tracks) > 0:
-
+		if len(self.tracks):
 			pos = self.get_pos()
 			dist_mat = []
 
@@ -257,20 +251,15 @@ class OracleTracker(Tracker):
 					t.gt_id = ids[c]
 
 			if self.kill_oracle:
-				# Remove normal
-				for t in self.tracks:
-					if t not in matched:
-						self.tracks.remove(t)
-						self.inactive_tracks.append(t)
+				self.tracks_to_inactive([t for t in self.tracks
+				                         if t not in matched])
 
 	def nms_oracle(self, blob, person_scores):
 		gt = blob['gt']
 		boxes = torch.cat(list(gt.values()), 0).cuda()
 		ids = list(gt.keys())
-		# boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-		#pos = boxes[:,cl*4:(cl+1)*4]
 
-		if len(self.tracks) > 0:
+		if len(self.tracks):
 			pos = self.get_pos()
 			dist_mat = []
 
@@ -355,9 +344,6 @@ class OracleTracker(Tracker):
 		for t in self.tracks:
 			t.last_pos = t.pos.clone()
 
-		# only the class person used here
-		cl = 1
-
 		###########################
 		# Look for new detections #
 		###########################
@@ -377,14 +363,14 @@ class OracleTracker(Tracker):
 			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 
 			# Filter out tracks that have too low person score
-			scores = scores[:,cl]
+			scores = scores[:, self.cl]
 			inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
 		else:
 			inds = torch.zeros(0).cuda()
 
 		if inds.nelement() > 0:
 			boxes = boxes[inds]
-			det_pos = boxes[:,cl*4:(cl+1)*4]
+			det_pos = boxes[:, self.cl*4:(self.cl+1)*4]
 			det_scores = scores[inds]
 		else:
 			det_pos = torch.zeros(0).cuda()
@@ -395,22 +381,20 @@ class OracleTracker(Tracker):
 		##################
 		num_tracks = 0
 		nms_inp_reg = torch.zeros(0).cuda()
-		if len(self.tracks) > 0:
-
+		if len(self.tracks):
 			# align
 			if self.do_align:
 				self.align(blob)
 			if self.pos_oracle or self.kill_oracle:
 				self.oracle(blob)
 			#regress
-			if len(self.tracks) > 0:
+			if len(self.tracks):
 				person_scores = self.regress_tracks(blob)
 				# now NMS step
 				if self.kill_oracle:
 					person_scores = self.nms_oracle(blob, person_scores)
 
-			if len(self.tracks) > 0:
-
+			if len(self.tracks):
 				# create nms input
 				new_features = self.get_appearances(blob)
 
@@ -421,27 +405,19 @@ class OracleTracker(Tracker):
 				else:
 					keep = nms(nms_inp_reg, self.regression_nms_thresh)
 
-				# Plot the killed tracks for debugging
-				not_keep = list(np.arange(0,len(self.tracks)))
-				tracks = []
-				for i in keep:
-					not_keep.remove(i)
+				# # Plot the killed tracks for debugging
+				self.tracks_to_inactive([self.tracks[i]
+				                         for i in list(range(len(self.tracks)))
+				                         if i not in keep])
 
 				if keep.nelement() > 0:
-					self.keep(keep)
 					nms_inp_reg = nms_inp_reg[keep]
 					new_features[keep]
 					self.add_features(new_features)
 					num_tracks = nms_inp_reg.size(0)
 				else:
-					keep = []
-					self.keep(keep)
 					nms_inp_reg = torch.zeros(0).cuda()
 					num_tracks = 0
-
-			else:
-				pass
-				#self.reset(hard=False)
 
 		#####################
 		# Create new tracks #

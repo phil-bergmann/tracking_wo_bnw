@@ -26,7 +26,7 @@ def get_output_dir(module):
   A canonical path is built using the name from an imdb and a network
   (if not None).
   """
-  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', 'tracker', module))
+  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', 'tracktor', module))
   #if weights_filename is None:
   #  weights_filename = 'default'
   #outdir = osp.join(outdir, weights_filename)

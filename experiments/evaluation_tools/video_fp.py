@@ -1,39 +1,35 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import _init_paths
-
-from sacred import Experiment
-from model.config import cfg as frcnn_cfg
 import os
 import os.path as osp
-import yaml
 import time
-import cv2
-
-import torch
-from torch.autograd import Variable
-from torch.utils.data import DataLoader
-import numpy as np
-
-from tracker.config import cfg, get_output_dir
-from tracker.datasets.factory import Datasets
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-#plt.style.use('seaborn-deep')
-#sns.set()
-sns.set_palette('deep')
-
-from cycler import cycler as cy
 from collections import defaultdict
 
-from sklearn.utils.linear_assignment_ import linear_assignment
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import yaml
+from cycler import cycler as cy
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+
+import cv2
+import seaborn as sns
 from easydict import EasyDict as edict
-from mot_evaluation.io import read_txt_to_struct, read_seqmaps, extract_valid_gt_data, print_metrics
 from mot_evaluation.bbox import bbox_overlap
+from mot_evaluation.io import (extract_valid_gt_data, print_metrics,
+                               read_seqmaps, read_txt_to_struct)
 from mot_evaluation.measurements import clear_mot_hungarian, idmeasures
+from sacred import Experiment
+from sklearn.utils.linear_assignment_ import linear_assignment
+from tracktor.config import cfg, get_output_dir
+from tracktor.datasets.factory import Datasets
+
+sns.set_palette('deep')
+sns.set(font_scale=1.5, rc={'text.usetex': True})
+
 
 colors = ['aliceblue', 'black', 'green', 'red', 'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque',
 'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue',
@@ -76,7 +72,7 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
     """
     track_frames = np.unique(trackDB[:, 0])
     gt_frames = np.unique(gtDB[:, 0])
-    nframes = min(len(track_frames), len(gt_frames))  
+    nframes = min(len(track_frames), len(gt_frames))
     res_keep = np.ones((trackDB.shape[0], ), dtype=float)
     for i in range(1, nframes + 1):
         # find all result boxes in this frame
@@ -88,7 +84,7 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
         gt_num = gt_in_frame.shape[0]
         overlaps = np.zeros((res_num, gt_num), dtype=float)
         for gid in range(gt_num):
-            overlaps[:, gid] = bbox_overlap(res_in_frame_data[:, 2:6], gt_in_frame_data[gid, 2:6]) 
+            overlaps[:, gid] = bbox_overlap(res_in_frame_data[:, 2:6], gt_in_frame_data[gid, 2:6])
         matched_indices = linear_assignment(1 - overlaps)
         for matched in matched_indices:
             # overlap lower than threshold, discard the pair
@@ -98,11 +94,11 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
             # matched to distractors, discard the result box
             if gt_in_frame_data[matched[1], 1] in distractor_ids:
                 res_keep[res_in_frame[matched[0]]] = 0
-            
+
             # matched to a partial
             if gt_in_frame_data[matched[1], 8] < minvis:
                 res_keep[res_in_frame[matched[0]]] = 0
-            
+
 
         # sanity check
         frame_id_pairs = res_in_frame_data[:, :2]
@@ -159,14 +155,14 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
         gt_frames_list = list(gt_frames)
         st_total_len = sum([1 if i in M[gt_frames_list.index(f)].keys() else 0 for f in gt_frames_tmp])
         ratio = float(st_total_len) / gt_total_len
-        
+
         if ratio < 0.2:
             MT_stats[i] = 1
         elif ratio >= 0.8:
             MT_stats[i] = 3
         else:
             MT_stats[i] = 2
-            
+
     ML = len(np.where(MT_stats == 1)[0])
     PT = len(np.where(MT_stats == 2)[0])
     MT = len(np.where(MT_stats == 3)[0])
@@ -174,11 +170,11 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
     # fragment
     fr = np.zeros((n_gt, ), dtype=int)
     M_arr = np.zeros((f_gt, n_gt), dtype=int)
-    
+
     for i in range(f_gt):
         for gid in M[i].keys():
             M_arr[i, gid] = M[i][gid] + 1
-    
+
     for i in range(n_gt):
         occur = np.where(M_arr[:, i] > 0)[0]
         occur = np.where(np.diff(occur) != 1)[0]
@@ -209,7 +205,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
 
     return metrics, extra_info, clear_mot_info, ML_PT_MT, M, gtDB, trackDB
 
-   
+
 
 def evaluate_bm(all_metrics):
     """
@@ -229,11 +225,11 @@ def evaluate_bm(all_metrics):
         IDFP += all_metrics[i].idmetrics.IDFP
         IDFN += all_metrics[i].idmetrics.IDFN
         # Total ID Measures
-        MT += all_metrics[i].MT 
+        MT += all_metrics[i].MT
         ML += all_metrics[i].ML
-        PT += all_metrics[i].PT 
-        FRA += all_metrics[i].FRA 
-        f_gt += all_metrics[i].f_gt 
+        PT += all_metrics[i].PT
+        FRA += all_metrics[i].FRA
+        f_gt += all_metrics[i].f_gt
         n_gt += all_metrics[i].n_gt
         n_st += all_metrics[i].n_st
         c += all_metrics[i].c
@@ -253,7 +249,7 @@ def evaluate_bm(all_metrics):
     precision = c / (fp + c) * 100                                  # precision = TP / (TP + FP) = # corrected boxes / # det boxes
     metrics = [IDF1, IDP, IDR, recall, precision, FAR, n_gt, MT, PT, ML, fp, missed, ids, FRA, MOTA, MOTP, MOTAL]
     return metrics
-    
+
 def evaluate_tracking(sequences, track_dir, gt_dir):
     all_info = []
     for seqname in sequences:
@@ -263,7 +259,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
 
         trackDB = read_txt_to_struct(track_res)
         gtDB = read_txt_to_struct(gt_file)
-        
+
         gtDB, distractor_ids = extract_valid_gt_data(gtDB)
         metrics, extra_info = evaluate_sequence(trackDB, gtDB, distractor_ids)
         print_metrics(seqname + ' Evaluation', metrics)
@@ -272,7 +268,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
     print_metrics('Summary Evaluation', all_metrics)
 
 def evaluate_new(stDB, gtDB, distractor_ids):
-    
+
     #trackDB = read_txt_to_struct(results)
     #gtDB = read_txt_to_struct(gt_file)
 
@@ -295,25 +291,25 @@ def my_main(_config):
     ##########################
     # Initialize the modules #
     ##########################
-    
+
     print("[*] Beginning evaluation...")
-    module_dir = get_output_dir('videos')
-    results_dir = osp.join(module_dir, 'results')
-    module_dir = osp.join(module_dir, 'fp')
+    module_dir = get_output_dir('MOT17')
+    results_dir = module_dir
+    module_dir = osp.join(module_dir, 'eval/video_fp')
     #output_dir = osp.join(results_dir, 'plots')
     #if not osp.exists(output_dir):
     #    os.makedirs(output_dir)
 
     #sequences_raw = ["MOT17-13", "MOT17-11", "MOT17-10", "MOT17-09", "MOT17-05", "MOT17-04", "MOT17-02", ]
-    
+
     #sequences = ["{}-{}".format(s, detections) for s in sequences_raw]
     #sequences = sequences[:1]
-    
-    tracker = ["FRCNN_Base", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
-    tracker = ["Baseline", "BnW", "FWT_17", "jCC", "MOTDT17", "MHT_DAM_17"]
-    tracker = ["Baseline", "FWT_17", "jCC", "MOTDT17"]
+
+    # tracker = ["FRCNN_Base", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
+    # tracker = ["Baseline", "BnW", "FWT_17", "jCC", "MOTDT17", "MHT_DAM_17"]
+    tracker = ["Tracktor", "FWT", "jCC", "MOTDT17"]
     #tracker = ["Baseline"]
-    
+
     for t in tracker:
         print("[*] Evaluating {}".format(t))
         if True:
@@ -330,7 +326,7 @@ def my_main(_config):
 
             stDB = read_txt_to_struct(res_file)
             gtDB = read_txt_to_struct(gt_file)
-            
+
             gtDB, distractor_ids = extract_valid_gt_data(gtDB)
             _, M, gtDB, stDB = evaluate_new(stDB, gtDB, distractor_ids)
             #gt_ids_res = np.unique(gtDB[:, 1])
@@ -404,8 +400,8 @@ def my_main(_config):
             loop_cy_iter = cyl()
             styles = defaultdict(lambda : next(loop_cy_iter))
 
-            
-            
+
+
             for frame,v in enumerate(db,1):
                 im_path = v['im_path']
                 im_name = osp.basename(im_path)
@@ -416,14 +412,14 @@ def my_main(_config):
                 sizes = np.shape(im)
                 height = float(sizes[0])
                 width = float(sizes[1])
-                
+
                 fig = plt.figure()
                 #fig.set_size_inches(w,h)
                 #fig.set_size_inches(width/height, 1, forward=False)
                 #fig.set_size_inches(width/100, height/100)
-                scale = width/640
+                scale = width / 640
                 #fig.set_size_inches(640/100, height*scale/100)
-                fig.set_size_inches(width/100, height/100)
+                fig.set_size_inches(width / 100, height / 100)
                 ax = plt.Axes(fig, [0., 0., 1., 1.])
                 ax.set_axis_off()
                 fig.add_axes(ax)
@@ -441,13 +437,10 @@ def my_main(_config):
                             linewidth=1.3*scale, color='blue')
                     )
 
+                ax.annotate(t, (width - 250, height - 100),
+                            color='white', weight='bold', fontsize=72, ha='center', va='center')
+
                 plt.axis('off')
-                #plt.tight_layout()
                 plt.draw()
                 plt.savefig(im_output, dpi=100)
                 plt.close()
-            
-            
-                
-
-            #break

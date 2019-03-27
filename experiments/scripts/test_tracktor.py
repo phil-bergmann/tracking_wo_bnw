@@ -110,29 +110,29 @@ def my_main(tracktor, siamese, _config):
     print("[*] Beginning evaluation...")
 
     time_total = 0
-    for db in Datasets(tracktor['dataset']):
+    for sequence in Datasets(tracktor['dataset']):
         tracker.reset()
 
         now = time.time()
 
-        print("[*] Evaluating: {}".format(db))
+        print("[*] Evaluating: {}".format(sequence))
 
-        dl = DataLoader(db, batch_size=1, shuffle=False)
-        for sample in dl:
-            tracker.step(sample)
+        data_loader = DataLoader(sequence, batch_size=1, shuffle=False)
+        for i, frame in enumerate(data_loader):
+            tracker.step(frame)
         results = tracker.get_results()
 
         time_total += time.time() - now
 
         print("[*] Tracks found: {}".format(len(results)))
-        print("[*] Time needed for {} evaluation: {:.3f} s".format(db, time.time() - now))
+        print("[*] Time needed for {} evaluation: {:.3f} s".format(sequence, time.time() - now))
 
         if tracktor['interpolate']:
             results = interpolate(results)
 
-        db.write_results(results, osp.join(output_dir))
+        sequence.write_results(results, osp.join(output_dir))
 
         if tracktor['write_images']:
-            plot_sequence(results, db, osp.join(output_dir, tracktor['dataset'], str(db)))
+            plot_sequence(results, sequence, osp.join(output_dir, tracktor['dataset'], str(sequence)))
 
     print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_total))

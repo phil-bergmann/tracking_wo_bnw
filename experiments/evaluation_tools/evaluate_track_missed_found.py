@@ -13,6 +13,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_palette('deep')
+sns.set(font_scale=1.5, rc={'text.usetex' : True})
 
 from sklearn.utils.linear_assignment_ import linear_assignment
 from easydict import EasyDict as edict
@@ -255,7 +256,7 @@ def my_main(_config):
 
     ###################### PFAD ANPASSEN ###################
 
-    results_dir = osp.join('output/tracker/MOT17')
+    results_dir = osp.join('output/tracktor/MOT17')
 
     ########################################################
 

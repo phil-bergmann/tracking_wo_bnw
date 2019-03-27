@@ -29,9 +29,3 @@ for seq_name, data in metrics_res.items():
           f"{data[metrics_names.index('FP')]} & "
           f"{data[metrics_names.index('FN')]} & "
           f"{data[metrics_names.index('IDs')]} \\\\")
-
-# metrics_df = pd.DataFrame().from_dict(metrics_res, orient = 'index')
-# metrics_df.columns = metrics_names
-
-# with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'expand_frame_repr', False):
-#     print(metrics_df)

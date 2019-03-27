@@ -16,6 +16,8 @@ from .utils import bbox_overlaps, bbox_transform_inv, clip_boxes
 
 class Tracker():
 	"""The main tracking file, here is where magic happens."""
+	# only track pedestrian
+	cl = 1
 
 	def __init__(self, obj_detect, reid_network, tracker_cfg):
 		self.obj_detect = obj_detect
@@ -48,16 +50,11 @@ class Tracker():
 			self.results = {}
 			self.im_index = 0
 
-	def keep(self, keep):
-		"""Keeps only the tracks defined by keep alive and moves the remaining to inactive."""
-		tracks = []
-		for i in keep:
-			tracks.append(self.tracks[i])
-		new_inactive = [t for t in self.tracks if t not in tracks]
-		for t in new_inactive:
+	def tracks_to_inactive(self, tracks):
+		self.tracks = [t for t in self.tracks if t not in tracks]
+		for t in tracks:
 			t.pos = t.last_pos
-		self.inactive_tracks += new_inactive
-		self.tracks = tracks
+		self.inactive_tracks += tracks
 
 	def add(self, new_det_pos, new_det_scores, new_det_features):
 		"""Initializes new Track objects and saves them."""
@@ -69,24 +66,21 @@ class Tracker():
 
 	def regress_tracks(self, blob):
 		"""Regress the position of the tracks and also checks their scores."""
-		cl = 1
-
 		pos = self.get_pos()
 
 		# regress
 		_, scores, bbox_pred, rois = self.obj_detect.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-		pos = boxes[:,cl*4:(cl+1)*4]
-		scores = scores[:,cl]
+		pos = boxes[:, self.cl*4:(self.cl+1)*4]
+		scores = scores[:, self.cl]
 
 		s = []
 		for i in range(len(self.tracks)-1,-1,-1):
 			t = self.tracks[i]
 			t.score = scores[i]
 			if scores[i] <= self.regression_person_thresh:
-				self.tracks.remove(t)
-				self.inactive_tracks.append(t)
+				self.tracks_to_inactive([t])
 			else:
 				s.append(scores[i])
 				# t.prev_pos = t.pos
@@ -154,7 +148,6 @@ class Tracker():
 			remove_inactive = []
 			for r,c in zip(row_ind, col_ind):
 				if dist_mat[r,c] <= self.reid_sim_threshold:
-					#print("im: {}\ncosts: {}".format(self.im_index, costs[r,c]))
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
 					t.count_inactive = 0
@@ -166,7 +159,6 @@ class Tracker():
 
 			for t in remove_inactive:
 				self.inactive_tracks.remove(t)
-				#print("matched in frame {}".format(self.im_index))
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
 			if keep.nelement() > 0:
@@ -290,10 +282,10 @@ class Tracker():
 			for t in self.inactive_tracks:
 				if t.last_v.nelement() > 0:
 					# extract coordinates of current pos
-					x1p = t.pos[0,0]
-					y1p = t.pos[0,1]
-					x2p = t.pos[0,2]
-					y2p = t.pos[0,3]
+					x1p = t.pos[0, 0]
+					y1p = t.pos[0, 1]
+					x2p = t.pos[0, 2]
+					y2p = t.pos[0, 3]
 					cxp = (x2p + x1p)/2
 					cyp = (y2p + y1p)/2
 					wp = x2p - x1p
@@ -314,9 +306,6 @@ class Tracker():
 		for t in self.tracks:
 			t.last_pos = t.pos.clone()
 
-		# only the class person used here
-		cl = 1
-
 		###########################
 		# Look for new detections #
 		###########################
@@ -331,22 +320,19 @@ class Tracker():
 		else:
 			_, scores, bbox_pred, rois = self.obj_detect.detect()
 
-		# torch.set_printoptions(precision=10)
-		# print(bbox_pred)
-		# exit()
 		if rois.nelement() > 0:
 			boxes = bbox_transform_inv(rois, bbox_pred)
 			boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
 
 			# Filter out tracks that have too low person score
-			scores = scores[:,cl]
+			scores = scores[:, self.cl]
 			inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
 		else:
 			inds = torch.zeros(0).cuda()
 
 		if inds.nelement() > 0:
 			boxes = boxes[inds]
-			det_pos = boxes[:,cl*4:(cl+1)*4]
+			det_pos = boxes[:, self.cl*4:(self.cl+1)*4]
 			det_scores = scores[inds]
 		else:
 			det_pos = torch.zeros(0).cuda()
@@ -357,7 +343,7 @@ class Tracker():
 		##################
 		num_tracks = 0
 		nms_inp_reg = torch.zeros(0).cuda()
-		if len(self.tracks) > 0:
+		if len(self.tracks):
 			# align
 			if self.do_align:
 				self.align(blob)
@@ -367,7 +353,7 @@ class Tracker():
 			#regress
 			person_scores = self.regress_tracks(blob)
 
-			if len(self.tracks) > 0:
+			if len(self.tracks):
 
 				# create nms input
 				# new_features = self.get_appearances(blob)
@@ -376,33 +362,19 @@ class Tracker():
 				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1,1)),1)
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
 
-				# Plot the killed tracks for debugging
-				not_keep = list(np.arange(0,len(self.tracks)))
-				tracks = []
-				for i in keep:
-					not_keep.remove(i)
+				self.tracks_to_inactive([self.tracks[i]
+				                         for i in list(range(len(self.tracks)))
+				                         if i not in keep])
 
 				if keep.nelement() > 0:
-					self.keep(keep)
-					# nms_inp_reg = nms_inp_reg[keep]
-					# new_features = new_features[keep]
-
-					# self.refresh_pos()
 					nms_inp_reg = torch.cat((self.get_pos(), torch.ones(self.get_pos().size(0)).add_(3).view(-1,1).cuda()),1)
 					new_features = self.get_appearances(blob)
-
 
 					self.add_features(new_features)
 					num_tracks = nms_inp_reg.size(0)
 				else:
-					keep = []
-					self.keep(keep)
 					nms_inp_reg = torch.zeros(0).cuda()
 					num_tracks = 0
-
-			else:
-				pass
-				#self.reset(hard=False)
 
 		#####################
 		# Create new tracks #
@@ -457,9 +429,6 @@ class Tracker():
 		self.last_image = blob['data'][0][0]
 
 		self.clear_inactive()
-
-		#print("tracks active: {}/{}".format(num_tracks, self.track_num))
-		#print("len active: {}\nlen inactive: {}".format(len(self.tracks), len(self.inactive_tracks)))
 
 	def get_results(self):
 		return self.results
