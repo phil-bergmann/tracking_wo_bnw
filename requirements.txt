@@ -7,7 +7,7 @@ Cython==0.29.2
 docopt==0.6.2
 easydict==1.9
 enum34==1.1.6
--e git+https://github.com/timmeinhardt/FPN_Pytorch@54be76d9cc6be81148f83121594819970e219eda#egg=fpn&subdirectory=../../../src/fpn
+-e git+https://github.com/timmeinhardt/FPN_Pytorch@f0ad72f327d6af7011d380d48cae11a53532127f#egg=fpn&subdirectory=../../../src/fpn
 -e git+https://github.com/phil-bergmann/pytorch-faster-rcnn@64e36dc94153bf26d2f84af25fee8a5390d8109a#egg=frcnn&subdirectory=../../../src/frcnn
 funcsigs==1.0.2
 gast==0.2.0
@@ -48,7 +48,7 @@ termcolor==1.1.0
 torch==0.3.1
 torchvision==0.2.0
 tornado==5.1.1
--e git+https://github.com/phil-bergmann/tracking_wo_BnW@6323d2454b1aa267c7e5a69d7443ea964f718f38#egg=tracktor
+-e git+https://github.com/phil-bergmann/tracking_wo_BnW@fdb3800e9114eab3ba643d8c722f2dc2d37aa920#egg=tracktor
 trollius==2.2
 virtualenv==15.1.0
 Werkzeug==0.14.1
