@@ -2,24 +2,14 @@
 
 ## Installation
 
-1. Clone and enter this repository:
+1. Clone includind object detector submodules and enter this repository:
   ```
-  git clone https://github.com/phil-bergmann/tracking_wo_BnW
+  git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_BnW
   cd tracking_wo_BnW
   ```
 
-2. Setup an [Anaconda](https://conda.io/docs/user-guide/install/index.html) environment with the given `environment.yml`:
-  ```
-  conda env create -f environment.yml
-  ```
-  The name of the environment will be *tracking_wo_BnW*. Activate it:
-  ```
-  conda activate tracking_wo_BnW
-  ```
-  Manually install the following packages:
-  ```
-  pip install easydict sacred pyyaml tensorboardX opencv-python h5py
-  ```
+2. Install packages for Python 3.6:
+    `pip3 install -r requirements.txt`
 
 3. Install the Faster R-CNN + FPN object detector::
   ```

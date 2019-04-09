@@ -1,0 +1,6 @@
+[submodule "src/frcnn"]
+	path = src/frcnn
+	url = https://github.com/phil-bergmann/pytorch-faster-rcnn
+[submodule "src/fpn"]
+	path = src/fpn
+	url = https://github.com/timmeinhardt/FPN_Pytorch
