@@ -12,18 +12,22 @@ detections = "FRCNN"
 
 module_dir = get_output_dir('MOT17')
 results_dir = module_dir
-module_dir = osp.join(module_dir, 'eval/video_cov_fail')
+module_dir = osp.join(module_dir, 'eval/video_fp')
 
 tracker = ["Tracktor", "FWT", "jCC", "MOTDT17"]
 
 
 for db in Datasets(dataset):
+    seq_path = osp.join(module_dir, f"{tracker[0]}/{db}-{detections}")
+    if not osp.exists(seq_path):
+        continue
     for frame, v in enumerate(db, 1):
         file_name = osp.basename(v['im_path'])
-        output_dir = osp.join(module_dir, 'combined', f"{db} - {detections}")
+        output_dir = osp.join(module_dir, 'combined', f"{db}-{detections}")
         if not osp.exists(output_dir):
-                os.makedirs(output_dir)
+            os.makedirs(output_dir)
         im_output = osp.join(output_dir, file_name)
+
         tracker_frames = []
         for t in tracker:
             im_path = osp.join(module_dir, f"{t}/{db}-{detections}/{file_name}")

@@ -100,7 +100,6 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, minvis):
             if gt_in_frame_data[matched[1], 8] < minvis:
                 res_keep[res_in_frame[matched[0]]] = 0
 
-
         # sanity check
         frame_id_pairs = res_in_frame_data[:, :2]
         uniq_frame_id_pairs = np.unique(frame_id_pairs)
@@ -205,7 +204,6 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, minvis=0):
     ML_PT_MT = [gt_ids[np.where(MT_stats == 1)[0]], gt_ids[np.where(MT_stats == 2)[0]], gt_ids[np.where(MT_stats == 3)[0]]]
 
     return metrics, extra_info, clear_mot_info, ML_PT_MT, M, gtDB, trackDB
-
 
 
 def evaluate_bm(all_metrics):
@@ -382,11 +380,6 @@ def my_main(_config):
                 os.makedirs(output_dir)
 
             print("[*] Plotting whole sequence to {}".format(output_dir))
-
-            # infinte color loop
-            cyl = cy('ec', colors)
-            loop_cy_iter = cyl()
-            styles = defaultdict(lambda : next(loop_cy_iter))
 
             for frame, v in enumerate(db, 1):
                 im_path = v['im_path']

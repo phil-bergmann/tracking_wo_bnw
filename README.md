@@ -1,24 +1,27 @@
-# Tracking without Bells and Whistles
+# Tracking without bells and whistles
+
+This repository provides the implementation of our paper **Tracking without bells and whistles** (Philipp Bergmann, Tim Meinhardt, Laura Leal-Taixe) [https://arxiv.org/abs/1903.05625]. All results presented in our work were produced with this code.
 
 ## Installation
 
-1. Clone includind object detector submodules and enter this repository:
+1. Clone and enter this repository:
   ```
   git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_BnW
   cd tracking_wo_BnW
   ```
 
 2. Install packages for Python 3.6:
-    `pip3 install -r requirements.txt`
+    1. `pip3 install -r requirements.txt`
+    2. Faster R-CNN + FPN: `pip3 install -e src/fpn`
+    3. Faster R-CNN: `pip3 install -r src/frcnn`
+    4. Tracktor: `pip3 install -r .`
 
-3. Install the Faster R-CNN + FPN object detector::
-  ```
-  pip install https://github.com/timmeinhardt/FPN_Pytorch/archive/tracking_wo_bnw.zip
-  ```
+3. Compile Faster R-CNN:
+    1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set.
+    2. `sh src/fpn/fpn/make.sh`
+    3. `sh src/frcnn/frcnn/make.sh`
 
-4. Compile the Faster R-CNN code by following the installation instructions in the `README.md` of the `pytorch-faster-rcnn` repository. The compilation requires CUDA 9.0 and its corresponding `nvcc` compiler.
-
-5. Download MOT Challenge data:
+4. Download MOT Challenge data:
     1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
     2. Download the benchmark label and/or detection files for [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16Labels.zip), [MOT16Labels](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and extract them in the `data` folder.
     3. If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.

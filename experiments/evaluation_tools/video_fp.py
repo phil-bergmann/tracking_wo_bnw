@@ -400,8 +400,6 @@ def my_main(_config):
             loop_cy_iter = cyl()
             styles = defaultdict(lambda : next(loop_cy_iter))
 
-
-
             for frame,v in enumerate(db,1):
                 im_path = v['im_path']
                 im_name = osp.basename(im_path)

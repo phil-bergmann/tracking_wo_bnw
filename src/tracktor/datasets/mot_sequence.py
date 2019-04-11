@@ -1,14 +1,14 @@
-import numpy as np
-import cv2
-import os
-import os.path as osp
 import configparser
 import csv
+import os
+import os.path as osp
+
+import numpy as np
 from PIL import Image
-
 from torch.utils.data import Dataset
-from torchvision.transforms import Normalize, Compose, ToTensor
+from torchvision.transforms import Compose, Normalize, ToTensor
 
+import cv2
 from frcnn.model import test
 
 from ..config import cfg
@@ -20,15 +20,17 @@ class MOT_Sequence(Dataset):
     This dataloader is designed so that it can handle only one sequence, if more have to be
     handled one should inherit from this class.
     """
+    normalize_mean = [0.485, 0.456, 0.406]
+    normalize_std = [0.229, 0.224, 0.225]
+    vis_threshold = 0.0
 
-    def __init__(self, seq_name=None, dets='', vis_threshold=0.0, normalize_mean=[0.485, 0.456, 0.406], normalize_std=[0.229, 0.224, 0.225]):
+    def __init__(self, seq_name=None, dets=''):
         """
         Args:
             seq_name (string): Sequence to take
             vis_threshold (float): Threshold of visibility of persons above which they are selected
         """
         self._seq_name = seq_name
-        self._vis_threshold = vis_threshold
         self._dets = dets
 
         self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
@@ -39,13 +41,14 @@ class MOT_Sequence(Dataset):
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
-        self.transforms = Compose([ToTensor(), Normalize(normalize_mean, normalize_std)])
+        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
+                                                         self.normalize_std)])
 
         if seq_name:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
 
-            self.data = self.sequence(seq_name)
+            self.data = self._sequence(seq_name)
         else:
             self.data = []
 
@@ -82,7 +85,7 @@ class MOT_Sequence(Dataset):
 
         return sample
 
-    def sequence(self, seq_name):
+    def _sequence(self, seq_name):
         if seq_name in self._train_folders:
             seq_path = osp.join(self._mot_dir, 'train', seq_name)
             label_path = osp.join(self._label_dir, 'train', 'MOT16-'+seq_name[-2:])
@@ -101,9 +104,6 @@ class MOT_Sequence(Dataset):
         config = configparser.ConfigParser()
         config.read(config_file)
         seqLength = int(config['Sequence']['seqLength'])
-        imWidth = int(config['Sequence']['imWidth'])
-        imHeight = int(config['Sequence']['imHeight'])
-        imExt = config['Sequence']['imExt']
         imDir = config['Sequence']['imDir']
 
         imDir = osp.join(seq_path, imDir)
@@ -127,7 +127,7 @@ class MOT_Sequence(Dataset):
                 reader = csv.reader(inf, delimiter=',')
                 for row in reader:
                     # class person, certainity 1, visibility >= 0.25
-                    if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self._vis_threshold:
+                    if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self.vis_threshold:
                         # Make pixel indexes 0-based, should already be 0-based (or not)
                         x1 = int(row[2]) - 1
                         y1 = int(row[3]) - 1
@@ -138,17 +138,16 @@ class MOT_Sequence(Dataset):
                         boxes[int(row[0])][int(row[1])] = bb
                         visibility[int(row[0])][int(row[1])] = float(row[8])
 
-
         if self._dets == "DPM":
             det_file = osp.join(label_path, 'det', 'det.txt')
         elif self._dets == "DPM_RAW16":
             det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
-        elif self._dets == "DPM17":
-            det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "DPM"), 'det', 'det.txt')
-        elif self._dets == "FRCNN17":
-            det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "FRCNN"), 'det', 'det.txt')
-        elif self._dets == "SDP17":
-            det_file = osp.join(mot17_label_path, 'MOT17-{}-{}'.format(seq_name[-2:], "SDP"), 'det', 'det.txt')
+        elif "17" in self._dets:
+            det_file = osp.join(
+                mot17_label_path,
+                f'MOT17-{seq_name[-2:]}-{self._dets[:-2]}',
+                'det',
+                'det.txt')
         else:
             det_file = ""
 
@@ -175,10 +174,10 @@ class MOT_Sequence(Dataset):
             }
 
             total.append(sample)
-            if i <= seqLength*0.5:
-                train.append(sample)
-            if i >= seqLength*0.75:
-                val.append(sample)
+            # if i <= seqLength * 0.5:
+            #     train.append(sample)
+            # if i >= seqLength * 0.75:
+            #     val.append(sample)
 
         return total
 
@@ -233,4 +232,3 @@ class MOT_Sequence(Dataset):
                     x2 = bb[2]
                     y2 = bb[3]
                     writer.writerow([frame+1, i+1, x1+1, y1+1, x2-x1+1, y2-y1+1, -1, -1, -1, -1])
-

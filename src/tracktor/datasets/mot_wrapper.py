@@ -1,5 +1,5 @@
-from torch.utils.data import Dataset
 import torch
+from torch.utils.data import Dataset
 
 from .mot_sequence import MOT_Sequence
 
@@ -21,16 +21,21 @@ class MOT_Wrapper(Dataset):
 			sequences = train_sequences
 		elif "test" == split:
 			sequences = test_sequences
-		elif f"MOT17-{split}" in train_sequences:
-			sequences = [train_sequences[train_sequences.index(f"MOT17-{split}")]]
-		elif f"MOT17-{split}" in test_sequences:
-			sequences = [test_sequences[test_sequences.index(f"MOT17-{split}")]]
+		elif "all" == split:
+			sequences = train_sequences + test_sequences
+		elif f"MOT17-{split}" in train_sequences + test_sequences:
+			sequences = [f"MOT17-{split}"]
 		else:
 			raise NotImplementedError("MOT split not available.")
 
 		self._data = []
 		for s in sequences:
-			self._data.append(MOT_Sequence(seq_name=s, dets=dets, **dataloader))
+			if dets == '17':
+				self._data.append(MOT_Sequence(seq_name=s, dets='DPM17', **dataloader))
+				self._data.append(MOT_Sequence(seq_name=s, dets='FRCNN17', **dataloader))
+				self._data.append(MOT_Sequence(seq_name=s, dets='SDP17', **dataloader))
+			else:
+				self._data.append(MOT_Sequence(seq_name=s, dets=dets, **dataloader))
 
 	def __len__(self):
 		return len(self._data)

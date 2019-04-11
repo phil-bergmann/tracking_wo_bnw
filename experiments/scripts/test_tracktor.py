@@ -119,7 +119,8 @@ def my_main(tracktor, siamese, _config):
 
         data_loader = DataLoader(sequence, batch_size=1, shuffle=False)
         for i, frame in enumerate(data_loader):
-            tracker.step(frame)
+            if i >= len(sequence) * tracktor['frame_split'][0] and i <= len(sequence) * tracktor['frame_split'][1]:
+                tracker.step(frame)
         results = tracker.get_results()
 
         time_total += time.time() - now

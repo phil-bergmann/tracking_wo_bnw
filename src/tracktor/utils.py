@@ -111,8 +111,16 @@ def plot_sequence(tracks, db, output_dir):
 		im = cv2.imread(im_path)
 		im = im[:, :, (2, 1, 0)]
 
-		_, ax = plt.subplots(1,1)
-		ax.imshow(im, aspect='equal')
+		sizes = np.shape(im)
+		height = float(sizes[0])
+		width = float(sizes[1])
+
+		fig = plt.figure()
+		fig.set_size_inches(width / 100, height / 100)
+		ax = plt.Axes(fig, [0., 0., 1., 1.])
+		ax.set_axis_off()
+		fig.add_axes(ax)
+		ax.imshow(im)
 
 		for j,t in tracks.items():
 			if i in t.keys():
@@ -124,13 +132,13 @@ def plot_sequence(tracks, db, output_dir):
 							fill=False,
 							linewidth=1.0, **styles[j]))
 
-				ax.annotate(j, (t_i[0] + (t_i[2] - t_i[0]) / 2.0, t_i[1] + (t_i[3] - t_i[1]) / 2.0),
-				            color=styles[j]['ec'], weight='bold', fontsize=6, ha='center', va='center')
+				# ax.annotate(j, (t_i[0] + (t_i[2] - t_i[0]) / 2.0, t_i[1] + (t_i[3] - t_i[1]) / 2.0),
+				#             color=styles[j]['ec'], weight='bold', fontsize=6, ha='center', va='center')
 
 		plt.axis('off')
-		plt.tight_layout()
+		# plt.tight_layout()
 		plt.draw()
-		plt.savefig(im_output)
+		plt.savefig(im_output, dpi=100)
 		plt.close()
 
 
