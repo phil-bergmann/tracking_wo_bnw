@@ -22,6 +22,8 @@ class MOT_Sequence(Dataset):
     """
     normalize_mean = [0.485, 0.456, 0.406]
     normalize_std = [0.229, 0.224, 0.225]
+    # normalize_mean = [0.4038, 0.4546, 0.4814]
+    # normalize_std = [1.0, 1.0, 1.0]
     vis_threshold = 0.0
 
     def __init__(self, seq_name=None, dets=''):
@@ -66,12 +68,15 @@ class MOT_Sequence(Dataset):
         sample = {}
         sample['im_path'] = d['im_path']
         sample['data'] = data
-        sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]], dtype=np.float32)
+        sample['im_info'] = np.array([data.shape[1], data.shape[2], im_scales[0]],
+                                     dtype=np.float32)
+
         # convert to siamese input
         im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         im = Image.fromarray(im)
         im = self.transforms(im)
         sample['app_data'] = im.unsqueeze(0)
+
         sample['gt'] = {}
         sample['vis'] = {}
         sample['dets'] = []

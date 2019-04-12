@@ -7,22 +7,16 @@ Cython==0.29.2
 docopt==0.6.2
 easydict==1.9
 enum34==1.1.6
--e git+https://github.com/timmeinhardt/FPN_Pytorch@f0ad72f327d6af7011d380d48cae11a53532127f#egg=fpn&subdirectory=../../../src/fpn
--e git+https://github.com/phil-bergmann/pytorch-faster-rcnn@64e36dc94153bf26d2f84af25fee8a5390d8109a#egg=frcnn&subdirectory=../../../src/frcnn
 funcsigs==1.0.2
 gast==0.2.0
 greenlet==0.4.15
 grpcio==1.16.1
 h5py==2.8.0
-intel-openmp==2018.0.3
 jsonpickle==0.9.6
 Keras-Applications==1.0.6
 Keras-Preprocessing==1.0.5
 Markdown==3.0.1
 matplotlib==2.1.2
-mkl==2019.0
-mkl-fft==1.0.6
-mkl-random==1.0.1
 mock==2.0.0
 msgpack==0.6.0
 munch==2.3.2
@@ -45,10 +39,8 @@ tensorboard==1.12.0
 tensorboardX==1.6
 tensorflow-gpu==1.12.0
 termcolor==1.1.0
-torch==0.3.1
 torchvision==0.2.0
 tornado==5.1.1
--e git+https://github.com/phil-bergmann/tracking_wo_BnW@fdb3800e9114eab3ba643d8c722f2dc2d37aa920#egg=tracktor
 trollius==2.2
 virtualenv==15.1.0
 Werkzeug==0.14.1

@@ -6,18 +6,19 @@ This repository provides the implementation of our paper **Tracking without bell
 
 1. Clone and enter this repository:
   ```
-  git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_BnW
-  cd tracking_wo_BnW
+  git clone --recurse-submodules https://github.com/phil-bergmann/tracking_wo_bnw
+  cd tracking_wo_bnw
   ```
 
 2. Install packages for Python 3.6:
     1. `pip3 install -r requirements.txt`
     2. Faster R-CNN + FPN: `pip3 install -e src/fpn`
-    3. Faster R-CNN: `pip3 install -r src/frcnn`
+    3. Faster R-CNN: `pip3 install -e src/frcnn`
     4. Tracktor: `pip3 install -r .`
+    5. PyTorch 0.3.1 for CUDA 9.0: `pip install https://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl`
 
 3. Compile Faster R-CNN:
-    1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set.
+    1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set (in particular `export CPATH=/usr/local/cuda-9.0/include`).
     2. `sh src/fpn/fpn/make.sh`
     3. `sh src/frcnn/frcnn/make.sh`
 
