@@ -14,18 +14,18 @@ This repository provides the implementation of our paper **Tracking without bell
     1. `pip3 install -r requirements.txt`
     2. Faster R-CNN + FPN: `pip3 install -e src/fpn`
     3. Faster R-CNN: `pip3 install -e src/frcnn`
-    4. Tracktor: `pip3 install -r .`
+    4. Tracktor: `pip3 install -e .`
     5. PyTorch 0.3.1 for CUDA 9.0: `pip install https://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl`
 
-3. Compile Faster R-CNN:
+3. Compile Faster R-CNN + FPN and Faster R-CNN:
     1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set (in particular `export CPATH=/usr/local/cuda-9.0/include`).
     2. `sh src/fpn/fpn/make.sh`
     3. `sh src/frcnn/frcnn/make.sh`
 
-4. Download MOT Challenge data:
+4. MOTChallenge data:
     1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
     2. Download the benchmark label and/or detection files for [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16Labels.zip), [MOT16Labels](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and extract them in the `data` folder.
-    3. If needed download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
+    3. (optional) Download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
 
 ## Pretrained weights
 Weights for the tracker that were used to prduce the results in the corresponding paper are provided in a [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i). Just add them to the according folders in the repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to retrain the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason.
