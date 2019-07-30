@@ -46,30 +46,14 @@ In order to configure, organize, log and reproduce our computational experiments
   python experiments/scripts/test_tracktor.py
   ```
 
-3. The results will be logged in the corresponding `output` directory. To evaluate the results download and run the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).
+3. The results are logged in the corresponding `output` directory. To evaluate the results download and run the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).
 
+## Train and test object detector (Faster-RCNN + FPN)
 
-
-## Train and test object detector
-# Faster R-CNN + FPN
-
-
-## Train and test object detector
-# Faster R-CNN
-
-1. Download pretrained models for VGG16 or Res101 as described in the Readme.md under "Train your own model" and paste them inside data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth". Alternatively the same files are provided in the [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i).
-
-2. Train the Faster R-CNN with:
+We pretrained the object detector on PASCAL VOC and did an extensive hyperparameter cross-validation. The resulting training command is:
   ```
-  python experiments/scripts/train_faster_rcnn.py with {vgg16, res101} {mot, small_mot} tag={%name} description={%description}
+  python trainval_net.py v1 --dataset mot_2017_train --net res101 --bs 2 --nw 4 --epochs 38 --save_dir weights --cuda --use_tfboard True --lr_decay_step 20 --pre_checkpoint weights/res101/pascal_voc_0712/v2/fpn_1_12_16550.pth --pre_file weights/res101/pascal_voc_0712/v2/config.yaml
   ```
-  inside the root folder. The "name" and "description" parameters are optional. If no "tag" is provided a timestamp will be used.
-
-3. Test the Faster R-CNN with:
-  ```
-  python experiments/scripts/test_faster_rcnn.py with {mot, small_mot} {link to sacred_config.yaml of model}
-  ```
-  inside the root folder. Link to config file is in the respective `output` subdirectory, e.g., `output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml`.
 
 ## Training the re-identifaction Siamese network
 
