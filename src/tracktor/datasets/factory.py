@@ -1,5 +1,5 @@
 
-from .mot_wrapper import MOT_Wrapper
+from .mot_wrapper import MOT17_Wrapper, MOT19CVPR_Wrapper, MOT17LOWFPS_Wrapper
 from .mot_siamese_wrapper import MOT_Siamese_Wrapper
 from .mot15_wrapper import MOT15_Wrapper
 from .marcuhmot import MarCUHMOT
@@ -12,8 +12,19 @@ _sets = {}
 for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', '08', '09',
               '10', '11', '12', '13', '14']:
     for dets in ['DPM16', 'DPM_RAW16', 'DPM17', 'FRCNN17', 'SDP17', '17', '']:
-        name = f'mot_{split}_{dets}'
-        _sets[name] = (lambda *args, split=split, dets=dets: MOT_Wrapper(split, dets, *args))
+        name = f'mot17_{split}_{dets}'
+        _sets[name] = (lambda *args, split=split,
+                       dets=dets: MOT17_Wrapper(split, dets, *args))
+
+for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', '08']:
+    # only FRCNN detections
+    name = f'mot19_cvpr_{split}'
+    _sets[name] = (lambda *args, split=split: MOT19CVPR_Wrapper(split, *args))
+
+for split in ['1', '2', '3', '5', '6', '10', '15', '30']:
+    # only FRCNN detections
+    name = f'mot17_{split}_fps'
+    _sets[name] = (lambda *args, split=split: MOT17LOWFPS_Wrapper(split, *args))
 
 for split in ['train', 'smallVal', 'smallTrain']:
     name = f'motSiamese_{split}'

@@ -1,6 +1,6 @@
 # from model.test import _get_blobs
 
-from .mot_sequence import MOT_Sequence
+from .mot_sequence import MOT17_Sequence
 from ..config import get_output_dir
 
 import cv2
@@ -12,7 +12,7 @@ import torch
 from torchvision.transforms import CenterCrop, Normalize, Compose, RandomHorizontalFlip, RandomCrop, ToTensor, RandomResizedCrop
 
 
-class MOT_Siamese(MOT_Sequence):
+class MOT_Siamese(MOT17_Sequence):
 	"""Multiple Object Tracking Dataset.
 
 	This class builds samples for training of a simaese net. It returns a tripple of 2 matching and 1 not

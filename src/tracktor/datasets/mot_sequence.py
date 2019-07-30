@@ -14,7 +14,7 @@ from frcnn.model import test
 from ..config import cfg
 
 
-class MOT_Sequence(Dataset):
+class MOT17_Sequence(Dataset):
     """Multiple Object Tracking Dataset.
 
     This dataloader is designed so that it can handle only one sequence, if more have to be
@@ -50,7 +50,7 @@ class MOT_Sequence(Dataset):
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
 
-            self.data = self._sequence(seq_name)
+            self.data = self._sequence()
         else:
             self.data = []
 
@@ -90,7 +90,8 @@ class MOT_Sequence(Dataset):
 
         return sample
 
-    def _sequence(self, seq_name):
+    def _sequence(self):
+        seq_name = self._seq_name
         if seq_name in self._train_folders:
             seq_path = osp.join(self._mot_dir, 'train', seq_name)
             label_path = osp.join(self._label_dir, 'train', 'MOT16-'+seq_name[-2:])
@@ -143,18 +144,7 @@ class MOT_Sequence(Dataset):
                         boxes[int(row[0])][int(row[1])] = bb
                         visibility[int(row[0])][int(row[1])] = float(row[8])
 
-        if self._dets == "DPM":
-            det_file = osp.join(label_path, 'det', 'det.txt')
-        elif self._dets == "DPM_RAW16":
-            det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
-        elif "17" in self._dets:
-            det_file = osp.join(
-                mot17_label_path,
-                f'MOT17-{seq_name[-2:]}-{self._dets[:-2]}',
-                'det',
-                'det.txt')
-        else:
-            det_file = ""
+        det_file = self.get_det_file(label_path, raw_label_path, mot17_label_path)
 
         if osp.exists(det_file):
             with open(det_file, "r") as inf:
@@ -185,6 +175,21 @@ class MOT_Sequence(Dataset):
             #     val.append(sample)
 
         return total
+
+    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
+        if self._dets == "DPM":
+            det_file = osp.join(label_path, 'det', 'det.txt')
+        elif self._dets == "DPM_RAW16":
+            det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
+        elif "17" in self._seq_name:
+            det_file = osp.join(
+                mot17_label_path,
+                f'MOT17-{self._seq_name[-2:]}-{self._dets[:-2]}',
+                'det',
+                'det.txt')
+        else:
+            det_file = ""
+        return det_file
 
     def __str__(self):
         return self._seq_name
@@ -221,7 +226,7 @@ class MOT_Sequence(Dataset):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        if "17" in self._dets:
+        if "17" in self._seq_name:
             file = osp.join(output_dir, 'MOT17-'+self._seq_name[6:8]+"-"+self._dets[:-2]+'.txt')
         else:
             file = osp.join(output_dir, 'MOT16-'+self._seq_name[6:8]+'.txt')
@@ -237,3 +242,99 @@ class MOT_Sequence(Dataset):
                     x2 = bb[2]
                     y2 = bb[3]
                     writer.writerow([frame+1, i+1, x1+1, y1+1, x2-x1+1, y2-y1+1, -1, -1, -1, -1])
+
+
+class MOT19CVPR_Sequence(MOT17_Sequence):
+
+
+    def __init__(self, seq_name=None, dets=''):
+        """
+        Args:
+            seq_name (string): Sequence to take
+            vis_threshold (float): Threshold of visibility of persons above which they are selected
+        """
+        self._seq_name = seq_name
+        self._dets = dets
+
+        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
+        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
+
+        # TODO: refactor code of both classes to consider 16,17 and 19
+        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
+        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
+
+        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
+        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
+
+        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
+                                                         self.normalize_std)])
+
+        if seq_name:
+            assert seq_name in self._train_folders or seq_name in self._test_folders, \
+                'Image set does not exist: {}'.format(seq_name)
+
+            self.data = self._sequence()
+        else:
+            self.data = []
+
+    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
+        # FRCNN detections
+        if "CVPR19" in self._seq_name:
+            det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
+        else:
+            det_file = ""
+        return det_file
+
+    def write_results(self, all_tracks, output_dir):
+        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        file = osp.join(output_dir, f'{self._seq_name}.txt')
+
+        print("[*] Writing to: {}".format(file))
+
+        with open(file, "w") as of:
+            writer = csv.writer(of, delimiter=',')
+            for i, track in all_tracks.items():
+                for frame, bb in track.items():
+                    x1 = bb[0]
+                    y1 = bb[1]
+                    x2 = bb[2]
+                    y2 = bb[3]
+                    writer.writerow(
+                        [frame + 1, i + 1, x1 + 1, y1 + 1, x2 - x1 + 1, y2 - y1 + 1, -1, -1, -1, -1])
+
+
+class MOT17LOWFPS_Sequence(MOT17_Sequence):
+
+    def __init__(self, split, seq_name=None, dets=''):
+        """
+        Args:
+            seq_name (string): Sequence to take
+            vis_threshold (float): Threshold of visibility of persons above which they are selected
+        """
+        self._seq_name = seq_name
+        self._dets = dets
+
+        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
+        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
+
+        # TODO: refactor code of both classes to consider 16,17 and 19
+        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
+        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
+
+        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
+        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
+
+        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
+                                                         self.normalize_std)])
+
+        if seq_name:
+            assert seq_name in self._train_folders or seq_name in self._test_folders, \
+                'Image set does not exist: {}'.format(seq_name)
+
+            self.data = self._sequence()
+        else:
+            self.data = []
