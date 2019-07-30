@@ -36,19 +36,27 @@ In addition to our supplementary document, we provide an illustrative [web-video
     2. Extract in `output` directory.
 
 ## Evaluate Tracktor++
+In order to configure, organize, log and reproduce our computational experiments we structured our code with the [Sacred](http://sacred.readthedocs.io/en/latest/index.html) framework. For a detailed explanation of the Sacred interface please read its documentation.
 
-1. Modify `experiments/cfgs/tracker.yaml` to your needs, especially frcnn_weights, frcnn_config, siamese_weights and siamese_config need to point to the right places.
+1. Our Tracktor can be configured by changing the corresponding `experiments/cfgs/tracker.yaml` config file. The default configuration runs Tracktor++ with the FPN object detector as described in the paper.
 
-2. Run the tracker from the root folder:
+2. Run Tracktor by executing:
+
   ```
   python experiments/scripts/test_tracktor.py
   ```
-To evaluate the results install the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).
 
-<!-- ## Pretrained weights -->
-<!-- Weights for the tracker that were used to prduce the results in the corresponding paper are provided in a [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i). Just add them to the according folders in the repository. Faster R-CNN weights trained on MOT17Det and weights for the siamese network also trained on MOT17Det are provided. Additionaly the weights pretrained on imagenet needed to retrain the Faster R-CNN linked to in the Readme.md under "Train your own model" are provided if the original ones should disappear for whatever reason. -->
+3. The results will be logged in the corresponding `output` directory. To evaluate the results download and run the official [MOTChallenge devkit](https://bitbucket.org/amilan/motchallenge-devkit).
 
-## Train and test object detector (Faster R-CNN)
+
+
+## Train and test object detector
+# Faster R-CNN + FPN
+
+
+## Train and test object detector
+# Faster R-CNN
+
 1. Download pretrained models for VGG16 or Res101 as described in the Readme.md under "Train your own model" and paste them inside data/imagenet_weights/ and name them "vgg16.pth" or "res101.pth". Alternatively the same files are provided in the [google drive folder](https://drive.google.com/open?id=1tnM3ap7NaYY00cEn5i2S2Zheq4lpyc4i).
 
 2. Train the Faster R-CNN with:
@@ -63,12 +71,11 @@ To evaluate the results install the official [MOTChallenge devkit](https://bitbu
   ```
   inside the root folder. Link to config file is in the respective `output` subdirectory, e.g., `output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml`.
 
-## Training the Siamese CNN
-For reidentification a siamese CNN has to be trained. Follow these instructions to do so:
+## Training the re-identifaction Siamese network
 
-1. Modify experiments/cfgs/siamese.yaml to your needs.
+1. The training config file is located at `experiments/cfgs/siamese.yaml`.
 
-2. Run from the root folder:
+2. Start training by executing:
   ```
   python experiments/scripts/train_siamese.py
   ```
