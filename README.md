@@ -52,7 +52,12 @@ In order to configure, organize, log and reproduce our computational experiments
 
 We pretrained the object detector on PASCAL VOC and did an extensive hyperparameter cross-validation. The resulting training command is:
   ```
-  python trainval_net.py v1 --dataset mot_2017_train --net res101 --bs 2 --nw 4 --epochs 38 --save_dir weights --cuda --use_tfboard True --lr_decay_step 20 --pre_checkpoint weights/res101/pascal_voc_0712/v2/fpn_1_12_16550.pth --pre_file weights/res101/pascal_voc_0712/v2/config.yaml
+  python trainval_net.py voc_init_iccv19 --dataset mot_2017_train --net res101 --bs 2 --nw 4 --epochs 38 --save_dir weights --cuda --use_tfboard True --lr_decay_step 20 --pre_checkpoint weights/res101/pascal_voc_0712/v2/fpn_1_12.pth --pre_file weights/res101/pascal_voc_0712/v2/config.yaml
+  ```
+
+Test the provided object detector by executing:
+  ```
+  python experiments/scripts/test_fpn.py voc_init_iccv19 --cuda --net res101 --dataset mot_2017_train --imdbval_name mot_2017_train --checkepoch 27
   ```
 
 ## Training the re-identifaction Siamese network
