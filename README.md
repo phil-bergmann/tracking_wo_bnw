@@ -14,7 +14,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
   cd tracking_wo_bnw
   ```
 
-2. Install packages for Python 3.6:
+2. Install packages for Python 3.6 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
     2. Faster R-CNN + FPN: `pip3 install -e src/fpn`
     3. (**Optional**) Faster R-CNN: `pip3 install -e src/frcnn`

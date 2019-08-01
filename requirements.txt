@@ -25,7 +25,7 @@ msgpack==0.6.0
 munch==2.3.2
 neovim==0.3.1
 numpy==1.16.2
-opencv-python==4.0.1.23
+opencv-python==4.0.1.*
 pandas==0.24.2
 Pillow==5.1.0
 protobuf==3.6.1
