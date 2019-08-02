@@ -24,7 +24,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
 3. Compile Faster R-CNN + FPN and Faster R-CNN:
     1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set (in particular `export CPATH=/usr/local/cuda-9.0/include`).
     2. `sh src/fpn/fpn/make.sh`
-    3. (**Optional**) `sh src/frcnn/frcnn/make.sh`
+    3. `sh src/frcnn/frcnn/make.sh`
 
 4. MOTChallenge data:
     1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
@@ -38,7 +38,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
 ## Evaluate Tracktor++
 In order to configure, organize, log and reproduce our computational experiments we structured our code with the [Sacred](http://sacred.readthedocs.io/en/latest/index.html) framework. For a detailed explanation of the Sacred interface please read its documentation.
 
-1. Our Tracktor can be configured by changing the corresponding `experiments/cfgs/tracker.yaml` config file. The default configuration runs Tracktor++ with the FPN object detector as described in the paper.
+1. Our Tracktor can be configured by changing the corresponding `experiments/cfgs/tracktor.yaml` config file. The default configuration runs Tracktor++ with the FPN object detector as described in the paper.
 
 2. Run Tracktor by executing:
 
