@@ -5,7 +5,7 @@ tracktor:
   desription:
   seed: 12345
   # frcnn or fpn
-  network: frcnn
+  network: fpn
 
   # frcnn
   # obj_detect_weights: output/frcnn/res101/mot_2017_train/180k/res101_faster_rcnn_iter_180000.pth

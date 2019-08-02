@@ -18,8 +18,6 @@ Keras-Applications==1.0.6
 Keras-Preprocessing==1.0.5
 Markdown==3.0.1
 matplotlib==2.1.2
-mkl-fft==1.0.6
-mkl-random==1.0.1
 mock==2.0.0
 msgpack==0.6.0
 munch==2.3.2

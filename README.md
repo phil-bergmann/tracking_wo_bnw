@@ -23,13 +23,19 @@ In addition to our supplementary document, we provide an illustrative [web-video
 
 3. Compile Faster R-CNN + FPN and Faster R-CNN:
     1. Make sure the `nvcc` compiler with CUDA 9.0 is working and all CUDA paths are set (in particular `export CPATH=/usr/local/cuda-9.0/include`).
-    2. `sh src/fpn/fpn/make.sh`
-    3. `sh src/frcnn/frcnn/make.sh`
+    2. Compile with: `sh src/fpn/fpn/make.sh`
+    3. Compile with: `sh src/frcnn/frcnn/make.sh`
 
 4. MOTChallenge data:
-    1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip) and extract the `MOT17Det` folder into the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
-    2. Download the benchmark label and/or detection files for [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16Labels.zip), [MOT16Labels](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and extract them in the `data` folder.
-    3. (**Optional**) Download the [2DMOT15 dataset](https://motchallenge.net/data/2DMOT2015.zip) and extract it in the `data` folder.
+    1. Download [MOT17Det dataset](https://motchallenge.net/data/MOT17Det.zip), [MOT16Labels](https://motchallenge.net/data/MOT16Labels.zip), [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and place them in the `data` folder. As the images are the same for MOT17Det, MOT17 and MOT16 we only need one set of images for all three benchmarks.
+    2. Unzip all the data by executing:
+    ```
+    unzip -d MOT17Det MOT17Det.zip
+    unzip -d MOT16Labels MOT16Labels.zip
+    unzip -d 2DMOT2015 2DMOT2015.zip
+    unzip -d MOT16-det-dpm-raw MOT16-det-dpm-raw.zip
+    unzip -d MOT17Labels MOT17Labels.zip
+    ```
 
 5. Download object detector and re-identifiaction Siamese network weights and MOTChallenge result files for ICCV 2019:
     1. Download zip file from [here](https://drive.google.com/open?id=1E0seC4zSdAsKUNScv4M0eAu7fG_v65_Q).
