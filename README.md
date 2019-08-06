@@ -17,7 +17,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
 2. Install packages for Python 3.6 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
     2. Faster R-CNN + FPN: `pip3 install -e src/fpn`
-    3. (**Optional**) Faster R-CNN: `pip3 install -e src/frcnn`
+    3. Faster R-CNN: `pip3 install -e src/frcnn`
     4. Tracktor: `pip3 install -e .`
     5. PyTorch 0.3.1 for CUDA 9.0: `pip install https://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl`
 

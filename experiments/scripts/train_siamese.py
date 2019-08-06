@@ -1,5 +1,3 @@
-import _init_paths
-
 from sacred import Experiment
 import os.path as osp
 import os
@@ -10,10 +8,10 @@ import cv2
 import torch
 from torch.utils.data import DataLoader
 
-from tracker.config import get_output_dir, get_tb_dir
-from tracker.solver import Solver
-from tracker.datasets.factory import Datasets
-from tracker.resnet import resnet50
+from tracktor.config import get_output_dir, get_tb_dir
+from tracktor.solver import Solver
+from tracktor.datasets.factory import Datasets
+from tracktor.resnet import resnet50
 
 ex = Experiment()
 ex.add_config('experiments/cfgs/siamese.yaml')
@@ -53,7 +51,7 @@ def my_main(_config, siamese):
         #db_val = DataLoader(db_val, batch_size=1, shuffle=True)
     else:
         db_val = None
-    
+
     ##########################
     # Initialize the modules #
     ##########################
@@ -66,7 +64,7 @@ def my_main(_config, siamese):
     # Begin training #
     ##################
     print("[*] Solving ...")
-    
+
     # build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
     # from Hermans et al.
     lr = siamese['solver']['optim_args']['lr']
@@ -79,7 +77,7 @@ def my_main(_config, siamese):
     max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
     solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
     solver.train(network, db_train, db_val, max_epochs, 100, model_args=siamese['model_args'])
-    
-    
-    
-    
+
+
+
+
