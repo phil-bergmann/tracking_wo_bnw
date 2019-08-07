@@ -20,13 +20,10 @@ class MOT17_Sequence(Dataset):
     This dataloader is designed so that it can handle only one sequence, if more have to be
     handled one should inherit from this class.
     """
-    normalize_mean = [0.485, 0.456, 0.406]
-    normalize_std = [0.229, 0.224, 0.225]
-    # normalize_mean = [0.4038, 0.4546, 0.4814]
-    # normalize_std = [1.0, 1.0, 1.0]
-    vis_threshold = 0.0
 
-    def __init__(self, seq_name=None, dets=''):
+    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
+                 normalize_mean=[0.485, 0.456, 0.406],
+                 normalize_std=[0.229, 0.224, 0.225]):
         """
         Args:
             seq_name (string): Sequence to take
@@ -34,6 +31,7 @@ class MOT17_Sequence(Dataset):
         """
         self._seq_name = seq_name
         self._dets = dets
+        self._vis_threshold = vis_threshold
 
         self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
         self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
@@ -43,8 +41,8 @@ class MOT17_Sequence(Dataset):
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
-        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
-                                                         self.normalize_std)])
+        self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
+                                                         normalize_std)])
 
         if seq_name:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
@@ -133,7 +131,7 @@ class MOT17_Sequence(Dataset):
                 reader = csv.reader(inf, delimiter=',')
                 for row in reader:
                     # class person, certainity 1, visibility >= 0.25
-                    if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self.vis_threshold:
+                    if int(row[6]) == 1 and int(row[7]) == 1 and float(row[8]) >= self._vis_threshold:
                         # Make pixel indexes 0-based, should already be 0-based (or not)
                         x1 = int(row[2]) - 1
                         y1 = int(row[3]) - 1
@@ -246,8 +244,9 @@ class MOT17_Sequence(Dataset):
 
 class MOT19CVPR_Sequence(MOT17_Sequence):
 
-
-    def __init__(self, seq_name=None, dets=''):
+    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
+                 normalize_mean=[0.485, 0.456, 0.406],
+                 normalize_std=[0.229, 0.224, 0.225]):
         """
         Args:
             seq_name (string): Sequence to take
@@ -309,7 +308,9 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
 
 class MOT17LOWFPS_Sequence(MOT17_Sequence):
 
-    def __init__(self, split, seq_name=None, dets=''):
+    def __init__(self, split, seq_name=None, dets='', vis_threshold=0.0,
+                 normalize_mean=[0.485, 0.456, 0.406],
+                 normalize_std=[0.229, 0.224, 0.225]):
         """
         Args:
             seq_name (string): Sequence to take

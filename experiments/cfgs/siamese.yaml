@@ -24,7 +24,7 @@ siamese:
   dataloader:
     # all targets with visibility lower than this are filtered out, for kitti set it to
     # a sequence with maximal [truncation, occlusion] levels
-    vis_threshold: 0.5
+    vis_threshold: 0.3
     P: 18
     K: 4
     # limit maximum number of images per identity
