@@ -298,7 +298,7 @@ def my_main(_config):
 
             gt_file = osp.join("data/MOT17Labels", "train", s, "gt", "gt.txt")
             det_file = osp.join("data/MOT17Labels", "train", s, "det", "det.txt")
-            res_file = osp.join("output/tracker/MOT17", t, s+".txt")
+            res_file = osp.join("output/tracktor/MOT17", t, s+".txt")
 
             ####################################################################
 
@@ -634,7 +634,7 @@ def my_main(_config):
         color='white'
     if "SDP" in detections:
         color='white'
-    plt.ylabel('Tracked objects per length (\%)', fontsize=fontsize, color=color)
+    plt.ylabel('Tracked objects [\%]', fontsize=fontsize, color=color)
     plt.xlim((np.min(det_gaps),x_max))
     plt.ylim((0,1.0))
     color='black'
@@ -642,7 +642,7 @@ def my_main(_config):
         color='white'
     if "SDP" in detections:
         color='white'
-    plt.xlabel('Gap length in detections', fontsize=fontsize, color=color)
+    plt.xlabel('Gap length in public detections', fontsize=fontsize, color=color)
     if "FRCNN" in detections:
         plt.legend(loc = 'upper right', fontsize=tickfontsize)
 
@@ -651,6 +651,7 @@ def my_main(_config):
     #sns.kdeplot(det_gaps, cut=0, color="red", shade=True, linewidth=0)
     sns.distplot(det_gaps, bins=8,  color="red", norm_hist=False, ax=ax2, kde=False, hist_kws={"rwidth":0.95, 'range': (np.min(det_gaps),x_max)})
     ax2.tick_params(labelsize=tickfontsize)
+
     #plt.setp(ax2.get_yticklabels(), visible=False)
     #ax2.tick_params(axis='y', which='both', length=0)
     color='black'

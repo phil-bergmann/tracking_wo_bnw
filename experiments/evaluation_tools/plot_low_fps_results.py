@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 
 import seaborn as sns
-sns.set_palette('deep')
+# sns.set_palette('deep')
 sns.set(font_scale=1.5, rc={'text.usetex': True})
 
+plt.style.use('default')
 
 if __name__ == "__main__":
     results_dir = 'output/tracktor'
@@ -67,11 +68,20 @@ if __name__ == "__main__":
     #                    'FPS': 30 // np.array(frame_skips)})
     # ax = sns.lineplot(data=pd.melt(df, ['FPS']), x='FPS', y='value')
     ax1.set(xticks=30 // np.array(frame_skips))
-    ax1.set_ylim([40, 65])
-    ax1.set_aspect(aspect=0.4)
+    ax1.set_ylim([30, 65])
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.set_aspect(aspect=0.5)
 
-    plt.legend(loc='lower right', fontsize=tickfontsize)
-    plt.savefig('low_fps.pdf', format='pdf', bbox_inches='tight')
+    # plt.grid()
 
+    # ax1.set_aspect(aspect=0.4)
+    # ax1.patch.set_edgecolor('black')
+    # ax1.patch.set_facecolor('white')
 
+    legend = plt.legend(loc='lower right', fontsize=tickfontsize)
+    frame = legend.get_frame()
+    frame.set_facecolor('white')
 
+    plt.savefig('mot17_low_fps_tracktor.pdf',
+                format='pdf', bbox_inches='tight')

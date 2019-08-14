@@ -22,7 +22,7 @@ tracktor:
   # compile video with: `ffmpeg -f image2 -framerate 15 -i %06d.jpg -vcodec libx264 -y movie.mp4 -vf scale=320:-1`
   write_images: False
   # dataset (look into tracker/datasets/factory.py)
-  dataset: mot17_train_DPM17
+  dataset: mot17_train_FRCNN17
   # [start percentage, end percentage], e.g., [0.0, 0.5] for train and [0.75, 1.0] for val split.
   frame_split: [0.0, 1.0]
 

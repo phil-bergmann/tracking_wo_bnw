@@ -675,7 +675,7 @@ def my_main(_config):
         color='white'
     if "SDP" in detections:
         color='white'
-    ax1.set_ylabel('Tracked objects (\%)', fontsize=fontsize, color=color)
+    ax1.set_ylabel('Tracked objects [\%]', fontsize=fontsize, color=color)
     #plt.title('height distribution from highly visible targets (>= 0.9)')
 
     plt.savefig(osp.join(output_dir, "heights09-{}.pdf".format(detections)), format='pdf', bbox_inches='tight')
@@ -713,8 +713,8 @@ def my_main(_config):
         ax1.set_xlim((0,1.0))
         ax1.tick_params(labelsize=tickfontsize)
         ax1.legend(loc = 'upper left', fontsize=tickfontsize)
-        ax1.set_xlabel('Object visibility (\%)', fontsize=fontsize)
-        ax1.set_ylabel('Tracked objects (\%)', fontsize=fontsize)
+        ax1.set_xlabel('Object visibility [\%]', fontsize=fontsize)
+        ax1.set_ylabel('Tracked objects [\%]', fontsize=fontsize)
         #plt.title('visibility distribution of all targets')
 
         plt.savefig(osp.join(output_dir, "vis-{}.pdf".format(detections)), format='pdf', bbox_inches='tight')
