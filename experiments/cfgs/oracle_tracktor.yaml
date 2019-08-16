@@ -10,6 +10,9 @@ tracktor:
   oracle:
     # use last tracked gt_id to reid (oracle-all)
     reid_oracle: False
+    # regress tracks? (standard: True)
+    # must be False for oracle-reg (and oracle-all)
+    regress: True
     # move bb to gt every time before regression (oracle-reg, oracle-mm, oracle-all)
     pos_oracle: False
     # only shift center coordinates (pos oracle must be True) (oracle-mm)
@@ -17,6 +20,3 @@ tracktor:
     pos_oracle_center_only: False
     # use gt data to decide whether to kill track (score and nms) (oracle-all)
     kill_oracle: True
-    # regress tracks? (standard: True)
-    # must be False for oracle-reg (and oracle-all)
-    regress: True

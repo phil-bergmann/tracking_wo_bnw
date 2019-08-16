@@ -132,8 +132,8 @@ def plot_sequence(tracks, db, output_dir):
 							fill=False,
 							linewidth=1.0, **styles[j]))
 
-				# ax.annotate(j, (t_i[0] + (t_i[2] - t_i[0]) / 2.0, t_i[1] + (t_i[3] - t_i[1]) / 2.0),
-				#             color=styles[j]['ec'], weight='bold', fontsize=6, ha='center', va='center')
+				ax.annotate(j, (t_i[0] + (t_i[2] - t_i[0]) / 2.0, t_i[1] + (t_i[3] - t_i[1]) / 2.0),
+				            color=styles[j]['ec'], weight='bold', fontsize=6, ha='center', va='center')
 
 		plt.axis('off')
 		# plt.tight_layout()
@@ -158,9 +158,6 @@ def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
 
 	tracks = tracks.data.cpu().numpy() / im_scales
 	num_tracks = tracks.shape[0]
-
-	#print(tracks.shape)
-	#print(tracks)
 
 	fig, ax = plt.subplots(1,2,figsize=(12, 6))
 
@@ -216,8 +213,6 @@ def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
 
 def interpolate(tracks):
 	interpolated = {}
-	# print(tracks)
-	# print(tracks.keys())
 	for i, track in tracks.items():
 		interpolated[i] = {}
 		frames = []
@@ -245,7 +240,6 @@ def interpolate(tracks):
 		else:
 			interpolated[i][frames[0]] = np.array([x0[0], y0[0], x1[0], y1[0]])
 
-	# print(interpolated.keys())
 	return interpolated
 
 

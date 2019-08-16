@@ -359,7 +359,7 @@ class Tracker():
 				# new_features = self.get_appearances(blob)
 
 				# nms here if tracks overlap
-				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1,1)),1)
+				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1, 1)), 1)
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
 
 				self.tracks_to_inactive([self.tracks[i]
