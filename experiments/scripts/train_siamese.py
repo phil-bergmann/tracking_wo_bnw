@@ -74,7 +74,7 @@ def my_main(_config, siamese):
                                                                 iters_per_epoch,  iters_per_epoch))
     #else:
     #   l = None
-    max_epochs = 25000 // len(db_train.dataset) + 1 if 25000%len(db_train.dataset) else 25000 // len(db_train.dataset)
+    max_epochs = 25000 // len(db_train.dataset) + 1 if 25000 % len(db_train.dataset) else 25000 // len(db_train.dataset)
     solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
     solver.train(network, db_train, db_val, max_epochs, 100, model_args=siamese['model_args'])
 

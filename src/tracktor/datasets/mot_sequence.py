@@ -265,8 +265,8 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
-        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
-                                                         self.normalize_std)])
+        self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
+                                                         normalize_std)])
 
         if seq_name:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
@@ -329,8 +329,8 @@ class MOT17LOWFPS_Sequence(MOT17_Sequence):
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
-        self.transforms = Compose([ToTensor(), Normalize(self.normalize_mean,
-                                                         self.normalize_std)])
+        self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
+                                                         normalize_std)])
 
         if seq_name:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
