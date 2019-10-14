@@ -76,3 +76,23 @@ Test the provided object detector by executing:
   python experiments/scripts/train_siamese.py
   ```
 
+## Publication
+ If you use this software in your research, please cite our publication:
+ 
+```
+@article{DBLP:journals/corr/abs-1903-05625,
+    author    = {Philipp Bergmann and
+                Tim Meinhardt and
+                Laura Leal{-}Taix{\'{e}}},
+    title     = {Tracking without bells and whistles},
+    journal   = {CoRR},
+    volume    = {abs/1903.05625},
+    year      = {2019},
+    url       = {http://arxiv.org/abs/1903.05625},
+    archivePrefix = {arXiv},
+    eprint    = {1903.05625},
+    timestamp = {Sun, 31 Mar 2019 19:01:24 +0200},
+    biburl    = {https://dblp.org/rec/bib/journals/corr/abs-1903-05625},
+    bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+```

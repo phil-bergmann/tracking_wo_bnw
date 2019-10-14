@@ -254,6 +254,7 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
         """
         self._seq_name = seq_name
         self._dets = dets
+        self._vis_threshold = vis_threshold
 
         self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
         self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
@@ -318,6 +319,7 @@ class MOT17LOWFPS_Sequence(MOT17_Sequence):
         """
         self._seq_name = seq_name
         self._dets = dets
+        self._vis_threshold = vis_threshold
 
         self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
         self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
