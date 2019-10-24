@@ -1,17 +1,15 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import os.path as osp
-import pprint
+from os import path as osp
 import time
+import yaml
 
 import numpy as np
 import torch
-import yaml
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
-
 from sacred import Experiment
+
 from tracktor.config import get_output_dir
 from tracktor.datasets.factory import Datasets
 from tracktor.oracle_tracker import OracleTracker
@@ -118,7 +116,7 @@ def my_main(tracktor, siamese, _config):
 
         data_loader = DataLoader(sequence, batch_size=1, shuffle=False)
         for i, frame in enumerate(data_loader):
-            if i >= len(sequence) * tracktor['frame_split'][0] and i <= len(sequence) * tracktor['frame_split'][1]:
+            if len(sequence) * tracktor['frame_split'][0] <= i <= len(sequence) * tracktor['frame_split'][1]:
                 tracker.step(frame)
         results = tracker.get_results()
 

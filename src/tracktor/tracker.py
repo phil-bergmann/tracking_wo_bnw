@@ -1,20 +1,17 @@
-import os
 from collections import deque
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scipy.optimize import linear_sum_assignment
-from scipy.spatial.distance import cdist
 from torch.autograd import Variable
-
+from scipy.optimize import linear_sum_assignment
 import cv2
-from frcnn.model.nms_wrapper import nms
 
+from frcnn.model.nms_wrapper import nms
 from .utils import bbox_overlaps, bbox_transform_inv, warp_pos, clip_boxes, get_center, get_height, get_width, make_pos
 
 
-class Tracker():
+class Tracker:
 	"""The main tracking file, here is where magic happens."""
 	# only track pedestrian
 	cl = 1
@@ -39,7 +36,11 @@ class Tracker():
 		self.number_of_iterations = tracker_cfg['number_of_iterations']
 		self.termination_eps = tracker_cfg['termination_eps']
 
-		self.reset()
+		self.tracks = []
+		self.inactive_tracks = []
+		self.track_num = 0
+		self.im_index = 0
+		self.results = {}
 
 	def reset(self, hard=True):
 		self.tracks = []
@@ -61,10 +62,10 @@ class Tracker():
 		num_new = new_det_pos.size(0)
 		for i in range(num_new):
 			self.tracks.append(Track(
-				new_det_pos[i].view(1,-1),
+				new_det_pos[i].view(1, -1),
 				new_det_scores[i],
 				self.track_num + i,
-				new_det_features[i].view(1,-1),
+				new_det_features[i].view(1, -1),
 				self.inactive_patience,
 				self.max_features_num,
 				self.motion_model_cfg['n_steps'] if self.motion_model_cfg['n_steps'] > 0 else 1
@@ -79,11 +80,11 @@ class Tracker():
 		_, scores, bbox_pred, rois = self.obj_detect.test_rois(pos)
 		boxes = bbox_transform_inv(rois, bbox_pred)
 		boxes = clip_boxes(Variable(boxes), blob['im_info'][0][:2]).data
-		pos = boxes[:, self.cl*4:(self.cl+1)*4]
+		pos = boxes[:, self.cl * 4:(self.cl + 1) * 4]
 		scores = scores[:, self.cl]
 
 		s = []
-		for i in range(len(self.tracks)-1,-1,-1):
+		for i in range(len(self.tracks) - 1, -1, -1):
 			t = self.tracks[i]
 			t.score = scores[i]
 			if scores[i] <= self.regression_person_thresh:
@@ -91,7 +92,8 @@ class Tracker():
 			else:
 				s.append(scores[i])
 				# t.prev_pos = t.pos
-				t.pos = pos[i].view(1,-1)
+				t.pos = pos[i].view(1, -1)
+
 		return torch.Tensor(s[::-1]).cuda()
 
 	def get_pos(self):
@@ -99,7 +101,7 @@ class Tracker():
 		if len(self.tracks) == 1:
 			pos = self.tracks[0].pos
 		elif len(self.tracks) > 1:
-			pos = torch.cat([t.pos for t in self.tracks],0)
+			pos = torch.cat([t.pos for t in self.tracks], 0)
 		else:
 			pos = torch.zeros(0).cuda()
 		return pos
@@ -109,7 +111,7 @@ class Tracker():
 		if len(self.tracks) == 1:
 			features = self.tracks[0].features
 		elif len(self.tracks) > 1:
-			features = torch.cat([t.features for t in self.tracks],0)
+			features = torch.cat([t.features for t in self.tracks], 0)
 		else:
 			features = torch.zeros(0).cuda()
 		return features
@@ -119,7 +121,7 @@ class Tracker():
 		if len(self.inactive_tracks) == 1:
 			features = self.inactive_tracks[0].features
 		elif len(self.inactive_tracks) > 1:
-			features = torch.cat([t.features for t in self.inactive_tracks],0)
+			features = torch.cat([t.features for t in self.inactive_tracks], 0)
 		else:
 			features = torch.zeros(0).cuda()
 		return features
@@ -129,14 +131,13 @@ class Tracker():
 		new_det_features = self.reid_network.test_rois(blob['app_data'][0], new_det_pos / blob['im_info'][0][2]).data
 		if len(self.inactive_tracks) >= 1 and self.do_reid:
 			# calculate appearance distances
-			dist_mat = []
-			pos = []
+			dist_mat, pos = [], []
 			for t in self.inactive_tracks:
-				dist_mat.append(torch.cat([t.test_features(feat.view(1,-1)) for feat in new_det_features], 1))
+				dist_mat.append(torch.cat([t.test_features(feat.view(1, -1)) for feat in new_det_features], 1))
 				pos.append(t.pos)
 			if len(dist_mat) > 1:
 				dist_mat = torch.cat(dist_mat, 0)
-				pos = torch.cat(pos,0)
+				pos = torch.cat(pos, 0)
 			else:
 				dist_mat = dist_mat[0]
 				pos = pos[0]
@@ -145,22 +146,22 @@ class Tracker():
 			iou = bbox_overlaps(pos, new_det_pos)
 			iou_mask = torch.ge(iou, self.reid_iou_threshold)
 			iou_neg_mask = ~iou_mask
-			# make all impossible assignemnts to the same add big value
-			dist_mat = dist_mat * iou_mask.float() + iou_neg_mask.float()*1000
+			# make all impossible assignments to the same add big value
+			dist_mat = dist_mat * iou_mask.float() + iou_neg_mask.float() * 1000
 			dist_mat = dist_mat.cpu().numpy()
 
 			row_ind, col_ind = linear_sum_assignment(dist_mat)
 
 			assigned = []
 			remove_inactive = []
-			for r,c in zip(row_ind, col_ind):
-				if dist_mat[r,c] <= self.reid_sim_threshold:
+			for r, c in zip(row_ind, col_ind):
+				if dist_mat[r, c] <= self.reid_sim_threshold:
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
 					t.count_inactive = 0
-					t.pos = new_det_pos[c].view(1,-1)
+					t.pos = new_det_pos[c].view(1, -1)
 					t.reset_last_pos()
-					t.add_features(new_det_features[c].view(1,-1))
+					t.add_features(new_det_features[c].view(1, -1))
 					assigned.append(c)
 					remove_inactive.append(t)
 
@@ -185,29 +186,24 @@ class Tracker():
 
 	def add_features(self, new_features):
 		"""Adds new appearance features to active tracks."""
-		for t,f in zip(self.tracks, new_features):
-			t.add_features(f.view(1,-1))
+		for t, f in zip(self.tracks, new_features):
+			t.add_features(f.view(1, -1))
 
 	def align(self, blob):
 		"""Aligns the positions of active and inactive tracks depending on camera motion."""
 		if self.im_index > 0:
 			im1 = self.last_image.cpu().numpy()
 			im2 = blob['data'][0][0].cpu().numpy()
-			im1_gray = cv2.cvtColor(im1,cv2.COLOR_BGR2GRAY)
-			im2_gray = cv2.cvtColor(im2,cv2.COLOR_BGR2GRAY)
-			sz = im1.shape
-			warp_mode = self.warp_mode
+			im1_gray = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+			im2_gray = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
 			warp_matrix = np.eye(2, 3, dtype=np.float32)
-			#number_of_iterations = 5000
-			number_of_iterations = self.number_of_iterations
-			termination_eps = self.termination_eps
-			criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
-			(cc, warp_matrix) = cv2.findTransformECC (im1_gray,im2_gray,warp_matrix, warp_mode, criteria)
+			criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, self.number_of_iterations,  self.termination_eps)
+			cc, warp_matrix = cv2.findTransformECC(im1_gray, im2_gray, warp_matrix, self.warp_mode, criteria)
 			warp_matrix = torch.from_numpy(warp_matrix)
 
 			for t in self.tracks:
 				t.pos = warp_pos(t.pos, warp_matrix)
-				#t.pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
+				# t.pos = clip_boxes(Variable(pos), blob['im_info'][0][:2]).data
 
 			if self.do_reid:
 				for t in self.inactive_tracks:
@@ -256,11 +252,12 @@ class Tracker():
 		###########################
 		# Look for new detections #
 		###########################
+
 		self.obj_detect.load_image(blob['data'][0], blob['im_info'][0])
 		if self.public_detections:
 			dets = blob['dets']
 			if len(dets) > 0:
-				dets = torch.cat(dets, 0)[:,:4]
+				dets = torch.cat(dets, 0)[:, :4]
 				_, scores, bbox_pred, rois = self.obj_detect.test_rois(dets)
 			else:
 				rois = torch.zeros(0).cuda()
@@ -279,7 +276,7 @@ class Tracker():
 
 		if inds.nelement() > 0:
 			boxes = boxes[inds]
-			det_pos = boxes[:, self.cl*4:(self.cl+1)*4]
+			det_pos = boxes[:, self.cl * 4:(self.cl + 1) * 4]
 			det_scores = scores[inds]
 		else:
 			det_pos = torch.zeros(0).cuda()
@@ -288,6 +285,7 @@ class Tracker():
 		##################
 		# Predict tracks #
 		##################
+
 		num_tracks = 0
 		nms_inp_reg = torch.zeros(0).cuda()
 		if len(self.tracks):
@@ -300,11 +298,10 @@ class Tracker():
 				self.motion()
 				self.tracks = [t for t in self.tracks if t.has_positive_area()]
 
-			#regress
+			# regress
 			person_scores = self.regress_tracks(blob)
 
 			if len(self.tracks):
-
 				# create nms input
 				# new_features = self.get_appearances(blob)
 
@@ -312,12 +309,10 @@ class Tracker():
 				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1, 1)), 1)
 				keep = nms(nms_inp_reg, self.regression_nms_thresh)
 
-				self.tracks_to_inactive([self.tracks[i]
-				                         for i in list(range(len(self.tracks)))
-				                         if i not in keep])
+				self.tracks_to_inactive([self.tracks[i] for i in list(range(len(self.tracks))) if i not in keep])
 
 				if keep.nelement() > 0:
-					nms_inp_reg = torch.cat((self.get_pos(), torch.ones(self.get_pos().size(0)).add_(3).view(-1,1).cuda()),1)
+					nms_inp_reg = torch.cat((self.get_pos(), torch.ones(self.get_pos().size(0)).add_(3).view(-1, 1).cuda()), 1)
 					new_features = self.get_appearances(blob)
 
 					self.add_features(new_features)
@@ -336,7 +331,7 @@ class Tracker():
 		# !!! In the paper this is done by calculating the overlap with existing tracks, but the
 		# !!! result stays the same.
 		if det_pos.nelement() > 0:
-			nms_inp_det = torch.cat((det_pos, det_scores.view(-1,1)), 1)
+			nms_inp_det = torch.cat((det_pos, det_scores.view(-1, 1)), 1)
 		else:
 			nms_inp_det = torch.zeros(0).cuda()
 		if nms_inp_det.nelement() > 0:
@@ -346,17 +341,17 @@ class Tracker():
 			for i in range(num_tracks):
 				nms_inp = torch.cat((nms_inp_reg[i].view(1,-1), nms_inp_det), 0)
 				keep = nms(nms_inp, self.detection_nms_thresh)
-				keep = keep[torch.ge(keep,1)]
+				keep = keep[torch.ge(keep, 1)]
 				if keep.nelement() == 0:
 					nms_inp_det = nms_inp_det.new(0)
 					break
 				nms_inp_det = nms_inp[keep]
 
 		if nms_inp_det.nelement() > 0:
-			new_det_pos = nms_inp_det[:,:4]
-			new_det_scores = nms_inp_det[:,4]
+			new_det_pos = nms_inp_det[:, :4]
+			new_det_scores = nms_inp_det[:, 4]
 
-			# try to redientify tracks
+			# try to reidentify tracks
 			new_det_pos, new_det_scores, new_det_features = self.reid(blob, new_det_pos, new_det_scores)
 
 			# add new
