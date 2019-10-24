@@ -128,6 +128,7 @@ class OracleTracker(Tracker):
 					t = self.inactive_tracks[r]
 					self.tracks.append(t)
 					t.count_inactive = 0
+					t.reset_last_pos()
 					t.pos = new_det_pos[c].view(1,-1)
 					t.add_features(new_det_features[c].view(1,-1))
 					assigned.append(c)
@@ -174,6 +175,7 @@ class OracleTracker(Tracker):
 								t.pos = new_det_pos[r,:].view(1,-1)
 							self.inactive_tracks.remove(t)
 							self.tracks.append(t)
+							t.reset_last_pos()
 							assigned.append(r)
 
 			keep = torch.Tensor([i for i in range(new_det_pos.size(0)) if i not in assigned]).long().cuda()
@@ -359,7 +361,8 @@ class OracleTracker(Tracker):
 
 	def step(self, blob):
 		for t in self.tracks:
-			t.last_pos = t.pos.clone()
+			# add current position to last_pos list
+			t.last_pos.append(t.pos.clone())
 
 		###########################
 		# Look for new detections #
@@ -427,6 +430,13 @@ class OracleTracker(Tracker):
 				self.align(blob)
 			if self.pos_oracle or self.kill_oracle:
 				self.oracle(blob)
+			elif self.motion_model_cfg['enabled']:
+				self.motion()
+				if self.reid_oracle:
+					self.tracks_to_inactive([t for t in self.tracks if not t.has_positive_area()])
+				else:
+					self.tracks = [t for t in self.tracks if t.has_positive_area()]
+
 			#regress
 			if len(self.tracks):
 				person_scores = self.regress_tracks(blob)
@@ -505,8 +515,13 @@ class OracleTracker(Tracker):
 			sc = t.score
 			self.results[track_ind][self.im_index] = np.concatenate([pos.cpu().numpy(), np.array([sc])])
 
-		self.im_index += 1
-		self.last_image = blob['data'][0][0]
+		for t in self.inactive_tracks:
+			t.count_inactive += 1
 
 		if not self.reid_oracle:
-			self.clear_inactive()
+			self.inactive_tracks = [
+				t for t in self.inactive_tracks if t.has_positive_area() and t.count_inactive <= self.inactive_patience
+			]
+
+		self.im_index += 1
+		self.last_image = blob['data'][0][0]

@@ -35,8 +35,13 @@ tracktor:
     detection_nms_thresh: 0.3
     # NMS theshold while tracking
     regression_nms_thresh: 0.6
-    # use a constant velocity assumption v_t = x_t - x_t-1
-    motion_model: False
+    # motion model settings
+    motion_model:
+      enabled: False
+      # average velocity over last n_steps steps
+      n_steps: 1
+      # if true, only model the movement of the bounding box center. If false, width and height are also modeled.
+      center_only: True
     # DPM or DPM_RAW or 0, raw includes the unfiltered (no nms) versions of the provided detections,
     # 0 tells the tracker to use private detections (Faster R-CNN)
     public_detections: True

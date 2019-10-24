@@ -288,3 +288,36 @@ def clip_boxes(boxes, im_shape):
        boxes[:, :, 3].clamp(0, im_shape[0] - 1)], 2).view(boxes.size(0), -1)
 
   return boxes
+
+
+def get_center(pos):
+    x1 = pos[0, 0]
+    y1 = pos[0, 1]
+    x2 = pos[0, 2]
+    y2 = pos[0, 3]
+    return torch.Tensor([(x2 + x1) / 2, (y2 + y1) / 2]).cuda()
+
+
+def get_width(pos):
+    return pos[0, 2] - pos[0, 0]
+
+
+def get_height(pos):
+    return pos[0, 3] - pos[0, 1]
+
+
+def make_pos(cx, cy, width, height):
+    return torch.Tensor([[
+        cx - width / 2,
+        cy - height / 2,
+        cx + width / 2,
+        cy + height / 2
+    ]]).cuda()
+
+
+def warp_pos(pos, warp_matrix):
+    p1 = torch.Tensor([pos[0, 0], pos[0, 1], 1]).view(3, 1)
+    p2 = torch.Tensor([pos[0, 2], pos[0, 3], 1]).view(3, 1)
+    p1_n = torch.mm(warp_matrix, p1).view(1, 2)
+    p2_n = torch.mm(warp_matrix, p2).view(1, 2)
+    return torch.cat((p1_n, p2_n), 1).view(1, -1).cuda()
