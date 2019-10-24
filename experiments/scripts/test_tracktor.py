@@ -91,7 +91,6 @@ def my_main(tracktor, siamese, _config):
     else:
         raise NotImplementedError(f"Object detector type not known: {tracktor['network']}")
 
-    pprint.pprint(config.cfg)
     obj_detect.eval()
     obj_detect.cuda()
 
