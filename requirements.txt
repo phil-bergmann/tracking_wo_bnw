@@ -25,7 +25,7 @@ neovim==0.3.1
 numpy==1.16.2
 opencv-python==4.0.1.*
 pandas==0.24.2
-Pillow==5.1.0
+Pillow==6.2.0
 protobuf==3.6.1
 py-cpuinfo==5.0.0
 pycparser==2.19
