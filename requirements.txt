@@ -47,5 +47,5 @@ torchvision==0.2.0
 tornado==5.1.1
 trollius==2.1.post2
 virtualenv==15.1.0
-Werkzeug==0.14.1
+Werkzeug==0.15.3
 wrapt==1.11.1
