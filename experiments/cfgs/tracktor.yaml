@@ -14,6 +14,8 @@ tracktor:
   # fpn
   obj_detect_weights: output/fpn/res101/mot_2017_train/voc_init_iccv19/fpn_1_27.pth
   obj_detect_config: output/fpn/res101/mot_2017_train/voc_init_iccv19/config.yaml
+  # obj_detect_weights: output/fpn/res101/mot19_cvpr_train/v1/fpn_1_3.pth
+  # obj_detect_config: output/fpn/res101/mot19_cvpr_train/v1/config.yaml
 
   reid_network_weights: output/tracktor/siamese/res50-mot17-batch_hard/ResNet_iter_25245.pth
   reid_network_config: output/tracktor/siamese/res50-mot17-batch_hard/sacred_config.yaml
