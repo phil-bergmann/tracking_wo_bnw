@@ -3,8 +3,10 @@ import torch
 from torch.autograd import Variable
 from scipy.optimize import linear_sum_assignment
 
-from frcnn.model.bbox_transform import bbox_transform_inv, clip_boxes
-from frcnn.model.nms_wrapper import nms
+from .utils import bbox_transform_inv, clip_boxes
+
+# from frcnn.model.bbox_transform import bbox_transform_inv, clip_boxes
+# from frcnn.model.nms_wrapper import nms
 from .tracker import Tracker
 from .utils import bbox_overlaps
 

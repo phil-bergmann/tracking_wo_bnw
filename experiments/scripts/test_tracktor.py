@@ -1,35 +1,40 @@
-from __future__ import absolute_import, division, print_function
-
 import os
-from os import path as osp
 import time
-import yaml
+from os import path as osp
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from sacred import Experiment
 
+import motmetrics as mm
+mm.lap.default_solver = 'lap'
+
+import torchvision
+import yaml
+from tqdm import tqdm
+import sacred
+from sacred import Experiment
+from tracktor.frcnn_fpn import FRCNN_FPN
 from tracktor.config import get_output_dir
 from tracktor.datasets.factory import Datasets
 from tracktor.oracle_tracker import OracleTracker
-from tracktor.resnet import resnet50
 from tracktor.tracker import Tracker
-from tracktor.utils import interpolate, plot_sequence
+from tracktor.reid.resnet import resnet50
+from tracktor.utils import interpolate, plot_sequence, get_mot_accum, evaluate_mot_accums
 
 ex = Experiment()
 
 ex.add_config('experiments/cfgs/tracktor.yaml')
 
 # hacky workaround to load the corresponding configs and not having to hardcode paths here
-ex.add_config(ex.configurations[0]._conf['tracktor']['reid_network_config'])
-ex.add_config(ex.configurations[0]._conf['tracktor']['obj_detect_config'])
+ex.add_config(ex.configurations[0]._conf['tracktor']['reid_config'])
 ex.add_named_config('oracle', 'experiments/cfgs/oracle_tracktor.yaml')
 
-# Tracker = ex.capture(Tracker, prefix='tracker.tracker')
 
 @ex.automain
-def my_main(tracktor, siamese, _config):
+def main(tracktor, reid, _config, _log, _run):
+    sacred.commands.print_config(_run)
+
     # set all seeds
     torch.manual_seed(tracktor['seed'])
     torch.cuda.manual_seed(tracktor['seed'])
@@ -49,52 +54,18 @@ def my_main(tracktor, siamese, _config):
     ##########################
 
     # object detection
-    print("[*] Building object detector")
-    if tracktor['network'].startswith('frcnn'):
-        # FRCNN
-        from tracktor.frcnn import FRCNN
-        from frcnn.model import config
+    _log.info("Initializing object detector.")
 
-        if _config['frcnn']['cfg_file']:
-            config.cfg_from_file(_config['frcnn']['cfg_file'])
-        if _config['frcnn']['set_cfgs']:
-            config.cfg_from_list(_config['frcnn']['set_cfgs'])
-
-        obj_detect = FRCNN(num_layers=101)
-        obj_detect.create_architecture(2, tag='default',
-            anchor_scales=config.cfg.ANCHOR_SCALES,
-            anchor_ratios=config.cfg.ANCHOR_RATIOS)
-        obj_detect.load_state_dict(torch.load(tracktor['obj_detect_weights']))
-    elif tracktor['network'].startswith('fpn'):
-        # FPN
-        from tracktor.fpn import FPN
-        from fpn.model.utils import config
-        config.cfg.TRAIN.USE_FLIPPED = False
-        config.cfg.CUDA = True
-        config.cfg.TRAIN.USE_FLIPPED = False
-        checkpoint = torch.load(tracktor['obj_detect_weights'])
-
-        if 'pooling_mode' in checkpoint.keys():
-            config.cfg.POOLING_MODE = checkpoint['pooling_mode']
-
-        set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]',
-                    'ANCHOR_RATIOS', '[0.5,1,2]']
-        config.cfg_from_file(_config['tracktor']['obj_detect_config'])
-        config.cfg_from_list(set_cfgs)
-
-        obj_detect = FPN(('__background__', 'pedestrian'), 101, pretrained=False)
-        obj_detect.create_architecture()
-
-        obj_detect.load_state_dict(checkpoint['model'])
-    else:
-        raise NotImplementedError(f"Object detector type not known: {tracktor['network']}")
+    obj_detect = FRCNN_FPN(num_classes=2)
+    obj_detect_state_dict = torch.load(_config['tracktor']['obj_detect_model'])
+    obj_detect.load_state_dict(obj_detect_state_dict)
 
     obj_detect.eval()
     obj_detect.cuda()
 
     # reid
-    reid_network = resnet50(pretrained=False, **siamese['cnn'])
-    reid_network.load_state_dict(torch.load(tracktor['reid_network_weights']))
+    reid_network = resnet50(pretrained=False, **reid['cnn'])
+    reid_network.load_state_dict(torch.load(tracktor['reid_weights']))
     reid_network.eval()
     reid_network.cuda()
 
@@ -104,33 +75,44 @@ def my_main(tracktor, siamese, _config):
     else:
         tracker = Tracker(obj_detect, reid_network, tracktor['tracker'])
 
-    print("[*] Beginning evaluation...")
-
     time_total = 0
-    for sequence in Datasets(tracktor['dataset']):
+    num_frames = 0
+    mot_accums = []
+    dataset = Datasets(tracktor['dataset'])
+    for seq in dataset:
         tracker.reset()
 
-        now = time.time()
+        start = time.time()
 
-        print("[*] Evaluating: {}".format(sequence))
+        _log.info(f"Tracking: {seq}")
 
-        data_loader = DataLoader(sequence, batch_size=1, shuffle=False)
-        for i, frame in enumerate(data_loader):
-            if len(sequence) * tracktor['frame_split'][0] <= i <= len(sequence) * tracktor['frame_split'][1]:
+        data_loader = DataLoader(seq, batch_size=1, shuffle=False)
+        for i, frame in enumerate(tqdm(data_loader)):
+            if len(seq) * tracktor['frame_split'][0] <= i <= len(seq) * tracktor['frame_split'][1]:
                 tracker.step(frame)
+                num_frames += 1
         results = tracker.get_results()
 
-        time_total += time.time() - now
+        time_total += time.time() - start
 
-        print("[*] Tracks found: {}".format(len(results)))
-        print("[*] Time needed for {} evaluation: {:.3f} s".format(sequence, time.time() - now))
+        _log.info(f"Tracks found: {len(results)}")
+        _log.info(f"Runtime for {seq}: {time.time() - start :.1f} s.")
 
         if tracktor['interpolate']:
             results = interpolate(results)
 
-        sequence.write_results(results, osp.join(output_dir))
+        if seq.no_gt:
+            _log.info(f"No GT data for evaluation available.")
+        else:
+            mot_accums.append(get_mot_accum(results, seq))
+
+        _log.info(f"Writing predictions to: {output_dir}")
+        seq.write_results(results, output_dir)
 
         if tracktor['write_images']:
-            plot_sequence(results, sequence, osp.join(output_dir, tracktor['dataset'], str(sequence)))
+            plot_sequence(results, seq, osp.join(output_dir, tracktor['dataset'], str(seq)))
 
-    print("[*] Evaluation for all sets (without image generation): {:.3f} s".format(time_total))
+    _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
+              f"{time_total:.1f} s ({num_frames / time_total:.1f} Hz)")
+    if mot_accums:
+        evaluate_mot_accums(mot_accums, [str(s) for s in dataset if not s.no_gt], generate_overall=True)
