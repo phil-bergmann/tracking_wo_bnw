@@ -1,4 +1,4 @@
-siamese:
+reid:
   name: test
   module_name: siamese
   desription:
