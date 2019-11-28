@@ -2,7 +2,7 @@
 
 This repository provides the implementation of our paper **Tracking without bells and whistles** (Philipp Bergmann, Tim Meinhardt, Laura Leal-Taixe) [https://arxiv.org/abs/1903.05625]. All results presented in our work were produced with this code.
 
-In addition to our supplementary document, we provide an illustrative [web-video-collection](https://vision.in.tum.de/_media/intern/uploads/tracking_wo_bnw-supp_video_collection.zip). The collection includes examplary Tracktor++ tracking results and multiple video examples to accompany our analysis of state-of-the-art tracking methods.
+In addition to our supplementary document, we provide an illustrative [web-video-collection](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-supp_video_collection.zip). The collection includes examplary Tracktor++ tracking results and multiple video examples to accompany our analysis of state-of-the-art tracking methods.
 
 ![Visualization of Tracktor](data/method_vis_standalone.png)
 
@@ -39,7 +39,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
     ```
 
 5. Download object detector and re-identifiaction Siamese network weights and MOTChallenge result files for ICCV 2019:
-    1. Download zip file from [here](https://vision.in.tum.de/_media/intern/uploads/tracking_wo_bnw-output.zip).
+    1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output.zip).
     2. Extract in `output` directory.
 
 ## Evaluate Tracktor++
