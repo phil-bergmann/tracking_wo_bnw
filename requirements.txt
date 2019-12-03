@@ -80,7 +80,6 @@ torch==1.3.1
 torchvision==0.4.2
 tornado==4.5.3
 tqdm==4.38.0
--e git+git@github.com:phil-bergmann/tracking_wo_BnW@30b89259243251c816e45ef70d13dd3df49b7b48#egg=tracktor
 traitlets==4.3.3
 wcwidth==0.1.7
 webencodings==0.5.1
