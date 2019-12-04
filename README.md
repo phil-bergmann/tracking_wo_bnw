@@ -2,8 +2,6 @@
 
 This repository provides the implementation of our paper **Tracking without bells and whistles** (Philipp Bergmann, [Tim Meinhardt](https://dvl.in.tum.de/team/meinhardt/), [Laura Leal-Taixe](https://dvl.in.tum.de/team/lealtaixe/)) [https://arxiv.org/abs/1903.05625]. This branch includes an updated version of Tracktor for PyTorch 1.X with an improved object detector. The original results of the paper were produced with the code in the `iccv_19` branch.
 
-https://dvl.in.tum.de/team/lealtaixe/
-
 In addition to our supplementary document, we provide an illustrative [web-video-collection](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-supp_video_collection.zip). The collection includes examplary Tracktor++ tracking results and multiple video examples to accompany our analysis of state-of-the-art tracking methods.
 
 ![Visualization of Tracktor](data/method_vis_standalone.png)
@@ -31,7 +29,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
     unzip -d MOT17Labels MOT17Labels.zip
     ```
 
-4. Download object detector and re-identifiaction Siamese network weights and MOTChallenge result files for ICCV 2019:
+4. Download object detector and re-identifiaction Siamese network weights and MOTChallenge result files:
     1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v2.zip).
     2. Extract in `output` directory.
 
