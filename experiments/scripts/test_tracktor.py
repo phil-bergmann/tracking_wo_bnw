@@ -57,15 +57,16 @@ def main(tracktor, reid, _config, _log, _run):
     _log.info("Initializing object detector.")
 
     obj_detect = FRCNN_FPN(num_classes=2)
-    obj_detect_state_dict = torch.load(_config['tracktor']['obj_detect_model'])
-    obj_detect.load_state_dict(obj_detect_state_dict)
+    obj_detect.load_state_dict(torch.load(_config['tracktor']['obj_detect_model'],
+                               map_location=lambda storage, loc: storage))
 
     obj_detect.eval()
     obj_detect.cuda()
 
     # reid
     reid_network = resnet50(pretrained=False, **reid['cnn'])
-    reid_network.load_state_dict(torch.load(tracktor['reid_weights']))
+    reid_network.load_state_dict(torch.load(tracktor['reid_weights'],
+                                 map_location=lambda storage, loc: storage))
     reid_network.eval()
     reid_network.cuda()
 
