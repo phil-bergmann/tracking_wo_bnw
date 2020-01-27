@@ -1,7 +1,7 @@
 
-from .mot_wrapper import MOT17_Wrapper, MOT19CVPR_Wrapper, MOT17LOWFPS_Wrapper
-from .mot_siamese_wrapper import MOT_Siamese_Wrapper
-from .mot15_wrapper import MOT15_Wrapper
+from .mot_wrapper import MOT17Wrapper, MOT19Wrapper, MOT17LOWFPSWrapper
+from .mot_reid_wrapper import MOTreIDWrapper
+from .mot15_wrapper import MOT15Wrapper
 from .marcuhmot import MarCUHMOT
 
 
@@ -14,27 +14,27 @@ for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', 
     for dets in ['DPM16', 'DPM_RAW16', 'DPM17', 'FRCNN17', 'SDP17', '17', '']:
         name = f'mot17_{split}_{dets}'
         _sets[name] = (lambda *args, split=split,
-                       dets=dets: MOT17_Wrapper(split, dets, *args))
+                       dets=dets: MOT17Wrapper(split, dets, *args))
 
 for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', '08']:
     # only FRCNN detections
-    name = f'mot19_cvpr_{split}'
-    _sets[name] = (lambda *args, split=split: MOT19CVPR_Wrapper(split, *args))
+    name = f'mot19_{split}'
+    _sets[name] = (lambda *args, split=split: MOT19Wrapper(split, *args))
 
 for split in ['1', '2', '3', '5', '6', '10', '15', '30']:
     # only FRCNN detections
     name = f'mot17_{split}_fps'
-    _sets[name] = (lambda *args, split=split: MOT17LOWFPS_Wrapper(split, *args))
+    _sets[name] = (lambda *args, split=split: MOT17LOWFPSWrapper(split, *args))
 
-for split in ['train', 'smallVal', 'smallTrain']:
-    name = f'motSiamese_{split}'
-    _sets[name] = (lambda *args, split=split: MOT_Siamese_Wrapper(split, *args))
+for split in ['train', 'small_val', 'small_train']:
+    name = f'mot_reid_{split}'
+    _sets[name] = (lambda *args, split=split: MOTreIDWrapper(split, *args))
 
 for split in ['PETS09-S2L1', 'TUD-Stadtmitte', 'TUD-Campus', 'train', 'test', 'last3train']:
     name = f'mot15_{split}'
-    _sets[name] = (lambda *args, split=split: MOT15_Wrapper(split, *args))
+    _sets[name] = (lambda *args, split=split: MOT15Wrapper(split, *args))
 
-for split in ['smallTrain', 'smallVal', 'train']:
+for split in ['small_train', 'small_val', 'train']:
     name = f'marcuhmot_{split}'
     _sets[name] = (lambda *args, split=split: MarCUHMOT(split, *args))
 

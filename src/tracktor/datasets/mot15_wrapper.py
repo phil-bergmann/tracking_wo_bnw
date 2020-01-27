@@ -1,9 +1,9 @@
 from torch.utils.data import Dataset
 
-from .mot15_sequence import MOT15_Sequence
+from .mot15_sequence import MOT15Sequence
 
 
-class MOT15_Wrapper(Dataset):
+class MOT15Wrapper(Dataset):
     """A Wrapper for the MOT_Sequence class to return multiple sequences."""
 
     def __init__(self, split, dataloader):
@@ -33,7 +33,7 @@ class MOT15_Wrapper(Dataset):
         self._data = []
 
         for s in sequences:
-            self._data.append(MOT15_Sequence(seq_name=s, **dataloader))
+            self._data.append(MOT15Sequence(seq_name=s, **dataloader))
 
     def __len__(self):
         return len(self._data)

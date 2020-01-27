@@ -13,7 +13,7 @@ from torchvision.transforms import ToTensor
 from ..config import cfg
 
 
-class MOT15_Sequence(Dataset):
+class MOT15Sequence(Dataset):
     """Loads a sequence from the 2DMOT15 dataset.
 
     This dataloader is designed so that it can handle only one sequence, if more have to be handled

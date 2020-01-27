@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset, ConcatDataset
 import torch
 
-from .mot_siamese_wrapper import MOT_Siamese_Wrapper
+from .mot_reid_wrapper import MOTreIDWrapper
 from .cuhk03 import CUHK03
 from .market1501 import Market1501
 
@@ -19,7 +19,7 @@ class MarCUHMOT(Dataset):
 		print("[*] Loading CUHK03")
 		cuhk = CUHK03('labeled', **dataloader)
 		print("[*] Loading MOT")
-		mot = MOT_Siamese_Wrapper(split, dataloader)
+		mot = MOTreIDWrapper(split, dataloader)
 
 		self.dataset = ConcatDataset([market, cuhk, mot])
 

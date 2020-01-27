@@ -14,7 +14,7 @@ from ..config import cfg
 from torchvision.transforms import ToTensor
 
 
-class MOT17_Sequence(Dataset):
+class MOT17Sequence(Dataset):
     """Multiple Object Tracking Dataset.
 
     This dataloader is designed so that it can handle only one sequence, if more have to be
@@ -42,11 +42,15 @@ class MOT17_Sequence(Dataset):
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
         self.transforms = ToTensor()
+        
+        if seq_name is not None:
+            assert seq_name in self._train_folders or seq_name in self._test_folders, \
+                'Image set does not exist: {}'.format(seq_name)
 
-        assert seq_name in self._train_folders or seq_name in self._test_folders, \
-            'Image set does not exist: {}'.format(seq_name)
-
-        self.data, self.no_gt = self._sequence()
+            self.data, self.no_gt = self._sequence()
+        else:
+            self.data = []
+            self.no_gt = True
 
     def __len__(self):
         return len(self.data)
@@ -136,7 +140,7 @@ class MOT17_Sequence(Dataset):
                     y2 = y1 + float(row[5]) - 1
                     score = float(row[6])
                     bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
-                    dets[int(row[0])].append(bb)
+                    dets[int(float(row[0]))].append(bb)
 
         for i in range(1,seqLength+1):
             im_path = osp.join(imDir,"{:06d}.jpg".format(i))
@@ -216,7 +220,7 @@ class MOT17_Sequence(Dataset):
                     writer.writerow([frame+1, i+1, x1+1, y1+1, x2-x1+1, y2-y1+1, -1, -1, -1, -1])
 
 
-class MOT19CVPR_Sequence(MOT17_Sequence):
+class MOT19Sequence(MOT17Sequence):
 
     def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
                  normalize_mean=[0.485, 0.456, 0.406],
@@ -230,8 +234,8 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
         self._dets = dets
         self._vis_threshold = vis_threshold
 
-        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
-        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT19_CVPR')
+        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT19')
+        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT19')
 
         # TODO: refactor code of both classes to consider 16,17 and 19
         self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
@@ -240,20 +244,20 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
-        self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
-                                                         normalize_std)])
+        self.transforms = ToTensor()
 
-        if seq_name:
+        if seq_name is not None:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
 
-            self.data = self._sequence()
+            self.data, self.no_gt = self._sequence()
         else:
             self.data = []
+            self.no_gt = True
 
     def get_det_file(self, label_path, raw_label_path, mot17_label_path):
         # FRCNN detections
-        if "CVPR19" in self._seq_name:
+        if "MOT19" in self._seq_name:
             det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
         else:
             det_file = ""
@@ -281,7 +285,7 @@ class MOT19CVPR_Sequence(MOT17_Sequence):
                         [frame + 1, i + 1, x1 + 1, y1 + 1, x2 - x1 + 1, y2 - y1 + 1, -1, -1, -1, -1])
 
 
-class MOT17LOWFPS_Sequence(MOT17_Sequence):
+class MOT17LOWFPSSequence(MOT17Sequence):
 
     def __init__(self, split, seq_name=None, dets='', vis_threshold=0.0,
                  normalize_mean=[0.485, 0.456, 0.406],
@@ -308,10 +312,11 @@ class MOT17LOWFPS_Sequence(MOT17_Sequence):
         self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
                                                          normalize_std)])
 
-        if seq_name:
+        if seq_name is not None:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
 
-            self.data = self._sequence()
+            self.data, self.no_gt = self._sequence()
         else:
             self.data = []
+            self.no_gt = True

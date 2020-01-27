@@ -64,7 +64,7 @@ def _get_anchor_positive_triplet_mask(labels):
         mask: Varieble with torch.ByteTensor with shape [batch_size, batch_size]
     """
     # Check that i and j are distinct
-    indices_equal = torch.eye(labels.size(0)).byte()
+    indices_equal = torch.eye(labels.size(0)).bool()
     if labels.is_cuda:
         indices_equal = indices_equal.cuda()
     indices_not_equal = ~indices_equal

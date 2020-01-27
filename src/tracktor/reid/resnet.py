@@ -183,8 +183,8 @@ class ResNet(models.ResNet):
             # for each anchor compute hardest pair
             triplets = []
             for i in range(dist.size(0)):
-                pos = torch.max(pos_dist[i],0)[1][0]
-                neg = torch.min(neg_dist[i],0)[1][0]
+                pos = torch.max(pos_dist[i],0)[1].item()
+                neg = torch.min(neg_dist[i],0)[1].item()
                 triplets.append((i, pos, neg))
 
             e0 = []
@@ -261,7 +261,6 @@ class ResNet(models.ResNet):
             k_loss = torch.Tensor(1)
             k_loss[0] = num_hit / num_ges
             losses['prec_at_k'] = Variable(k_loss.cuda())
-
 
         losses['total_loss'] = total_loss
 

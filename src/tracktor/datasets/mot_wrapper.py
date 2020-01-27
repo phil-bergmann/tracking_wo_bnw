@@ -1,10 +1,10 @@
 import torch
 from torch.utils.data import Dataset
 
-from .mot_sequence import MOT17_Sequence, MOT19CVPR_Sequence, MOT17LOWFPS_Sequence
+from .mot_sequence import MOT17Sequence, MOT19Sequence, MOT17LOWFPSSequence
 
 
-class MOT17_Wrapper(Dataset):
+class MOT17Wrapper(Dataset):
 	"""A Wrapper for the MOT_Sequence class to return multiple sequences."""
 
 	def __init__(self, split, dets, dataloader):
@@ -31,11 +31,11 @@ class MOT17_Wrapper(Dataset):
 		self._data = []
 		for s in sequences:
 			if dets == '17':
-				self._data.append(MOT17_Sequence(seq_name=s, dets='DPM17', **dataloader))
-				self._data.append(MOT17_Sequence(seq_name=s, dets='FRCNN17', **dataloader))
-				self._data.append(MOT17_Sequence(seq_name=s, dets='SDP17', **dataloader))
+				self._data.append(MOT17Sequence(seq_name=s, dets='DPM17', **dataloader))
+				self._data.append(MOT17Sequence(seq_name=s, dets='FRCNN17', **dataloader))
+				self._data.append(MOT17Sequence(seq_name=s, dets='SDP17', **dataloader))
 			else:
-				self._data.append(MOT17_Sequence(seq_name=s, dets=dets, **dataloader))
+				self._data.append(MOT17Sequence(seq_name=s, dets=dets, **dataloader))
 
 	def __len__(self):
 		return len(self._data)
@@ -44,7 +44,7 @@ class MOT17_Wrapper(Dataset):
 		return self._data[idx]
 
 
-class MOT19CVPR_Wrapper(MOT17_Wrapper):
+class MOT19Wrapper(MOT17Wrapper):
 	"""A Wrapper for the MOT_Sequence class to return multiple sequences."""
 
 	def __init__(self, split, dataloader):
@@ -54,8 +54,8 @@ class MOT19CVPR_Wrapper(MOT17_Wrapper):
 		split -- the split of the dataset to use
 		dataloader -- args for the MOT_Sequence dataloader
 		"""
-		train_sequences = ['CVPR19-01', 'CVPR19-02', 'CVPR19-03', 'CVPR19-05']
-		test_sequences = ['CVPR19-04', 'CVPR19-06', 'CVPR19-07', 'CVPR19-08']
+		train_sequences = ['MOT19-01', 'MOT19-02', 'MOT19-03', 'MOT19-05']
+		test_sequences = ['MOT19-04', 'MOT19-06', 'MOT19-07', 'MOT19-08']
 
 		if "train" == split:
 			sequences = train_sequences
@@ -63,14 +63,14 @@ class MOT19CVPR_Wrapper(MOT17_Wrapper):
 			sequences = test_sequences
 		elif "all" == split:
 			sequences = train_sequences + test_sequences
-		elif f"CVPR19-{split}" in train_sequences + test_sequences:
-			sequences = [f"CVPR19-{split}"]
+		elif f"MOT19-{split}" in train_sequences + test_sequences:
+			sequences = [f"MOT19-{split}"]
 		else:
 			raise NotImplementedError("MOT19CVPR split not available.")
 
 		self._data = []
 		for s in sequences:
-			self._data.append(MOT19CVPR_Sequence(seq_name=s, **dataloader))
+			self._data.append(MOT19_Sequence(seq_name=s, **dataloader))
 
 	def __len__(self):
 		return len(self._data)
@@ -79,7 +79,7 @@ class MOT19CVPR_Wrapper(MOT17_Wrapper):
 		return self._data[idx]
 
 
-class MOT17LOWFPS_Wrapper(MOT17_Wrapper):
+class MOT17LOWFPSWrapper(MOT17Wrapper):
 	"""A Wrapper for the MOT_Sequence class to return multiple sequences."""
 
 	def __init__(self, split, dataloader):

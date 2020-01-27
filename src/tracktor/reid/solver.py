@@ -8,7 +8,7 @@ import torch
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import LambdaLR
 
-from .utils import plot_tracks
+from ..utils import plot_tracks
 
 import tensorboardX as tb
 
@@ -125,7 +125,7 @@ class Solver(object):
 
 		for epoch in range(num_epochs):
 			# TRAINING
-			if scheduler:
+			if scheduler and epoch:
 				scheduler.step()
 				print("[*] New learning rate(s): {}".format(scheduler.get_lr()))
 

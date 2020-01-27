@@ -1,6 +1,6 @@
 # from model.test import _get_blobs
 
-from .mot_sequence import MOT17_Sequence
+from .mot_sequence import MOT17Sequence
 from ..config import get_output_dir
 
 import cv2
@@ -12,7 +12,7 @@ import torch
 from torchvision.transforms import CenterCrop, Normalize, Compose, RandomHorizontalFlip, RandomCrop, ToTensor, RandomResizedCrop
 
 
-class MOT_Siamese(MOT17_Sequence):
+class MOTreID(MOT17Sequence):
 	"""Multiple Object Tracking Dataset.
 
 	This class builds samples for training of a simaese net. It returns a tripple of 2 matching and 1 not
@@ -42,9 +42,9 @@ class MOT_Siamese(MOT17_Sequence):
 
 		if split == 'train':
 			pass
-		elif split == 'smallTrain':
+		elif split == 'small_train':
 			self.data = self.data[0::5] + self.data[1::5] + self.data[2::5] + self.data[3::5]
-		elif split == 'smallVal':
+		elif split == 'small_val':
 			self.data = self.data[4::5]
 		else:
 			raise NotImplementedError("Split: {}".format(split))

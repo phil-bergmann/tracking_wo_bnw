@@ -74,6 +74,7 @@ simplegeneric==0.8.1
 six==1.12.0
 smmap2==2.0.5
 soupsieve==1.9.5
+tensorboardX==2.0
 terminado==0.8.3
 testpath==0.4.4
 torch==1.3.1

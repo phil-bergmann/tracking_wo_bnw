@@ -1,10 +1,10 @@
 reid:
   name: test
-  module_name: siamese
+  module_name: reid
   desription:
   seed: 12345
   # smth like MOT_train, KITTI_train_Pedestrian
-  db_train: motSiamese_smallTrain
+  db_train: mot_reid_small_train
   db_val: False
 
   model_args:
