@@ -1,7 +1,7 @@
 attrs==19.3.0
 backcall==0.1.0
 beautifulsoup4==4.8.1
-bleach==3.1.0
+bleach==3.1.1
 cachetools==3.1.1
 colorama==0.4.1
 cycler==0.10.0
