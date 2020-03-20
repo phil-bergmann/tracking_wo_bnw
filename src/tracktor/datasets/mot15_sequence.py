@@ -42,9 +42,10 @@ class MOT15Sequence(Dataset):
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
 
-            self.data = self.sequence(seq_name)
+            self.data, self.no_gt = self.sequence(seq_name)
         else:
             self.data = []
+            self.no_gt = True
 
     def __len__(self):
         return len(self.data)
@@ -91,6 +92,7 @@ class MOT15Sequence(Dataset):
             dets[i] = []
             visibility[i] = {}
 
+        no_gt = False
         if osp.exists(gt_file):
             with open(gt_file, "r") as inf:
                 reader = csv.reader(inf, delimiter=',')
@@ -106,6 +108,8 @@ class MOT15Sequence(Dataset):
                         bb = np.array([x1,y1,x2,y2], dtype=np.float32)
                         boxes[int(row[0])][int(row[1])] = bb
                         visibility[int(row[0])][int(row[1])] = float(row[8])
+        else:
+            no_gt = True
 
         if osp.exists(det_file):
             with open(det_file, "r") as inf:
@@ -132,7 +136,7 @@ class MOT15Sequence(Dataset):
 
             total.append(sample)
 
-        return total
+        return total, no_gt
 
     def write_results(self, all_tracks, output_dir):
         """Write the tracks in the format for MOT16/MOT17 sumbission
