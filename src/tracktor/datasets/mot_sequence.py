@@ -42,7 +42,7 @@ class MOT17Sequence(Dataset):
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
         self.transforms = ToTensor()
-        
+
         if seq_name is not None:
             assert seq_name in self._train_folders or seq_name in self._test_folders, \
                 'Image set does not exist: {}'.format(seq_name)
@@ -258,6 +258,71 @@ class MOT19Sequence(MOT17Sequence):
     def get_det_file(self, label_path, raw_label_path, mot17_label_path):
         # FRCNN detections
         if "MOT19" in self._seq_name:
+            det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
+        else:
+            det_file = ""
+        return det_file
+
+    def write_results(self, all_tracks, output_dir):
+        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        file = osp.join(output_dir, f'{self._seq_name}.txt')
+
+        print("[*] Writing to: {}".format(file))
+
+        with open(file, "w") as of:
+            writer = csv.writer(of, delimiter=',')
+            for i, track in all_tracks.items():
+                for frame, bb in track.items():
+                    x1 = bb[0]
+                    y1 = bb[1]
+                    x2 = bb[2]
+                    y2 = bb[3]
+                    writer.writerow(
+                        [frame + 1, i + 1, x1 + 1, y1 + 1, x2 - x1 + 1, y2 - y1 + 1, -1, -1, -1, -1])
+
+
+class MOT20Sequence(MOT17Sequence):
+
+    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
+                 normalize_mean=[0.485, 0.456, 0.406],
+                 normalize_std=[0.229, 0.224, 0.225]):
+        """
+        Args:
+            seq_name (string): Sequence to take
+            vis_threshold (float): Threshold of visibility of persons above which they are selected
+        """
+        self._seq_name = seq_name
+        self._dets = dets
+        self._vis_threshold = vis_threshold
+
+        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT20')
+        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT20')
+
+        # TODO: refactor code of both classes to consider 16,17 and 19
+        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
+        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
+
+        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
+        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
+
+        self.transforms = ToTensor()
+
+        if seq_name is not None:
+            assert seq_name in self._train_folders or seq_name in self._test_folders, \
+                'Image set does not exist: {}'.format(seq_name)
+
+            self.data, self.no_gt = self._sequence()
+        else:
+            self.data = []
+            self.no_gt = True
+
+    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
+        # FRCNN detections
+        if "MOT20" in self._seq_name:
             det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
         else:
             det_file = ""

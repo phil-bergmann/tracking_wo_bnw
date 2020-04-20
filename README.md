@@ -46,7 +46,7 @@ In order to configure, organize, log and reproduce our computational experiments
 
 3. The results are logged in the corresponding `output` directory.
 
-For reproducability, we provide the new result metrics of this updated code base on the `MOT17` challenge. It should be noted, that these surpass the original Tracktor results. This is due to the newly trained object detector. This version of Tracktor does not differ conceptually from the original ICCV 2019 version (see branch `iccv_19`). The train and test results are:
+For reproducability, we provide the new result metrics of this updated code base on the `MOT17` challenge. It should be noted, that these surpass the original Tracktor results. This is due to the newly trained object detector. This version of Tracktor does not differ conceptually from the original ICCV 2019 version (see branch `iccv_19`). The results on the offical MOTChallenge [webpage](https://motchallenge.net/results/MOT17/) are denoted as the `Tracktor++v2` tracker. The train and test results are:
 
 ```
 ********************* MOT17 TRAIN Results *********************

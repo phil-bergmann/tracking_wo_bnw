@@ -98,7 +98,7 @@ def main(tracktor, reid, _config, _log, _run):
         time_total += time.time() - start
 
         _log.info(f"Tracks found: {len(results)}")
-        _log.info(f"Runtime for {seq}: {time.time() - start :.1f} s.")
+        _log.info(f"Runtime for {seq}: {time.time() - start :.2f} s.")
 
         if tracktor['interpolate']:
             results = interpolate(results)
@@ -115,6 +115,6 @@ def main(tracktor, reid, _config, _log, _run):
             plot_sequence(results, seq, osp.join(output_dir, tracktor['dataset'], str(seq)))
 
     _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
-              f"{time_total:.1f} s ({num_frames / time_total:.1f} Hz)")
+              f"{time_total:.2f} s for {num_frames} frames ({num_frames / time_total:.2f} Hz)")
     if mot_accums:
         evaluate_mot_accums(mot_accums, [str(s) for s in dataset if not s.no_gt], generate_overall=True)

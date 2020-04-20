@@ -1,5 +1,5 @@
 
-from .mot_wrapper import MOT17Wrapper, MOT19Wrapper, MOT17LOWFPSWrapper
+from .mot_wrapper import MOT17Wrapper, MOT19Wrapper, MOT17LOWFPSWrapper, MOT20Wrapper
 from .mot_reid_wrapper import MOTreIDWrapper
 from .mot15_wrapper import MOT15Wrapper
 from .marcuhmot import MarCUHMOT
@@ -20,6 +20,11 @@ for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', 
     # only FRCNN detections
     name = f'mot19_{split}'
     _sets[name] = (lambda *args, split=split: MOT19Wrapper(split, *args))
+
+for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', '08']:
+    # only FRCNN detections
+    name = f'mot20_{split}'
+    _sets[name] = (lambda *args, split=split: MOT20Wrapper(split, *args))
 
 for split in ['1', '2', '3', '5', '6', '10', '15', '30']:
     # only FRCNN detections

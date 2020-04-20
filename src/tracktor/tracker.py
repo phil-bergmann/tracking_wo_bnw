@@ -127,7 +127,7 @@ class Tracker:
 	def reid(self, blob, new_det_pos, new_det_scores):
 		"""Tries to ReID inactive tracks with provided detections."""
 		new_det_features = [torch.zeros(0).cuda() for _ in range(len(new_det_pos))]
-		
+
 		if self.do_reid:
 			new_det_features = self.reid_network.test_rois(
 				blob['img'], new_det_pos).data
@@ -136,7 +136,8 @@ class Tracker:
 				# calculate appearance distances
 				dist_mat, pos = [], []
 				for t in self.inactive_tracks:
-					dist_mat.append(torch.cat([t.test_features(feat.view(1, -1)) for feat in new_det_features], dim=1))
+					dist_mat.append(torch.cat([t.test_features(feat.view(1, -1))
+					                           for feat in new_det_features], dim=1))
 					pos.append(t.pos)
 				if len(dist_mat) > 1:
 					dist_mat = torch.cat(dist_mat, 0)
@@ -180,7 +181,7 @@ class Tracker:
 					new_det_pos = torch.zeros(0).cuda()
 					new_det_scores = torch.zeros(0).cuda()
 					new_det_features = torch.zeros(0).cuda()
-		
+
 		return new_det_pos, new_det_scores, new_det_features
 
 	def get_appearances(self, blob):
@@ -311,8 +312,7 @@ class Tracker:
 
 				self.tracks_to_inactive([self.tracks[i] for i in list(range(len(self.tracks))) if i not in keep])
 
-				if keep.nelement() > 0:
-					if self.do_reid:
+				if keep.nelement() > 0 and self.do_reid:
 						new_features = self.get_appearances(blob)
 						self.add_features(new_features)
 
@@ -350,7 +350,7 @@ class Tracker:
 
 			# try to reidentify tracks
 			new_det_pos, new_det_scores, new_det_features = self.reid(blob, new_det_pos, new_det_scores)
-			
+
 			# add new
 			if new_det_pos.nelement() > 0:
 				self.add(new_det_pos, new_det_scores, new_det_features)
@@ -358,7 +358,7 @@ class Tracker:
 		####################
 		# Generate Results #
 		####################
-		
+
 		for t in self.tracks:
 			if t.id not in self.results.keys():
 				self.results[t.id] = {}
