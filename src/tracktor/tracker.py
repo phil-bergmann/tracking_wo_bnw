@@ -415,7 +415,9 @@ class Track(object):
 		else:
 			features = self.features[0]
 		features = features.mean(0, keepdim=True)
-		dist = F.pairwise_distance(features, test_features).unsqueeze(1)
+		dist = F.pairwise_distance(features, test_features)
+		if len(dist.shape) == 1:
+			dist = dist.unsqueeze(1)
 		return dist
 
 	def reset_last_pos(self):
