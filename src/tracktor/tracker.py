@@ -206,7 +206,7 @@ class Tracker:
 			try:
 				cc, warp_matrix = cv2.findTransformECC(im1_gray, im2_gray, warp_matrix, self.warp_mode, criteria)
 			except:
-				cc, warp_matrix = cv2.findTransformECC(im1_gray, im2_gray, warp_matrix, self.warp_mode, criteria, None, 1)
+				cc, warp_matrix = cv2.findTransformECC(im1_gray, im2_gray, warp_matrix, self.warp_mode, criteria, None, 5)
 			warp_matrix = torch.from_numpy(warp_matrix)
 
 			for t in self.tracks:
