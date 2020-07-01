@@ -1,3 +1,5 @@
+# I've edited the code for compatiblity with PyTorch 0.4.1
+
 # Tracking without bells and whistles
 
 This repository provides the implementation of our paper **Tracking without bells and whistles** (Philipp Bergmann, Tim Meinhardt, Laura Leal-Taixe) [https://arxiv.org/abs/1903.05625]. All results presented in our work were produced with this code.
