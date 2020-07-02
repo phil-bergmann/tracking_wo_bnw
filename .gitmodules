@@ -1,6 +1,8 @@
 [submodule "src/frcnn"]
 	path = src/frcnn
-	url = https://github.com/phil-bergmann/pytorch-faster-rcnn
+	url = https://github.com/songheony/pytorch-faster-rcnn.git
+	branch = tracking_wo_BnW
 [submodule "src/fpn"]
 	path = src/fpn
-	url = https://github.com/timmeinhardt/FPN_Pytorch
+	url = https://github.com/songheony/FPN_Pytorch.git
+	branch = tracking_wo_bnw
