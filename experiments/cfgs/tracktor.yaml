@@ -13,9 +13,7 @@ tracktor:
 
   # fpn
   obj_detect_model: output/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
-  # obj_detect_config: output/fpn/res101/mot_2017_train/voc_init_iccv19/config.yaml
-  # obj_detect_weights: output/fpn/res101/mot19_cvpr_train/v1/fpn_1_3.pth
-  # obj_detect_config: output/fpn/res101/mot19_cvpr_train/v1/config.yaml
+  # obj_detect_model: output/faster_rcnn_fpn_training_mot_20/model_epoch_27.model
 
   reid_weights: output/tracktor/reid/res50-mot17-batch_hard/ResNet_iter_25245.pth
   reid_config: output/tracktor/reid/res50-mot17-batch_hard/sacred_config.yaml
@@ -23,6 +21,8 @@ tracktor:
   interpolate: False
   # compile video with: `ffmpeg -f image2 -framerate 15 -i %06d.jpg -vcodec libx264 -y movie.mp4 -vf scale=320:-1`
   write_images: False
+  # load tracking results if available and only evaluate
+  load_results: False
   # dataset (look into tracker/datasets/factory.py)
   dataset: mot17_train_FRCNN17
   # [start percentage, end percentage], e.g., [0.0, 0.5] for train and [0.75, 1.0] for val split.

@@ -20,7 +20,8 @@ from tracktor.datasets.factory import Datasets
 from tracktor.oracle_tracker import OracleTracker
 from tracktor.tracker import Tracker
 from tracktor.reid.resnet import resnet50
-from tracktor.utils import interpolate, plot_sequence, get_mot_accum, evaluate_mot_accums
+from tracktor.utils import (interpolate, plot_sequence,
+                            get_mot_accum, evaluate_mot_accums)
 
 ex = Experiment()
 
@@ -61,18 +62,21 @@ def main(tracktor, reid, _config, _log, _run):
                                map_location=lambda storage, loc: storage))
 
     obj_detect.eval()
-    obj_detect.cuda()
+    if torch.cuda.is_available():
+        obj_detect.cuda()
 
     # reid
     reid_network = resnet50(pretrained=False, **reid['cnn'])
     reid_network.load_state_dict(torch.load(tracktor['reid_weights'],
                                  map_location=lambda storage, loc: storage))
     reid_network.eval()
-    reid_network.cuda()
+    if torch.cuda.is_available():
+        reid_network.cuda()
 
     # tracktor
     if 'oracle' in tracktor:
-        tracker = OracleTracker(obj_detect, reid_network, tracktor['tracker'], tracktor['oracle'])
+        tracker = OracleTracker(
+            obj_detect, reid_network, tracktor['tracker'],tracktor['oracle'])
     else:
         tracker = Tracker(obj_detect, reid_network, tracktor['tracker'])
 
@@ -83,38 +87,43 @@ def main(tracktor, reid, _config, _log, _run):
     for seq in dataset:
         tracker.reset()
 
-        start = time.time()
-
         _log.info(f"Tracking: {seq}")
 
-        data_loader = DataLoader(seq, batch_size=1, shuffle=False)
-        for i, frame in enumerate(tqdm(data_loader)):
-            if len(seq) * tracktor['frame_split'][0] <= i <= len(seq) * tracktor['frame_split'][1]:
-                with torch.no_grad():
-                    tracker.step(frame)
-                num_frames += 1
-        results = tracker.get_results()
+        results = seq.load_results(output_dir)
+        if not tracktor['load_results'] or not results:
+            start = time.time()
+            data_loader = DataLoader(seq, batch_size=1, shuffle=False)
+            for i, frame in enumerate(tqdm(data_loader)):
+                if len(seq) * tracktor['frame_split'][0] <= i <= len(seq) * tracktor['frame_split'][1]:
+                    with torch.no_grad():
+                        tracker.step(frame)
+                    num_frames += 1
+            results = tracker.get_results()
 
-        time_total += time.time() - start
+            time_total += time.time() - start
 
-        _log.info(f"Tracks found: {len(results)}")
-        _log.info(f"Runtime for {seq}: {time.time() - start :.2f} s.")
+            _log.info(f"Tracks found: {len(results)}")
+            _log.info(f"Runtime for {seq}: {time.time() - start :.2f} s.")
 
-        if tracktor['interpolate']:
-            results = interpolate(results)
+            if tracktor['interpolate']:
+                results = interpolate(results)
+
+            _log.info(f"Writing predictions to: {output_dir}")
+            seq.write_results(results, output_dir)
 
         if seq.no_gt:
             _log.info(f"No GT data for evaluation available.")
         else:
             mot_accums.append(get_mot_accum(results, seq))
 
-        _log.info(f"Writing predictions to: {output_dir}")
-        seq.write_results(results, output_dir)
-
         if tracktor['write_images']:
             plot_sequence(results, seq, osp.join(output_dir, tracktor['dataset'], str(seq)))
 
-    _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
-              f"{time_total:.2f} s for {num_frames} frames ({num_frames / time_total:.2f} Hz)")
+    if time_total:
+        _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
+                f"{time_total:.2f} s for {num_frames} frames ({num_frames / time_total:.2f} Hz)")
     if mot_accums:
-        evaluate_mot_accums(mot_accums, [str(s) for s in dataset if not s.no_gt], generate_overall=True)
+        _log.info(f"Evaluation:")
+        evaluate_mot_accums(mot_accums,
+                            [str(s) for s in dataset if not s.no_gt],
+                            generate_overall=True)

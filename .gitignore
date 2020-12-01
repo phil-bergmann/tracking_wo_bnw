@@ -17,6 +17,7 @@ motchallenge-devkit
 .python-version
 __pycache__
 *.egg-info
+.ipynb_checkpoints
 
 # MacOSX
 .DS_Store

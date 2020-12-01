@@ -431,14 +431,15 @@ class OracleTracker(Tracker):
 			if len(self.tracks):
 				# create nms input
 
-
 				# nms here if tracks overlap
-				nms_inp_reg = torch.cat((self.get_pos(), person_scores.add_(3).view(-1, 1)), 1)
+
 				if self.kill_oracle:
 					# keep all
+					nms_inp_reg = torch.cat(
+						(self.get_pos(), person_scores.add_(3).view(-1, 1)), 1)
 					keep = torch.arange(nms_inp_reg.size(0)).long().cuda()
 				else:
-					keep = nms(nms_inp_reg, self.regression_nms_thresh)
+					keep = nms(self.get_pos(), person_scores, self.regression_nms_thresh)
 
 				# Plot the killed tracks for debugging
 				self.tracks_to_inactive([self.tracks[i] for i in list(range(len(self.tracks))) if i not in keep])
