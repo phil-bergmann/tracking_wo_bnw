@@ -19,7 +19,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
     2. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
-    1. Download [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT16Labels](https://motchallenge.net/data/MOT16Labels.zip), [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16-det-dpm-raw.zip) and [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and place them in the `data` folder. As the images are the same for MOT17Det, MOT17, and MOT16 we only need one set of images for all three benchmarks.
+    1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16-det-dpm-raw.zip), [MOT16Labels](https://motchallenge.net/data/MOT16Labels.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder. As the images are the same for MOT17Det, MOT17, and MOT16 we only need one set of images for all three benchmarks.
     2. Unzip all the data by executing:
     ```
     unzip -d MOT17Det MOT17Det.zip
@@ -27,6 +27,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
     unzip -d 2DMOT2015 2DMOT2015.zip
     unzip -d MOT16-det-dpm-raw MOT16-det-dpm-raw.zip
     unzip -d MOT17Labels MOT17Labels.zip
+    unzip -d MOT20 MOT20.zip
     ```
 
 4. Download model (MOT17 object detector, MOT20 object detector, and re-identification network) and MOTChallenge result files:
