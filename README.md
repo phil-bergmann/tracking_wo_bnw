@@ -72,9 +72,9 @@ IDF1  IDP  IDR| Rcll  Prcn   GT   MT   PT  ML|    FP     FN  IDs   FM| MOTA
 ```
 
 
-## Train and test object detector (Faster-RCNN with FPN)
+## Train and test object detector (Faster R-CNN with FPN)
 
-For the object detector, we followed the new native `torchvision` implementations of Faster-RCNN with FPN which are pre-trained on COCO. The provided object detection model was trained and tested with [this](https://colab.research.google.com/drive/1_arNo-81SnqfbdtAhb3TBSU5H0JXQ0_1) Google Colab notebook (or alternatively the `experiments/scripts/faster_rcnn_fpn_training.ipynb` Jupyter notebook). The object detection results on the `MOT17Det` train and test sets are:
+For the object detector, we followed the new native `torchvision` implementations of Faster R-CNN with FPN which are pre-trained on COCO. The provided object detection model was trained and tested with [this](https://colab.research.google.com/drive/1_arNo-81SnqfbdtAhb3TBSU5H0JXQ0_1) Google Colab notebook (or alternatively the `experiments/scripts/faster_rcnn_fpn_training.ipynb` Jupyter notebook). The object detection results on the `MOT17Det` train and test sets are:
 
 ```
 ********************* MOT17Det TRAIN Results ***********

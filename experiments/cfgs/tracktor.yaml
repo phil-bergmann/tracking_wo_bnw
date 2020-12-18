@@ -12,8 +12,8 @@ tracktor:
   # obj_detect_config: output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml
 
   # fpn
-  obj_detect_model: output/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
-  # obj_detect_model: output/faster_rcnn_fpn_training_mot_20/model_epoch_27.model
+  obj_detect_model: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
+  # obj_detect_model: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_20/model_epoch_27.model
 
   reid_weights: output/tracktor/reid/res50-mot17-batch_hard/ResNet_iter_25245.pth
   reid_config: output/tracktor/reid/res50-mot17-batch_hard/sacred_config.yaml
