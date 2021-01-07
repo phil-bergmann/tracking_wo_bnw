@@ -14,14 +14,14 @@ from ..config import cfg
 from torchvision.transforms import ToTensor
 
 
-class MOT17Sequence(Dataset):
+class MOTSequence(Dataset):
     """Multiple Object Tracking Dataset.
 
     This dataloader is designed so that it can handle only one sequence, if more have to be
     handled one should inherit from this class.
     """
 
-    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
+    def __init__(self, seq_name, mot_dir, vis_threshold=0.0,
                  normalize_mean=[0.485, 0.456, 0.406],
                  normalize_std=[0.229, 0.224, 0.225]):
         """
@@ -30,27 +30,19 @@ class MOT17Sequence(Dataset):
             vis_threshold (float): Threshold of visibility of persons above which they are selected
         """
         self._seq_name = seq_name
-        self._dets = dets
         self._vis_threshold = vis_threshold
 
-        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17Det')
-        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
-        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
-        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT17Labels')
+        self._mot_dir = osp.join(cfg.DATA_DIR, mot_dir)
 
         self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
         self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
 
         self.transforms = ToTensor()
 
-        if seq_name is not None:
-            assert seq_name in self._train_folders or seq_name in self._test_folders, \
-                'Image set does not exist: {}'.format(seq_name)
+        assert seq_name in self._train_folders + self._test_folders, \
+            'Image set does not exist: {}'.format(seq_name)
 
-            self.data, self.no_gt = self._sequence()
-        else:
-            self.data = []
-            self.no_gt = True
+        self.data, self.no_gt = self._sequence()
 
     def __len__(self):
         return len(self.data)
@@ -74,13 +66,8 @@ class MOT17Sequence(Dataset):
         seq_name = self._seq_name
         if seq_name in self._train_folders:
             seq_path = osp.join(self._mot_dir, 'train', seq_name)
-            label_path = osp.join(self._label_dir, 'train', 'MOT16-'+seq_name[-2:])
-            mot17_label_path = osp.join(self._mot17_label_dir, 'train')
         else:
             seq_path = osp.join(self._mot_dir, 'test', seq_name)
-            label_path = osp.join(self._label_dir, 'test', 'MOT16-'+seq_name[-2:])
-            mot17_label_path = osp.join(self._mot17_label_dir, 'test')
-        raw_label_path = osp.join(self._raw_label_dir, 'MOT16-'+seq_name[-2:])
 
         config_file = osp.join(seq_path, 'seqinfo.ini')
 
@@ -96,8 +83,6 @@ class MOT17Sequence(Dataset):
         gt_file = osp.join(seq_path, 'gt', 'gt.txt')
 
         total = []
-        train = []
-        val = []
 
         visibility = {}
         boxes = {}
@@ -127,7 +112,7 @@ class MOT17Sequence(Dataset):
         else:
             no_gt = True
 
-        det_file = self.get_det_file(label_path, raw_label_path, mot17_label_path)
+        det_file = osp.join(seq_path, 'det', 'det.txt')
 
         if osp.exists(det_file):
             with open(det_file, "r") as inf:
@@ -142,8 +127,8 @@ class MOT17Sequence(Dataset):
                     bb = np.array([x1,y1,x2,y2, score], dtype=np.float32)
                     dets[int(float(row[0]))].append(bb)
 
-        for i in range(1,seqLength+1):
-            im_path = osp.join(imDir,"{:06d}.jpg".format(i))
+        for i in range(1, seqLength + 1):
+            im_path = osp.join(imDir, f"{i:06d}.jpg")
 
             sample = {'gt':boxes[i],
                       'im_path':im_path,
@@ -154,33 +139,8 @@ class MOT17Sequence(Dataset):
 
         return total, no_gt
 
-    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
-        if self._dets == "DPM":
-            det_file = osp.join(label_path, 'det', 'det.txt')
-        elif self._dets == "DPM_RAW16":
-            det_file = osp.join(raw_label_path, 'det', 'det-dpm-raw.txt')
-        elif "17" in self._seq_name:
-            det_file = osp.join(
-                mot17_label_path,
-                f"{self._seq_name}-{self._dets[:-2]}",
-                'det',
-                'det.txt')
-        else:
-            det_file = ""
-        return det_file
-
     def __str__(self):
-        return f"{self._seq_name}-{self._dets[:-2]}"
-
-    @property
-    def results_file_name(self):
-        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
-
-        if "17" in self._dets:
-            return f"MOT17-{self._seq_name[6:8]}-{self._dets[:-2]}.txt"
-        else:
-            return f"MOT16-{self._seq_name[6:8]}.txt"
-
+        return self._seq_name
 
     def write_results(self, all_tracks, output_dir):
         """Write the tracks in the format for MOT16/MOT17 sumbission
@@ -196,11 +156,7 @@ class MOT17Sequence(Dataset):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        file = osp.join(output_dir, self.results_file_name)
-
-        print(f"[*] Writing to: {file}")
-
-        with open(file, "w") as of:
+        with open(osp.join(output_dir, self._seq_name), "w") as of:
             writer = csv.writer(of, delimiter=',')
             for i, track in all_tracks.items():
                 for frame, bb in track.items():
@@ -218,13 +174,13 @@ class MOT17Sequence(Dataset):
                          -1, -1, -1, -1])
 
     def load_results(self, output_dir):
-        file = osp.join(output_dir, self.results_file_name)
+        file_path = osp.join(output_dir, self._seq_name)
         results = {}
 
-        if not os.path.isfile(file):
+        if not os.path.isfile(file_path):
             return results
 
-        with open(file, "r") as of:
+        with open(file_path, "r") as of:
             csv_reader = csv.reader(of, delimiter=',')
             for row in csv_reader:
                 frame_id, track_id = int(row[0]) - 1, int(row[1]) - 1
@@ -241,141 +197,3 @@ class MOT17Sequence(Dataset):
 
         return results
 
-
-class MOT19Sequence(MOT17Sequence):
-
-    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
-                 normalize_mean=[0.485, 0.456, 0.406],
-                 normalize_std=[0.229, 0.224, 0.225]):
-        """
-        Args:
-            seq_name (string): Sequence to take
-            vis_threshold (float): Threshold of visibility of persons above which they are selected
-        """
-        self._seq_name = seq_name
-        self._dets = dets
-        self._vis_threshold = vis_threshold
-
-        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT19')
-        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT19')
-
-        # TODO: refactor code of both classes to consider 16,17 and 19
-        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
-        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
-
-        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
-        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
-
-        self.transforms = ToTensor()
-
-        if seq_name is not None:
-            assert seq_name in self._train_folders or seq_name in self._test_folders, \
-                'Image set does not exist: {}'.format(seq_name)
-
-            self.data, self.no_gt = self._sequence()
-        else:
-            self.data = []
-            self.no_gt = True
-
-    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
-        # FRCNN detections
-        if "MOT19" in self._seq_name:
-            det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
-        else:
-            det_file = ""
-        return det_file
-
-    @property
-    def results_file_name(self):
-        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
-
-        return f"{self._seq_name}.txt"
-
-
-class MOT20Sequence(MOT17Sequence):
-
-    def __init__(self, seq_name=None, dets='', vis_threshold=0.0,
-                 normalize_mean=[0.485, 0.456, 0.406],
-                 normalize_std=[0.229, 0.224, 0.225]):
-        """
-        Args:
-            seq_name (string): Sequence to take
-            vis_threshold (float): Threshold of visibility of persons above which they are selected
-        """
-        self._seq_name = seq_name
-        self._dets = dets
-        self._vis_threshold = vis_threshold
-
-        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT20')
-        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT20')
-
-        # TODO: refactor code of both classes to consider 16,17 and 19
-        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
-        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
-
-        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
-        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
-
-        self.transforms = ToTensor()
-
-        if seq_name is not None:
-            assert seq_name in self._train_folders or seq_name in self._test_folders, \
-                'Image set does not exist: {}'.format(seq_name)
-
-            self.data, self.no_gt = self._sequence()
-        else:
-            self.data = []
-            self.no_gt = True
-
-    def get_det_file(self, label_path, raw_label_path, mot17_label_path):
-        # FRCNN detections
-        if "MOT20" in self._seq_name:
-            det_file = osp.join(mot17_label_path, self._seq_name, 'det', 'det.txt')
-        else:
-            det_file = ""
-        return det_file
-
-    @property
-    def results_file_name(self):
-        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
-
-        return f"{self._seq_name}.txt"
-
-    def __str__(self):
-        return self._seq_name
-
-class MOT17LOWFPSSequence(MOT17Sequence):
-
-    def __init__(self, split, seq_name=None, dets='', vis_threshold=0.0,
-                 normalize_mean=[0.485, 0.456, 0.406],
-                 normalize_std=[0.229, 0.224, 0.225]):
-        """
-        Args:
-            seq_name (string): Sequence to take
-            vis_threshold (float): Threshold of visibility of persons above which they are selected
-        """
-        self._seq_name = seq_name
-        self._dets = dets
-        self._vis_threshold = vis_threshold
-
-        self._mot_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
-        self._mot17_label_dir = osp.join(cfg.DATA_DIR, 'MOT17_LOW_FPS', f'MOT17_{split}_FPS')
-
-        # TODO: refactor code of both classes to consider 16,17 and 19
-        self._label_dir = osp.join(cfg.DATA_DIR, 'MOT16Labels')
-        self._raw_label_dir = osp.join(cfg.DATA_DIR, 'MOT16-det-dpm-raw')
-
-        self._train_folders = os.listdir(os.path.join(self._mot_dir, 'train'))
-        self._test_folders = os.listdir(os.path.join(self._mot_dir, 'test'))
-
-        self.transforms = Compose([ToTensor(), Normalize(normalize_mean,
-                                                         normalize_std)])
-
-        if seq_name is not None:
-            assert seq_name in self._train_folders or seq_name in self._test_folders, \
-                'Image set does not exist: {}'.format(seq_name)
-
-            self.data, self.no_gt = self._sequence()
-        else:
-            self.data = []
-            self.no_gt = True

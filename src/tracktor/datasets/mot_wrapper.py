@@ -1,7 +1,9 @@
+import os.path as osp
+
 import torch
 from torch.utils.data import Dataset
 
-from .mot_sequence import MOT17Sequence, MOT19Sequence, MOT17LOWFPSSequence, MOT20Sequence
+from .mot_sequence import MOTSequence
 
 
 class MOT17Wrapper(Dataset):
@@ -14,6 +16,7 @@ class MOT17Wrapper(Dataset):
 		split -- the split of the dataset to use
 		dataloader -- args for the MOT_Sequence dataloader
 		"""
+		mot_dir = 'MOT17'
 		train_sequences = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
 		test_sequences = ['MOT17-01', 'MOT17-03', 'MOT17-06', 'MOT17-07', 'MOT17-08', 'MOT17-12', 'MOT17-14']
 
@@ -30,12 +33,14 @@ class MOT17Wrapper(Dataset):
 
 		self._data = []
 		for s in sequences:
-			if dets == '17':
-				self._data.append(MOT17Sequence(seq_name=s, dets='DPM17', **dataloader))
-				self._data.append(MOT17Sequence(seq_name=s, dets='FRCNN17', **dataloader))
-				self._data.append(MOT17Sequence(seq_name=s, dets='SDP17', **dataloader))
+			if dets == 'ALL':
+				self._data.append(MOTSequence(f"{s}-DPM", mot_dir, **dataloader))
+				self._data.append(MOTSequence(f"{s}-FRCNN", mot_dir, **dataloader))
+				self._data.append(MOTSequence(f"{s}-SDP", mot_dir, **dataloader))
+			elif dets == 'DPM16':
+				self._data.append(MOTSequence(s.replace('17', '16'), 'MOT16', **dataloader))
 			else:
-				self._data.append(MOT17Sequence(seq_name=s, dets=dets, **dataloader))
+				self._data.append(MOTSequence(f"{s}-{dets}", mot_dir, **dataloader))
 
 	def __len__(self):
 		return len(self._data)
@@ -70,13 +75,7 @@ class MOT19Wrapper(MOT17Wrapper):
 
 		self._data = []
 		for s in sequences:
-			self._data.append(MOT19Sequence(seq_name=s, **dataloader))
-
-	def __len__(self):
-		return len(self._data)
-
-	def __getitem__(self, idx):
-		return self._data[idx]
+			self._data.append(MOTSequence(s, 'MOT19', **dataloader))
 
 
 class MOT20Wrapper(MOT17Wrapper):
@@ -105,13 +104,7 @@ class MOT20Wrapper(MOT17Wrapper):
 
 		self._data = []
 		for s in sequences:
-			self._data.append(MOT20Sequence(seq_name=s, **dataloader))
-
-	def __len__(self):
-		return len(self._data)
-
-	def __getitem__(self, idx):
-		return self._data[idx]
+			self._data.append(MOTSequence(s, 'MOT20', **dataloader))
 
 
 class MOT17LOWFPSWrapper(MOT17Wrapper):
@@ -129,10 +122,5 @@ class MOT17LOWFPSWrapper(MOT17Wrapper):
 
 		self._data = []
 		for s in sequences:
-			self._data.append(MOT17LOWFPSSequence(split=split, seq_name=s, dets='FRCNN17', **dataloader))
-
-	def __len__(self):
-		return len(self._data)
-
-	def __getitem__(self, idx):
-		return self._data[idx]
+			self._data.append(
+				MOTSequence(f"{s}-FRCNN", osp.join('MOT17_LOW_FPS', f'MOT17_{split}_FPS'), **dataloader))

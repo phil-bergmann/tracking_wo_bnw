@@ -9,27 +9,26 @@ In addition to our supplementary document, we provide an illustrative [web-video
 ## Installation
 
 1. Clone and enter this repository:
-  ```
-  git clone https://github.com/phil-bergmann/tracking_wo_bnw
-  cd tracking_wo_bnw
-  ```
+    ```
+    git clone https://github.com/phil-bergmann/tracking_wo_bnw
+    cd tracking_wo_bnw
+    ```
 
 2. Install packages for Python 3.7 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
     2. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
-    1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16-det-dpm-raw](https://motchallenge.net/data/MOT16-det-dpm-raw.zip), [MOT16Labels](https://motchallenge.net/data/MOT16Labels.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17Labels](https://motchallenge.net/data/MOT17Labels.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder. As the images are the same for MOT17Det, MOT17, and MOT16 we only need one set of images for all three benchmarks.
+    1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.
     2. Unzip all the data by executing:
-    ```
-    unzip -d MOT17Det MOT17Det.zip
-    unzip -d MOT16Labels MOT16Labels.zip
-    unzip -d 2DMOT2015 2DMOT2015.zip
-    unzip -d MOT16-det-dpm-raw MOT16-det-dpm-raw.zip
-    unzip -d MOT17Labels MOT17Labels.zip
-    unzip -d MOT20 MOT20.zip
-    ```
-
+        ```
+        unzip -d 2DMOT2015 2DMOT2015.zip
+        unzip -d MOT16 MOT16.zip
+        unzip -d MOT17Det MOT17Det.zip
+        unzip -d MOT17 MOT17.zip
+        unzip -d MOT20Det MOT20Det.zip
+        unzip -d MOT20 MOT20.zip
+        ```
 4. Download model (MOT17 object detector, MOT20 object detector, and re-identification network) and MOTChallenge result files:
     1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v3.zip).
     2. Extract in `output` directory.
@@ -41,9 +40,9 @@ In order to configure, organize, log and reproduce our computational experiments
 
 2. The default configuration is `Tracktor++`. Run `Tracktor++` by executing:
 
-  ```
-  python experiments/scripts/test_tracktor.py
-  ```
+    ```
+    python experiments/scripts/test_tracktor.py
+    ```
 
 3. The results are logged in the corresponding `output` directory.
 
@@ -92,10 +91,7 @@ Rcll  Prcn|  FAR     GT     TP     FP     FN| MODA  MODP
 
 1. The training config file is located at `experiments/cfgs/reid.yaml`.
 
-2. Start training by executing:
-  ```
-  python experiments/scripts/train_reid.py
-  ```
+2. Start training by executing `python experiments/scripts/train_reid.py`.
 
 ## Publication
  If you use this software in your research, please cite our publication:

@@ -1,5 +1,6 @@
 
-from .mot_wrapper import MOT17Wrapper, MOT19Wrapper, MOT17LOWFPSWrapper, MOT20Wrapper
+from .mot_wrapper import (MOT17Wrapper, MOT19Wrapper,
+                          MOT17LOWFPSWrapper, MOT20Wrapper)
 from .mot_reid_wrapper import MOTreIDWrapper
 from .mot15_wrapper import MOT15Wrapper
 from .marcuhmot import MarCUHMOT
@@ -11,7 +12,7 @@ _sets = {}
 # Fill all available datasets, change here to modify / add new datasets.
 for split in ['train', 'test', 'all', '01', '02', '03', '04', '05', '06', '07', '08', '09',
               '10', '11', '12', '13', '14']:
-    for dets in ['DPM16', 'DPM_RAW16', 'DPM17', 'FRCNN17', 'SDP17', '17', '']:
+    for dets in ['DPM16', 'DPM', 'FRCNN', 'SDP', 'ALL']:
         name = f'mot17_{split}_{dets}'
         _sets[name] = (lambda *args, split=split,
                        dets=dets: MOT17Wrapper(split, dets, *args))
