@@ -12,7 +12,7 @@ class FRCNN_FPN(FasterRCNN):
 
     def __init__(self, num_classes):
         backbone = resnet_fpn_backbone('resnet50', False)
-        super(FRCNN_FPN, self).__init__(backbone, num_classes)
+        super(FRCNN_FPN, self).__init__(backbone, num_classes, box_detections_per_img=300)
         # these values are cached to allow for feature reuse
         self.original_image_sizes = None
         self.preprocessed_images = None
