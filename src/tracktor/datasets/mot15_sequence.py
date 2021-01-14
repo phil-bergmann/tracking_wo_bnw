@@ -11,9 +11,10 @@ from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
 from ..config import cfg
+from .mot_sequence import MOTSequence
 
 
-class MOT15Sequence(Dataset):
+class MOT15Sequence(MOTSequence):
     """Loads a sequence from the 2DMOT15 dataset.
 
     This dataloader is designed so that it can handle only one sequence, if more have to be handled
@@ -137,50 +138,3 @@ class MOT15Sequence(Dataset):
             total.append(sample)
 
         return total, no_gt
-
-    def write_results(self, all_tracks, output_dir):
-        """Write the tracks in the format for MOT16/MOT17 sumbission
-
-        all_tracks: dictionary with 1 dictionary for every track with {..., i:np.array([x1,y1,x2,y2]), ...} at key track_num
-
-        Each file contains these lines:
-        <frame>, <id>, <bb_left>, <bb_top>, <bb_width>, <bb_height>, <conf>, <x>, <y>, <z>
-
-        Files to sumbit:
-        ./MOT16-01.txt
-        ./MOT16-02.txt
-        ./MOT16-03.txt
-        ./MOT16-04.txt
-        ./MOT16-05.txt
-        ./MOT16-06.txt
-        ./MOT16-07.txt
-        ./MOT16-08.txt
-        ./MOT16-09.txt
-        ./MOT16-10.txt
-        ./MOT16-11.txt
-        ./MOT16-12.txt
-        ./MOT16-13.txt
-        ./MOT16-14.txt
-        """
-
-        #format_str = "{}, -1, {}, {}, {}, {}, {}, -1, -1, -1"
-
-        assert self._seq_name is not None, "[!] No seq_name, probably using combined database"
-
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        file = osp.join(output_dir, self._seq_name+'.txt')
-
-        print("[*] Writing to: {}".format(file))
-
-        with open(file, "w") as of:
-            writer = csv.writer(of, delimiter=',')
-            for i, track in all_tracks.items():
-                for frame, bb in track.items():
-                    x1 = bb[0]
-                    y1 = bb[1]
-                    x2 = bb[2]
-                    y2 = bb[3]
-                    writer.writerow([frame+1, i+1, x1+1, y1+1, x2-x1+1, y2-y1+1, -1, -1, -1, -1])
-
