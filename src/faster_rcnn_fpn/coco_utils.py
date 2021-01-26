@@ -48,6 +48,9 @@ def convert_coco_poly_to_mask(segmentations, height, width):
 
 
 class ConvertCocoPolysToMask(object):
+    def __init__(self, return_masks=False):
+        self.return_masks = return_masks
+
     def __call__(self, image, target):
         w, h = image.size
 
@@ -68,8 +71,9 @@ class ConvertCocoPolysToMask(object):
         classes = [obj["category_id"] for obj in anno]
         classes = torch.tensor(classes, dtype=torch.int64)
 
-        segmentations = [obj["segmentation"] for obj in anno]
-        masks = convert_coco_poly_to_mask(segmentations, h, w)
+        if self.return_masks:
+            segmentations = [obj["segmentation"] for obj in anno]
+            masks = convert_coco_poly_to_mask(segmentations, h, w)
 
         keypoints = None
         if anno and "keypoints" in anno[0]:
@@ -82,14 +86,16 @@ class ConvertCocoPolysToMask(object):
         keep = (boxes[:, 3] > boxes[:, 1]) & (boxes[:, 2] > boxes[:, 0])
         boxes = boxes[keep]
         classes = classes[keep]
-        masks = masks[keep]
+        if self.return_masks:
+            masks = masks[keep]
         if keypoints is not None:
             keypoints = keypoints[keep]
 
         target = {}
         target["boxes"] = boxes
         target["labels"] = classes
-        target["masks"] = masks
+        if self.return_masks:
+            target["masks"] = masks
         target["image_id"] = image_id
         if keypoints is not None:
             target["keypoints"] = keypoints
@@ -206,7 +212,7 @@ def get_coco_api_from_dataset(dataset):
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
-    def __init__(self, img_folder, ann_file, transforms):
+    def __init__(self, img_folder, ann_file, transforms=None):
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self._transforms = transforms
 

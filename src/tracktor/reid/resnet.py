@@ -27,7 +27,7 @@ model_urls = {
 class ResNet(models.ResNet):
     def __init__(self, block, layers, output_dim):
         super(ResNet, self).__init__(block, layers)
-        
+
         self.name = "ResNet"
 
         self.avgpool = nn.AvgPool2d((8,4), stride=1)
@@ -67,7 +67,7 @@ class ResNet(models.ResNet):
         """Tests the rois on a particular image. Should be inside image."""
         x = self.build_crops(image, rois)
         x = Variable(x)
-        
+
         return self.forward(x)
 
     def compare(self, e0, e1, train=False):
@@ -122,7 +122,7 @@ class ResNet(models.ResNet):
         labels = labels.cuda()
 
         embeddings = self.forward(inp)
-        
+
         if loss == "cross_entropy":
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
@@ -249,8 +249,8 @@ class ResNet(models.ResNet):
             dist = torch.pow(x - y, 2).sum(2)
             mask_anchor_positive = _get_anchor_positive_triplet_mask(labels)
             _, indices = torch.sort(dist, dim=1)
-            num_hit = 0
-            num_ges = 0
+            num_hit = 0.0
+            num_ges = 0.0
             for i in range(dist.size(0)):
                 d = mask_anchor_positive[i].nonzero().view(-1,1)
                 ind = indices[i][:prec_at_k+1]
