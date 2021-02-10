@@ -41,10 +41,10 @@ class MOTObjDetect(torch.utils.data.Dataset):
             im_ext = config['Sequence']['imExt']
             im_dir = config['Sequence']['imDir']
 
-            _imDir = os.path.join(path, im_dir)
+            img_dir = os.path.join(path, im_dir)
 
             for i in range(seq_len):
-                img_path = os.path.join(_imDir, f"{i + 1:06d}{im_ext}")
+                img_path = os.path.join(img_dir, f"{i + 1:06d}{im_ext}")
                 assert os.path.exists(img_path), \
                     'Path does not exist: {img_path}'
                 self._img_paths.append(img_path)

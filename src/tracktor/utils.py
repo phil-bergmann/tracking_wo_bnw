@@ -5,6 +5,7 @@
 import os
 from collections import defaultdict
 from os import path as osp
+import tqdm
 
 import numpy as np
 import torch
@@ -80,7 +81,79 @@ def bbox_overlaps(boxes, query_boxes):
     return out_fn(overlaps)
 
 
-def plot_sequence(tracks, db, output_dir):
+def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=False):
+    """
+    Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
+    :param nlabels: Number of labels (size of colormap)
+    :param type: 'bright' for strong colors, 'soft' for pastel colors
+    :param first_color_black: Option to use first color as black, True or False
+    :param last_color_black: Option to use last color as black, True or False
+    :param verbose: Prints the number of labels and shows the colormap. True or False
+    :return: colormap for matplotlib
+    """
+    import colorsys
+
+    import numpy as np
+    from matplotlib.colors import LinearSegmentedColormap
+
+
+    if type not in ('bright', 'soft'):
+        print ('Please choose "bright" or "soft" for type')
+        return
+
+    if verbose:
+        print('Number of labels: ' + str(nlabels))
+
+    # Generate color map for bright colors, based on hsv
+    if type == 'bright':
+        randHSVcolors = [(np.random.uniform(low=0.0, high=1),
+                          np.random.uniform(low=0.2, high=1),
+                          np.random.uniform(low=0.9, high=1)) for i in range(nlabels)]
+
+        # Convert HSV list to RGB
+        randRGBcolors = []
+        for HSVcolor in randHSVcolors:
+            randRGBcolors.append(colorsys.hsv_to_rgb(HSVcolor[0], HSVcolor[1], HSVcolor[2]))
+
+        if first_color_black:
+            randRGBcolors[0] = [0, 0, 0]
+
+        if last_color_black:
+            randRGBcolors[-1] = [0, 0, 0]
+
+        random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+
+    # Generate soft pastel colors, by limiting the RGB spectrum
+    if type == 'soft':
+        low = 0.6
+        high = 0.95
+        randRGBcolors = [(np.random.uniform(low=low, high=high),
+                          np.random.uniform(low=low, high=high),
+                          np.random.uniform(low=low, high=high)) for i in range(nlabels)]
+
+        if first_color_black:
+            randRGBcolors[0] = [0, 0, 0]
+
+        if last_color_black:
+            randRGBcolors[-1] = [0, 0, 0]
+        random_colormap = LinearSegmentedColormap.from_list('new_map', randRGBcolors, N=nlabels)
+
+    # Display colorbar
+    if verbose:
+        from matplotlib import colorbar, colors
+        from matplotlib import pyplot as plt
+        fig, ax = plt.subplots(1, 1, figsize=(15, 0.5))
+
+        bounds = np.linspace(0, nlabels, nlabels + 1)
+        norm = colors.BoundaryNorm(bounds, nlabels)
+
+        colorbar.ColorbarBase(ax, cmap=random_colormap, norm=norm, spacing='proportional', ticks=None,
+                              boundaries=bounds, format='%1i', orientation=u'horizontal')
+
+    return random_colormap
+
+
+def plot_sequence(tracks, data_loader, output_dir, write_images):
     """Plots a whole sequence
 
     Args:
@@ -88,54 +161,57 @@ def plot_sequence(tracks, db, output_dir):
         db (torch.utils.data.Dataset): The dataset with the images belonging to the tracks (e.g. MOT_Sequence object)
         output_dir (String): Directory where to save the resulting images
     """
-
-    print("[*] Plotting whole sequence to {}".format(output_dir))
-
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
 
-    # infinite color loop
-    cyl = cy('ec', colors)
-    loop_cy_iter = cyl()
-    styles = defaultdict(lambda: next(loop_cy_iter))
+    cmap = rand_cmap(len(tracks), type='bright', first_color_black=False, last_color_black=False)
 
-    for i, v in enumerate(db):
-        im_path = v['img_path']
-        im_name = osp.basename(im_path)
-        im_output = osp.join(output_dir, im_name)
-        im = cv2.imread(im_path)
-        im = im[:, :, (2, 1, 0)]
-
-        sizes = np.shape(im)
-        height = float(sizes[0])
-        width = float(sizes[1])
+    for frame_id, frame_data  in enumerate(tqdm.tqdm(data_loader)):
+        img_path = frame_data['img_path']
+        img = cv2.imread(img_path)[:, :, (2, 1, 0)]
+        height, width, _ = img.shape
 
         fig = plt.figure()
-        fig.set_size_inches(width / 100, height / 100)
+        fig.set_size_inches(width / 96, height / 96)
         ax = plt.Axes(fig, [0., 0., 1., 1.])
         ax.set_axis_off()
         fig.add_axes(ax)
-        ax.imshow(im)
+        ax.imshow(img)
 
-        for j, t in tracks.items():
-            if i in t.keys():
-                t_i = t[i]
-                ax.add_patch(
-                    plt.Rectangle(
-                        (t_i[0], t_i[1]),
-                        t_i[2] - t_i[0],
-                        t_i[3] - t_i[1],
-                        fill=False,
-                        linewidth=1.0, **styles[j]
-                    ))
+        for track_id, track_data in tracks.items():
+            if frame_id in track_data.keys():
+                bbox = track_data[frame_id][:4]
 
-                ax.annotate(j, (t_i[0] + (t_i[2] - t_i[0]) / 2.0, t_i[1] + (t_i[3] - t_i[1]) / 2.0),
-                            color=styles[j]['ec'], weight='bold', fontsize=6, ha='center', va='center')
+                if 'mask' in track_data[frame_id]:
+                    mask = track_data[frame_id]['mask']
+                    mask = np.ma.masked_where(mask == 0.0, mask)
+
+                    ax.imshow(mask, alpha=0.5, cmap=colors.ListedColormap([cmap(track_id)]))
+
+                    annotate_color = 'white'
+                else:
+                    ax.add_patch(
+                        plt.Rectangle(
+                            (bbox[0], bbox[1]),
+                            bbox[2] - bbox[0],
+                            bbox[3] - bbox[1],
+                            fill=False,
+                            linewidth=2.0,
+                            color=cmap(track_id)
+                        ))
+
+                    annotate_color = cmap(track_id)
+
+                if write_images == 'debug':
+                    ax.annotate(
+                        f"{track_id} ({track_data[frame_id][-1]:.2f})",
+                        (bbox[0] + (bbox[2] - bbox[0]) / 2.0, bbox[1] + (bbox[3] - bbox[1]) / 2.0),
+                        color=annotate_color, weight='bold', fontsize=12, ha='center', va='center')
 
         plt.axis('off')
         # plt.tight_layout()
         plt.draw()
-        plt.savefig(im_output, dpi=100)
+        plt.savefig(osp.join(output_dir, osp.basename(img_path)), dpi=96)
         plt.close()
 
 
@@ -325,7 +401,7 @@ def warp_pos(pos, warp_matrix):
 
 
 def get_mot_accum(results, seq):
-    mot_accum = mm.MOTAccumulator(auto_id=True)    
+    mot_accum = mm.MOTAccumulator(auto_id=True)
 
     for i, data in enumerate(seq):
         gt = data['gt']
@@ -335,7 +411,7 @@ def get_mot_accum(results, seq):
             for gt_id, box in gt.items():
                 gt_ids.append(gt_id)
                 gt_boxes.append(box)
-        
+
             gt_boxes = np.stack(gt_boxes, axis=0)
             # x1, y1, x2, y2 --> x1, y1, width, height
             gt_boxes = np.stack((gt_boxes[:, 0],
@@ -345,7 +421,7 @@ def get_mot_accum(results, seq):
                                 axis=1)
         else:
             gt_boxes = np.array([])
-        
+
         track_ids = []
         track_boxes = []
         for track_id, frames in results.items():
@@ -364,9 +440,9 @@ def get_mot_accum(results, seq):
                                     axis=1)
         else:
             track_boxes = np.array([])
-        
+
         distance = mm.distances.iou_matrix(gt_boxes, track_boxes, max_iou=0.5)
-        
+
         mot_accum.update(
             gt_ids,
             track_ids,
@@ -374,17 +450,17 @@ def get_mot_accum(results, seq):
 
     return mot_accum
 
-    
+
 def evaluate_mot_accums(accums, names, generate_overall=False):
     mh = mm.metrics.create()
     summary = mh.compute_many(
-        accums, 
-        metrics=mm.metrics.motchallenge_metrics, 
+        accums,
+        metrics=mm.metrics.motchallenge_metrics,
         names=names,
         generate_overall=generate_overall,)
 
     str_summary = mm.io.render_summary(
-        summary, 
-        formatters=mh.formatters, 
+        summary,
+        formatters=mh.formatters,
         namemap=mm.io.motchallenge_metric_names,)
     print(str_summary)

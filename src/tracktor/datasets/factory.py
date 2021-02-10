@@ -1,10 +1,11 @@
 
-from .mot_wrapper import (MOT17Wrapper, MOT19Wrapper,
-                          MOT17LOWFPSWrapper, MOT20Wrapper)
-from .mot_reid_wrapper import MOTreIDWrapper
-from .mot15_wrapper import MOT15Wrapper
-from .marcuhmot import MarCUHMOT
+from torch.utils.data import ConcatDataset
 
+from .marcuhmot import MarCUHMOT
+from .mot15_wrapper import MOT15Wrapper
+from .mot_reid_wrapper import MOTreIDWrapper
+from .mot_wrapper import (MOT17LOWFPSWrapper, MOT17PrivateWrapper,
+                          MOT17Wrapper, MOT19Wrapper, MOT20Wrapper)
 
 _sets = {}
 
@@ -52,19 +53,27 @@ class Datasets(object):
     can be accessed.
     """
 
-    def __init__(self, dataset, *args):
+    def __init__(self, datasets, *args):
         """Initialize the corresponding dataloader.
 
         Keyword arguments:
         dataset --  the name of the dataset
         args -- arguments used to call the dataloader
         """
-        assert dataset in _sets, "[!] Dataset not found: {}".format(dataset)
+        if isinstance(datasets, str):
+            datasets = [datasets]
 
         if len(args) == 0:
             args = [{}]
 
-        self._data = _sets[dataset](*args)
+        self._data = None
+        for dataset in datasets:
+            assert dataset in _sets, f"[!] Dataset not found: {dataset}"
+
+            if self._data is None:
+                self._data = _sets[dataset](*args)
+            else:
+                self._data = ConcatDataset([self._data, _sets[dataset](*args)])
 
     def __len__(self):
         return len(self._data)

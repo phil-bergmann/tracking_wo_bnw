@@ -19,6 +19,7 @@ tracktor:
   reid_config: output/tracktor/reid/res50-mot17-batch_hard/sacred_config.yaml
 
   interpolate: False
+  # [False, 'debug', 'pretty']
   # compile video with: `ffmpeg -f image2 -framerate 15 -i %06d.jpg -vcodec libx264 -y movie.mp4 -vf scale=320:-1`
   write_images: False
   # load tracking results if available and only evaluate

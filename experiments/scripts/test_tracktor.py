@@ -112,18 +112,22 @@ def main(tracktor, reid, _config, _log, _run):
             seq.write_results(results, output_dir)
 
         if seq.no_gt:
-            _log.info(f"No GT data for evaluation available.")
+            _log.info("No GT data for evaluation available.")
         else:
             mot_accums.append(get_mot_accum(results, seq))
 
         if tracktor['write_images']:
-            plot_sequence(results, seq, osp.join(output_dir, tracktor['dataset'], str(seq)))
+            plot_sequence(
+                results,
+                seq,
+                osp.join(output_dir, str(tracktor['dataset']), str(seq)),
+                tracktor['write_images'])
 
     if time_total:
         _log.info(f"Tracking runtime for all sequences (without evaluation or image writing): "
                 f"{time_total:.2f} s for {num_frames} frames ({num_frames / time_total:.2f} Hz)")
     if mot_accums:
-        _log.info(f"Evaluation:")
+        _log.info("Evaluation:")
         evaluate_mot_accums(mot_accums,
                             [str(s) for s in dataset if not s.no_gt],
                             generate_overall=True)

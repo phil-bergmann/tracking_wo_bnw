@@ -19,7 +19,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
     2. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
-    1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.
+    1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.
     2. Unzip all the data by executing:
         ```
         unzip -d 2DMOT2015 2DMOT2015.zip
