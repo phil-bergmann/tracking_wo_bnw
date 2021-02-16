@@ -16,7 +16,8 @@ In addition to our supplementary document, we provide an illustrative [web-video
 
 2. Install packages for Python 3.7 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
-    2. Install Tracktor: `pip3 install -e .`
+    2. Install PyTorch 1.6 and torchvision 0.7 from here.
+    3. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
     1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.

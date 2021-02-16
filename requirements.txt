@@ -99,8 +99,6 @@ tensorboardX==2.0
 terminado==0.8.3
 testpath==0.4.4
 toml==0.10.2
-torch==1.6.0+cu101
-torchvision==0.7.0+cu101
 tornado==6.0.4
 tqdm==4.38.0
 traitlets==4.3.3
