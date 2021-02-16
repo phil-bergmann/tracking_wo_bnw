@@ -16,7 +16,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
 
 2. Install packages for Python 3.7 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
-    2. Install PyTorch 1.6 and torchvision 0.7 from here.
+    2. Install PyTorch 1.6 and torchvision 0.7 from [here](https://pytorch.org/get-started/previous-versions/#v160).
     3. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
