@@ -14,7 +14,8 @@ class MOTObjDetect(torch.utils.data.Dataset):
     """ Data class for the Multiple Object Tracking Dataset
     """
 
-    def __init__(self, root, transforms=None, vis_threshold=0.25, split_seqs=None):
+    def __init__(self, root, transforms=None, vis_threshold=0.25,
+                 split_seqs=None):
         self.root = root
         self.transforms = transforms
         self._vis_threshold = vis_threshold

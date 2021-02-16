@@ -31,7 +31,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
         unzip -d MOT20 MOT20.zip
         ```
 4. Download model (MOT17 object detector, MOT20 object detector, and re-identification network) and MOTChallenge result files:
-    1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v3.zip).
+    1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v4.zip).
     2. Extract in `output` directory.
 
 ## Evaluate Tracktor

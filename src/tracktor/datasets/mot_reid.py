@@ -21,8 +21,8 @@ class MOTreID(MOTSequence):
     Values for P are normally 18 and K 4
     """
 
-    def __init__(self, seq_name, mot_dir, split, vis_threshold, P, K, max_per_person, crop_H, crop_W,
-                transform, normalize_mean=None, normalize_std=None):
+    def __init__(self, seq_name, mot_dir, vis_threshold, P, K, max_per_person, crop_H, crop_W,
+                transform, normalize_mean=None, normalize_std=None, logger=print):
         super().__init__(seq_name, mot_dir, vis_threshold=vis_threshold)
 
         self.P = P
@@ -30,6 +30,7 @@ class MOTreID(MOTSequence):
         self.max_per_person = max_per_person
         self.crop_H = crop_H
         self.crop_W = crop_W
+        self.logger = logger
 
         if transform == "random":
             self.transform = Compose([
@@ -45,16 +46,7 @@ class MOTreID(MOTSequence):
         else:
             raise NotImplementedError("Tranformation not understood: {}".format(transform))
 
-        self.build_samples()
-
-        if split == 'train':
-            pass
-        elif split == 'small_train':
-            self.data = self.data[0::5] + self.data[1::5] + self.data[2::5] + self.data[3::5]
-        elif split == 'small_val':
-            self.data = self.data[4::5]
-        else:
-            raise NotImplementedError("Split: {}".format(split))
+        self.data = self.build_samples()
 
     def __getitem__(self, idx):
         """Return the ith triplet"""
@@ -130,13 +122,13 @@ class MOTreID(MOTSequence):
                 res.append(np.array(pers))
 
         if self._seq_name:
-            print("[*] Loaded {} persons from sequence {}.".format(len(res), self._seq_name))
+            self.logger(f"[*] Loaded {len(res)} persons from sequence {self._seq_name}.")
 
-        self.data = res
+        return res
 
     def build_crop(self, im_path, gt):
         im = cv2.imread(im_path)
-        height, width, channels = im.shape
+        height, width, _ = im.shape
         #blobs, im_scales = _get_blobs(im)
         #im = blobs['data'][0]
         #gt = gt * im_scales[0]

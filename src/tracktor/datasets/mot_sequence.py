@@ -21,9 +21,7 @@ class MOTSequence(Dataset):
     handled one should inherit from this class.
     """
 
-    def __init__(self, seq_name, mot_dir, vis_threshold=0.0,
-                 normalize_mean=[0.485, 0.456, 0.406],
-                 normalize_std=[0.229, 0.224, 0.225]):
+    def __init__(self, seq_name, mot_dir, vis_threshold=0.0):
         """
         Args:
             seq_name (string): Sequence to take

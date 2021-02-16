@@ -10,19 +10,26 @@ class MOTreIDWrapper(Dataset):
     Dataset.
     """
 
-    def __init__(self, split, dataloader):
-        mot_dir = 'MOT17'
-        train_folders = ['MOT17-02-FRCNN', 'MOT17-04-FRCNN', 'MOT17-05-FRCNN', 'MOT17-09-FRCNN',
-                         'MOT17-10-FRCNN', 'MOT17-11-FRCNN', 'MOT17-13-FRCNN']
+    def __init__(self, split, kwargs):
+        train_sequences = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09',
+                           'MOT17-10', 'MOT17-11', 'MOT17-13']
+
+        if split == "train":
+            sequences = train_sequences
+        elif f"MOT17-{split}" in train_sequences:
+            sequences = [f"MOT17-{split}"]
+        else:
+            raise NotImplementedError("MOT split not available.")
 
         dataset = []
-        for seq in train_folders:
-            dataset.append(MOTreID(seq, mot_dir, split=split, **dataloader))
+        for seq in sequences:
+            # dataset.append(MOTreID(seq, split=split, **kwargs))
+            dataset.append(MOTreID(seq, **kwargs))
 
-        self._dataset = ConcatDataset(dataset)
+        self.split = ConcatDataset(dataset)
 
     def __len__(self):
-        return len(self._dataset)
+        return len(self.split)
 
     def __getitem__(self, idx):
-        return self._dataset[idx]
+        return self.split[idx]

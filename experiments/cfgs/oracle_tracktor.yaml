@@ -1,22 +1,21 @@
-tracktor:
-  name: Oracle-Kill
+name: Oracle-Kill
 
-  tracker:
-    # Do camera motion compensation
-    do_align: False
-    # Use siamese network to do reid
-    do_reid: False
+tracker:
+  # Do camera motion compensation
+  do_align: False
+  # Use siamese network to do reid
+  do_reid: False
 
-  oracle:
-    # use last tracked gt_id to reid (oracle-all)
-    reid_oracle: False
-    # regress tracks? (standard: True)
-    # must be False for oracle-reg (and oracle-all)
-    regress: True
-    # move bb to gt every time before regression (oracle-reg, oracle-mm, oracle-all)
-    pos_oracle: False
-    # only shift center coordinates (pos oracle must be True) (oracle-mm)
-    # must be False for oracle-reg
-    pos_oracle_center_only: False
-    # use gt data to decide whether to kill track (score and nms) (oracle-all)
-    kill_oracle: True
+oracle:
+  # use last tracked gt_id to reid (oracle-all)
+  reid_oracle: False
+  # regress tracks? (standard: True)
+  # must be False for oracle-reg (and oracle-all)
+  regress: True
+  # move bb to gt every time before regression (oracle-reg, oracle-mm, oracle-all)
+  pos_oracle: False
+  # only shift center coordinates (pos oracle must be True) (oracle-mm)
+  # must be False for oracle-reg
+  pos_oracle_center_only: False
+  # use gt data to decide whether to kill track (score and nms) (oracle-all)
+  kill_oracle: True

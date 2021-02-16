@@ -1,83 +1,97 @@
-from sacred import Experiment
-import os.path as osp
+import copy
 import os
+import os.path as osp
+
 import numpy as np
-import yaml
-import cv2
-
+import sacred
 import torch
+import yaml
 from torch.utils.data import DataLoader
-
 from tracktor.config import get_output_dir, get_tb_dir
-from tracktor.reid.solver import Solver
 from tracktor.datasets.factory import Datasets
-from tracktor.reid.resnet import resnet50
+from tracktor.reid.resnet import ReIDNetwork_resnet50
+from tracktor.reid.solver import Solver
 
-ex = Experiment()
+ex = sacred.Experiment()
 ex.add_config('experiments/cfgs/reid.yaml')
 
-Solver = ex.capture(Solver, prefix='reid.solver')
+
+@ex.config
+def add_dataset_to_model(model_args, dataset_kwargs):
+    model_args.update({
+        'crop_H': dataset_kwargs['crop_H'],
+        'crop_W': dataset_kwargs['crop_W'],
+        'normalize_mean': dataset_kwargs['normalize_mean'],
+        'normalize_std': dataset_kwargs['normalize_std']})
+
 
 @ex.automain
-def my_main(_config, reid):
+def main(seed, module_name, name, db_train, db_val, solver_cfg,
+         model_args, dataset_kwargs, _run, _config, _log):
     # set all seeds
-    torch.manual_seed(reid['seed'])
-    torch.cuda.manual_seed(reid['seed'])
-    np.random.seed(reid['seed'])
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
     torch.backends.cudnn.deterministic = True
 
-    print(_config)
+    sacred.commands.print_config(_run)
 
-    output_dir = osp.join(get_output_dir(reid['module_name']), reid['name'])
-    tb_dir = osp.join(get_tb_dir(reid['module_name']), reid['name'])
+    output_dir = osp.join(get_output_dir(module_name), name)
+    tb_dir = osp.join(get_tb_dir(module_name), name)
 
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
 
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
     with open(sacred_config, 'w') as outfile:
-        yaml.dump(_config, outfile, default_flow_style=False)
-
-    #########################
-    # Initialize dataloader #
-    #########################
-    print("[*] Initializing Dataloader")
-
-    db_train = Datasets(reid['db_train'], reid['dataloader'])
-    db_train = DataLoader(db_train, batch_size=1, shuffle=True)
-
-    if reid['db_val']:
-        db_val = None
-        #db_val = DataLoader(db_val, batch_size=1, shuffle=True)
-    else:
-        db_val = None
+        yaml.dump(copy.deepcopy(_config), outfile, default_flow_style=False)
 
     ##########################
     # Initialize the modules #
     ##########################
-    print("[*] Building CNN")
-    network = resnet50(pretrained=True, **reid['cnn'])
+    _log.info("[*] Building CNN")
+    network = ReIDNetwork_resnet50(
+        pretrained=True, **model_args)
     network.train()
     network.cuda()
+
+    #########################
+    # Initialize dataloader #
+    #########################
+    _log.info("[*] Initializing Datasets")
+
+    _log.info("[*] Train:")
+    dataset_kwargs = copy.deepcopy(dataset_kwargs)
+    dataset_kwargs['logger'] = _log.info
+    dataset_kwargs['mot_dir'] = db_train['mot_dir']
+
+    db_train = Datasets(db_train['split'], dataset_kwargs)
+    db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+
+    if db_val is not None:
+        _log.info("[*] Val:")
+
+        dataset_kwargs['mot_dir'] = db_val['mot_dir']
+        db_val = Datasets(db_val['split'], dataset_kwargs)
+        db_val = DataLoader(db_val, batch_size=1, shuffle=False)
 
     ##################
     # Begin training #
     ##################
-    print("[*] Solving ...")
+    _log.info("[*] Solving ...")
 
-    # build scheduling like in "In Defense of the Triplet Loss for Person Re-Identification"
-    # from Hermans et al.
-    lr = reid['solver']['optim_args']['lr']
-    iters_per_epoch = len(db_train)
-    # we want to keep lr until iter 15000 and from there to iter 25000 a exponential decay
-    l = eval("lambda epoch: 1 if epoch*{} < 15000 else 0.001**((epoch*{} - 15000)/(25000-15000))".format(
-                                                                iters_per_epoch,  iters_per_epoch))
-    #else:
-    #   l = None
-    max_epochs = 25000 // len(db_train.dataset) + 1 if 25000 % len(db_train.dataset) else 25000 // len(db_train.dataset)
-    solver = Solver(output_dir, tb_dir, lr_scheduler_lambda=l)
-    solver.train(network, db_train, db_val, max_epochs, 100, model_args=reid['model_args'])
+    # build scheduling like in "In Defense of the Triplet Loss
+    # for Person Re-Identification" from Hermans et al.
+    def lr_scheduler(epoch):
+        if epoch  < 3 / 4 * solver_cfg['num_epochs']:
+            return 1
+        return 0.001 ** (4 * epoch / solver_cfg['num_epochs'] - 3)
 
-
-
-
+    solver = Solver(
+        output_dir, tb_dir,
+        lr_scheduler_lambda=lr_scheduler,
+        logger=_log.info,
+        optim=solver_cfg['optim'],
+        optim_args=solver_cfg['optim_args'])
+    solver.train(
+        network, db_train, db_val, solver_cfg['num_epochs'], solver_cfg['log_nth'])

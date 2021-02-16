@@ -1,22 +1,18 @@
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
-
 import torch.utils.model_zoo as model_zoo
+from torch.autograd import Variable
+from torchvision.models import ResNet
 from torchvision.models.resnet import Bottleneck
-import torchvision.models as models
-from torchvision.transforms import Resize, Compose, ToPILImage, ToTensor
+from torchvision.transforms import (Compose, Normalize, Resize, ToPILImage,
+                                    ToTensor)
 
-import numpy as np
-import random
-import cv2
-import math
+from .triplet_loss import (_get_anchor_negative_triplet_mask,
+                           _get_anchor_positive_triplet_mask,
+                           _get_triplet_mask)
 
-from .triplet_loss import _get_anchor_positive_triplet_mask, _get_anchor_negative_triplet_mask, _get_triplet_mask
-
-model_urls = {
+MODEL_URLS = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
     'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
@@ -24,11 +20,16 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
-class ResNet(models.ResNet):
-    def __init__(self, block, layers, output_dim):
-        super(ResNet, self).__init__(block, layers)
+
+class ReIDNetwork(ResNet):
+    def __init__(self, block, layers, output_dim, loss, margin, prec_at_k,
+                 crop_H, crop_W, normalize_mean, normalize_std):
+        super(ReIDNetwork, self).__init__(block, layers)
 
         self.name = "ResNet"
+        self.loss = loss
+        self.margin = margin
+        self.prec_at_k = prec_at_k
 
         self.avgpool = nn.AvgPool2d((8,4), stride=1)
         self.fc = nn.Linear(512 * block.expansion, 1024)
@@ -42,6 +43,12 @@ class ResNet(models.ResNet):
                 m.bias.data.zero_()
 
         self.fc_compare = nn.Linear(output_dim, 1)
+
+        self.trans = Compose([
+            ToPILImage(),
+            Resize((crop_H, crop_W)),
+            ToTensor(),
+            Normalize(normalize_mean, normalize_std)])
 
     def forward(self, x):
         x = self.conv1(x)
@@ -79,7 +86,7 @@ class ResNet(models.ResNet):
 
     def build_crops(self, image, rois):
         res = []
-        trans = Compose([ToPILImage(), Resize((256,128)), ToTensor()])
+
         for r in rois:
             x0 = int(r[0])
             y0 = int(r[1])
@@ -96,23 +103,25 @@ class ResNet(models.ResNet):
                 else:
                     y1 += 1
             im = image[0,:,y0:y1,x0:x1]
-            im = trans(im)
+            im = self.trans(im)
             res.append(im)
         res = torch.stack(res, 0)
         res = res.cuda()
         return res
 
-    def sum_losses(self, batch, loss, margin, prec_at_k):
+    def sum_losses(self, batch):
         """For Pretraining
 
-        Function for preatrainind this CNN with the triplet loss. Takes a sample of N=PK images, P different
-        persons, K images of each. K=4 is a normal parameter.
+        Function for preatrainindg this CNN with the triplet loss. Takes a
+        sample of N=PK images, P different persons, K images of each. K=4
+        is a normal parameter.
 
-        [!] Batch all and batch hard should work fine. Take care with weighted triplet or cross entropy!!
+        [!] Batch all and batch hard should work fine. Take care with weighted
+        triplet or cross entropy!!
 
         Args:
-            batch (list): [images, labels], images are Tensor of size (N,H,W,C), H=224, W=112, labels Tensor of
-            size (N)
+            batch (list): [images, labels], images are Tensor of size (N,H,W,C),
+            H=224, W=112, labels Tensor of size (N)
         """
 
         inp = batch[0][0]
@@ -123,7 +132,7 @@ class ResNet(models.ResNet):
 
         embeddings = self.forward(inp)
 
-        if loss == "cross_entropy":
+        if self.loss == "cross_entropy":
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
             e1 = []
@@ -147,7 +156,7 @@ class ResNet(models.ResNet):
 
             total_loss = (loss_pos + loss_neg)/2
 
-        elif loss == 'batch_all':
+        elif self.loss == 'batch_all':
             # works, batch all strategy
             m = _get_triplet_mask(labels).nonzero()
             e0 = []
@@ -160,8 +169,8 @@ class ResNet(models.ResNet):
             e0 = torch.stack(e0,0)
             e1 = torch.stack(e1,0)
             e2 = torch.stack(e2,0)
-            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
-        elif loss == 'batch_hard':
+            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=self.margin, p=2)
+        elif self.loss == 'batch_hard':
             # compute pariwise square distance matrix, not stable with sqr as 0 can happen
             n = embeddings.size(0)
             m = embeddings.size(0)
@@ -197,9 +206,9 @@ class ResNet(models.ResNet):
             e0 = torch.stack(e0,0)
             e1 = torch.stack(e1,0)
             e2 = torch.stack(e2,0)
-            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=margin, p=2)
+            total_loss = F.triplet_margin_loss(e0, e1, e2, margin=self.margin, p=2)
 
-        elif loss == 'weighted_triplet':
+        elif self.loss == 'weighted_triplet':
             # compute pairwise distance matrix
             dist = []
             # iteratively construct the columns
@@ -216,7 +225,8 @@ class ResNet(models.ResNet):
             mask_anchor_negative = _get_anchor_negative_triplet_mask(labels)
             neg_dist = dist * Variable(mask_anchor_negative.float())
 
-            # now get the weights for each anchor, detach because it should be a constant weighting factor
+            # now get the weights for each anchor, detach because it
+            # should be a constant weighting factor
             pos_weights = Variable(torch.zeros(dist.size()).cuda())
             neg_weights = Variable(torch.zeros(dist.size()).cuda())
             for i in range(dist.size(0)):
@@ -230,14 +240,16 @@ class ResNet(models.ResNet):
             pos_weight_dist = pos_dist * pos_weights
             neg_weight_dist = neg_dist * neg_weights
 
-            triplet_loss = torch.clamp(margin + pos_weight_dist.sum(1, keepdim=True) - neg_weight_dist.sum(1, keepdim=True), min=0)
+            triplet_loss = torch.clamp(
+                self.margin + pos_weight_dist.sum(1, keepdim=True) - neg_weight_dist.sum(1, keepdim=True),
+                min=0)
             total_loss = triplet_loss.mean()
         else:
-            raise NotImplementedError("Loss: {}".format(loss))
+            raise NotImplementedError(f"Loss: {self.loss}")
 
         losses = {}
 
-        if prec_at_k:
+        if self.prec_at_k:
             # compute pariwise square distance matrix, not stable with sqr as 0 can happen
             n = embeddings.size(0)
             m = embeddings.size(0)
@@ -252,12 +264,12 @@ class ResNet(models.ResNet):
             num_hit = 0.0
             num_ges = 0.0
             for i in range(dist.size(0)):
-                d = mask_anchor_positive[i].nonzero().view(-1,1)
-                ind = indices[i][:prec_at_k+1]
+                d = mask_anchor_positive[i].nonzero().view(-1, 1)
+                ind = indices[i][:self.prec_at_k + 1]
 
-                same = d==ind
+                same = d == ind
                 num_hit += same.sum()
-                num_ges += prec_at_k
+                num_ges += self.prec_at_k
             k_loss = torch.Tensor(1)
             k_loss[0] = num_hit / num_ges
             losses['prec_at_k'] = Variable(k_loss.cuda())
@@ -268,18 +280,21 @@ class ResNet(models.ResNet):
 
     def load_pretrained_dict(self, state_dict):
         """Load the pretrained weights and ignore the ones where size does not match"""
-        pretrained_state_dict = {k: v for k,v in state_dict.items() for kk,vv in self.state_dict().items() if k==kk and v.size() == vv.size()}
+        pretrained_state_dict = {
+            k: v for k,v in state_dict.items()
+            for kk, vv in self.state_dict().items()
+            if k==kk and v.size() == vv.size()}
         updated_state_dict = self.state_dict()
         updated_state_dict.update(pretrained_state_dict)
         self.load_state_dict(updated_state_dict)
 
 
-def resnet50(pretrained=False, **kwargs):
+def ReIDNetwork_resnet50(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    model = ReIDNetwork(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_pretrained_dict(model_zoo.load_url(model_urls['resnet50']))
+        model.load_pretrained_dict(model_zoo.load_url(MODEL_URLS['resnet50']))
     return model

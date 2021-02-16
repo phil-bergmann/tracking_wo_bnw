@@ -33,7 +33,8 @@ for split in ['1', '2', '3', '5', '6', '10', '15', '30']:
     name = f'mot17_{split}_fps'
     _sets[name] = (lambda *args, split=split: MOT17LOWFPSWrapper(split, *args))
 
-for split in ['train', 'small_val', 'small_train']:
+# for split in ['train', 'small_val', 'small_train']:
+for split in ['train', '02', '04', '05', '09', '10', '11','13',]:
     name = f'mot_reid_{split}'
     _sets[name] = (lambda *args, split=split: MOTreIDWrapper(split, *args))
 
@@ -66,17 +67,17 @@ class Datasets(object):
         if len(args) == 0:
             args = [{}]
 
-        self._data = None
+        self.datasets = None
         for dataset in datasets:
             assert dataset in _sets, f"[!] Dataset not found: {dataset}"
 
-            if self._data is None:
-                self._data = _sets[dataset](*args)
+            if self.datasets is None:
+                self.datasets = _sets[dataset](*args)
             else:
-                self._data = ConcatDataset([self._data, _sets[dataset](*args)])
+                self.datasets = ConcatDataset([self.datasets, _sets[dataset](*args)])
 
     def __len__(self):
-        return len(self._data)
+        return len(self.datasets)
 
     def __getitem__(self, idx):
-        return self._data[idx]
+        return self.datasets[idx]

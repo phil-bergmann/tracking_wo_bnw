@@ -288,7 +288,7 @@ def plot_tracks(blobs, tracks, gt_tracks=None, output_dir=None, name=None):
     return image
 
 
-def interpolate(tracks):
+def interpolate_tracks(tracks):
     interpolated = {}
     for i, track in tracks.items():
         interpolated[i] = {}
