@@ -21,15 +21,7 @@ In addition to our supplementary document, we provide an illustrative [web-video
 
 3. MOTChallenge data:
     1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.
-    2. Unzip all the data by executing:
-        ```
-        unzip -d 2DMOT2015 2DMOT2015.zip
-        unzip -d MOT16 MOT16.zip
-        unzip -d MOT17Det MOT17Det.zip
-        unzip -d MOT17 MOT17.zip
-        unzip -d MOT20Det MOT20Det.zip
-        unzip -d MOT20 MOT20.zip
-        ```
+    2. Unzip all the data in the `data` directory.
 4. Download model (MOT17 object detector, MOT20 object detector, and re-identification network) and MOTChallenge result files:
     1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v4.zip).
     2. Extract in `output` directory.
