@@ -39,12 +39,12 @@ def add_reid_config(reid_models, obj_detect_models, dataset):
     if len(reid_models) > 1:
         assert len(dataset) == len(reid_models)
 
-    reid_cfgs = []
-    for reid_model in reid_models:
-        reid_config = os.path.join(
-            os.path.dirname(reid_model),
-            'sacred_config.yaml')
-        reid_cfgs.append(yaml.safe_load(open(reid_config)))
+    # reid_cfgs = []
+    # for reid_model in reid_models:
+    #     reid_config = os.path.join(
+    #         os.path.dirname(reid_model),
+    #         'sacred_config.yaml')
+    #     reid_cfgs.append(yaml.safe_load(open(reid_config)))
 
     if isinstance(obj_detect_models, str):
         obj_detect_models = [obj_detect_models, ] * len(dataset)
@@ -53,7 +53,7 @@ def add_reid_config(reid_models, obj_detect_models, dataset):
 
 
 @ex.automain
-def main(module_name, name, seed, obj_detect_models, reid_cfgs, reid_models,
+def main(module_name, name, seed, obj_detect_models, reid_models,
          tracker, oracle, dataset, load_results, frame_split, interpolate,
          write_images, _config, _log, _run):
     sacred.commands.print_config(_run)
@@ -94,7 +94,10 @@ def main(module_name, name, seed, obj_detect_models, reid_cfgs, reid_models,
     _log.info("Initializing reID network(s).")
 
     reid_networks = []
-    for reid_cfg, reid_model in zip(reid_cfgs, reid_models):
+    for reid_model in reid_models:
+        reid_cfg = os.path.join(os.path.dirname(reid_model), 'sacred_config.yaml')
+        reid_cfg = yaml.safe_load(open(reid_cfg))
+
         reid_network = ReIDNetwork_resnet50(pretrained=False, **reid_cfg['model_args'])
         reid_network.load_state_dict(torch.load(reid_model,
                                     map_location=lambda storage, loc: storage))
