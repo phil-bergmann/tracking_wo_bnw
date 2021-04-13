@@ -73,7 +73,7 @@ ptyprocess==0.6.0
 py-cpuinfo==5.0.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.7
-pycocotools==2.0
+pycocotools==2.0.2
 Pygments==2.4.2
 pylint==2.6.0
 pyparsing==2.4.5
