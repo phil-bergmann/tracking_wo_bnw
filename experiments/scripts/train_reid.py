@@ -83,9 +83,10 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
     # build scheduling like in "In Defense of the Triplet Loss
     # for Person Re-Identification" from Hermans et al.
     def lr_scheduler(epoch):
-        if epoch  < 3 / 4 * solver_cfg['num_epochs']:
+        if epoch < 1 / 2 * solver_cfg['num_epochs']:
             return 1
-        return 0.001 ** (4 * epoch / solver_cfg['num_epochs'] - 3)
+        return 0.001 ** (2 * epoch / solver_cfg['num_epochs'] - 1)
+        # return 0.9 ** epoch
 
     solver = Solver(
         output_dir, tb_dir,
