@@ -1,14 +1,17 @@
 name: test
 module_name: reid
-desription:
 seed: 12345
 # smth like MOT_train, KITTI_train_Pedestrian
 db_train:
   split: mot_reid_train
   mot_dir: MOT17Det
+  transform: random
+  random_triplets: True
 db_val:
   split: None
   mot_dir: MOT17Det
+  transform: center
+  random_triplets: False
 
 model_args:
   # Recommended for loss: batch_all, batch_hard
@@ -37,8 +40,6 @@ dataset_kwargs:
   max_per_person: 1000
   crop_H: 256
   crop_W: 128
-  # center: just a center crop, random: random crop and 0.5 horizontal flip probability
-  transform: random
   normalize_mean:
     - 0.485
     - 0.456

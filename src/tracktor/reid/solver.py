@@ -1,4 +1,4 @@
-from random import shuffle
+import random
 import numpy as np
 import os
 import time
@@ -32,15 +32,15 @@ class Solver(object):
         self.output_dir = output_dir
         self.tb_dir = tb_dir
         # Simply put '_val' at the end to save the summaries from the validation set
-        self.tb_val_dir = tb_dir + '_val'
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         if not os.path.exists(self.tb_dir):
             os.makedirs(self.tb_dir)
 
-        self.val_random_states = {
-            'numpy': np.random.get_state(),
-            'torch': torch.random.get_rng_state()}
+        # self.val_random_states = {
+        #     'numpy': np.random.get_state(),
+        #     'torch': torch.random.get_rng_state(),
+        #     'random': random.getstate()}
 
         self.writer = tb.SummaryWriter(self.tb_dir)
 
@@ -76,6 +76,7 @@ class Solver(object):
         parameters = [
             param for name, param in model.named_parameters()
             if 'frcnn' not in name]
+
         optim = self.optim(parameters, **self.optim_args)
 
         if self.lr_scheduler_lambda:
@@ -129,12 +130,14 @@ class Solver(object):
                 self.logger("[VAL:]")
 
                 # ensure determinisic and comparble evaluation
-                random_states = {
-                    'numpy': np.random.get_state(),
-                    'torch': torch.random.get_rng_state()}
+                # random_states = {
+                #     'numpy': np.random.get_state(),
+                #     'torch': torch.random.get_rng_state(),
+                #     'random': random.getstate()}
 
-                np.random.set_state(self.val_random_states['numpy'])
-                torch.random.set_rng_state(self.val_random_states['torch'])
+                # np.random.set_state(self.val_random_states['numpy'])
+                # torch.random.set_rng_state(self.val_random_states['torch'])
+                # random.setstate(self.val_random_states['random'])
 
                 model.eval()
                 val_losses = {}
@@ -146,11 +149,13 @@ class Solver(object):
                             val_losses[k] = []
                         val_losses[k].append(v.data.cpu().numpy())
 
-                np.random.set_state(random_states['numpy'])
-                torch.random.set_rng_state(random_states['torch'])
+                # np.random.set_state(random_states['numpy'])
+                # torch.random.set_rng_state(random_states['torch'])
+                # random.setstate(random_states['random'])
 
                 for k, val_loss in val_losses.items():
                     val_loss = np.mean(val_loss)
+
                     if k not in self._val_losses.keys():
                         self._val_losses[k] = []
 

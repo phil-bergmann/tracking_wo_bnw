@@ -320,4 +320,6 @@ class MOTObjDetect(torch.utils.data.Dataset):
 
         tp, fp, prec, rec, ap = np.max(tp), np.max(fp), prec[-1], np.max(rec), ap
 
-        print(f"AP: {ap} Prec: {prec} Rec: {rec} TP: {tp} FP: {fp}")
+        print(f"AP: {ap:.2f} Prec: {prec:.2f} Rec: {rec:.2f} TP: {tp} FP: {fp}")
+
+        return {'AP': ap, 'precision': prec, 'recall': rec, 'TP': tp, 'FP': fp}

@@ -125,8 +125,10 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
 
         _log.info(f"Tracking: {seq}")
 
-        results = seq.load_results(output_dir)
-        if not load_results or not results:
+        results = {}
+        if load_results:
+            results = seq.load_results(output_dir)
+        if not results:
             start = time.time()
             data_loader = DataLoader(seq, batch_size=1, shuffle=False)
             for i, frame in enumerate(tqdm(data_loader)):

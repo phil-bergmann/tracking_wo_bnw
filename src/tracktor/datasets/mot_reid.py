@@ -5,8 +5,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms import (CenterCrop, Compose, Normalize, RandomCrop,
-                                    RandomHorizontalFlip, RandomResizedCrop,
-                                    ToTensor)
+                                    RandomHorizontalFlip, ToTensor)
 
 from ..config import get_output_dir
 from .mot_sequence import MOTSequence
@@ -22,7 +21,7 @@ class MOTreID(MOTSequence):
     """
 
     def __init__(self, seq_name, mot_dir, vis_threshold, P, K, max_per_person, crop_H, crop_W,
-                transform, normalize_mean=None, normalize_std=None, logger=print):
+                transform, random_triplets=True, normalize_mean=None, normalize_std=None, logger=print):
         super().__init__(seq_name, mot_dir, vis_threshold=vis_threshold)
 
         self.P = P
@@ -31,6 +30,7 @@ class MOTreID(MOTSequence):
         self.crop_H = crop_H
         self.crop_W = crop_W
         self.logger = logger
+        self.random_triplets = random_triplets
 
         if transform == "random":
             self.transform = Compose([
@@ -44,7 +44,7 @@ class MOTreID(MOTSequence):
                 ToTensor(),
                 Normalize(normalize_mean, normalize_std)])
         else:
-            raise NotImplementedError("Tranformation not understood: {}".format(transform))
+            raise NotImplementedError(f"Transformation not understood: {transform}")
 
         self.data = self.build_samples()
 
@@ -54,15 +54,27 @@ class MOTreID(MOTSequence):
         res = []
         # idx belongs to the positive sampled person
         pos = self.data[idx]
-        res.append(pos[np.random.choice(pos.shape[0], self.K, replace=False)])
+        if self.random_triplets:
+            res.append(pos[np.random.choice(pos.shape[0], self.K, replace=False)])
 
-        # exclude idx here
-        neg_indices = np.random.choice([
-            i for i in range(len(self.data))
-            if i != idx], self.P-1, replace=False)
-        for i in neg_indices:
-            neg = self.data[i]
-            res.append(neg[np.random.choice(neg.shape[0], self.K, replace=False)])
+            # exclude idx here
+            neg_indices = np.random.choice([
+                i for i, _ in enumerate(self.data)
+                if i != idx], self.P-1, replace=False)
+            for i in neg_indices:
+                neg = self.data[i]
+                res.append(neg[np.random.choice(neg.shape[0], self.K, replace=False)])
+        else:
+            res.append(pos[np.linspace(0, pos.shape[0] - 1, num=self.K, dtype=int)])
+
+            # exclude idx here
+            neg_indices = [i for i, _ in enumerate(self.data) if i != idx]
+            neg_indices_choice = np.linspace(0, len(self.data) - 2, num=self.P-1, dtype=int)
+            neg_indices = np.array(neg_indices)[neg_indices_choice].tolist()
+
+            for i in neg_indices:
+                neg = self.data[i]
+                res.append(neg[np.linspace(0, neg.shape[0] - 1, num=self.K, dtype=int)])
 
         # concatenate the results
         r = []
@@ -91,34 +103,26 @@ class MOTreID(MOTSequence):
         tracks = {}
 
         for sample in self.data:
-            im_path = sample['im_path']
-            gt = sample['gt']
+            for k, v in sample['gt'].items():
+                track = {'id': k, 'im_path': sample['im_path'], 'gt': v}
+                if k not in tracks:
+                    tracks[k] = []
+                tracks[k].append(track)
 
-            for k,v in tracks.items():
-                if k in gt.keys():
-                    v.append({'id':k, 'im_path':im_path, 'gt':gt[k]})
-                    del gt[k]
-
-            # For all remaining BB in gt new tracks are created
-            for k,v in gt.items():
-                tracks[k] = [{'id':k, 'im_path':im_path, 'gt':v}]
-
-        # sample max_per_person images and filter out tracks smaller than 4 samples
-        #outdir = get_output_dir("siamese_test")
+        # sample maximal self.max_per_person images per person and
+        # filter out tracks smaller than self.K samples
         res = []
         for k,v in tracks.items():
             l = len(v)
             if l >= self.K:
                 pers = []
-                if l > self.max_per_person:
+                if self.max_per_person is not None and l > self.max_per_person:
                     for i in np.random.choice(l, self.max_per_person, replace=False):
                         pers.append(self.build_crop(v[i]['im_path'], v[i]['gt']))
                 else:
                     for i in range(l):
                         pers.append(self.build_crop(v[i]['im_path'], v[i]['gt']))
 
-                #for i,v in enumerate(pers):
-                #	cv2.imwrite(osp.join(outdir, str(k)+'_'+str(i)+'.png'),v)
                 res.append(np.array(pers))
 
         if self._seq_name:

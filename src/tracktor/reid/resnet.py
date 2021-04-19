@@ -250,7 +250,7 @@ class ReIDNetwork(ResNet):
         losses = {}
 
         if self.prec_at_k:
-            # compute pariwise square distance matrix, not stable with sqr as 0 can happen
+            # compute pairwise square distance matrix, not stable with sqr as 0 can happen
             n = embeddings.size(0)
             m = embeddings.size(0)
             d = embeddings.size(1)
@@ -268,6 +268,7 @@ class ReIDNetwork(ResNet):
                 ind = indices[i][:self.prec_at_k + 1]
 
                 same = d == ind
+
                 num_hit += same.sum()
                 num_ges += self.prec_at_k
             k_loss = torch.Tensor(1)

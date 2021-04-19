@@ -1,6 +1,7 @@
 import copy
 import os
 import os.path as osp
+import random
 
 import numpy as np
 import sacred
@@ -32,7 +33,9 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     np.random.seed(seed)
+    random.seed(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     sacred.commands.print_config(_run)
 
@@ -50,10 +53,10 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
     # Initialize the modules #
     ##########################
     _log.info("[*] Building CNN")
-    network = ReIDNetwork_resnet50(
+    model = ReIDNetwork_resnet50(
         pretrained=True, **model_args)
-    network.train()
-    network.cuda()
+    model.train()
+    model.cuda()
 
     #########################
     # Initialize dataloader #
@@ -64,6 +67,8 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
     dataset_kwargs = copy.deepcopy(dataset_kwargs)
     dataset_kwargs['logger'] = _log.info
     dataset_kwargs['mot_dir'] = db_train['mot_dir']
+    dataset_kwargs['transform'] = db_train['transform']
+    dataset_kwargs['random_triplets'] = db_train['random_triplets']
 
     db_train = Datasets(db_train['split'], dataset_kwargs)
     db_train = DataLoader(db_train, batch_size=1, shuffle=True)
@@ -72,6 +77,8 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
         _log.info("[*] Val:")
 
         dataset_kwargs['mot_dir'] = db_val['mot_dir']
+        dataset_kwargs['transform'] = db_val['transform']
+        dataset_kwargs['random_triplets'] = db_val['random_triplets']
         db_val = Datasets(db_val['split'], dataset_kwargs)
         db_val = DataLoader(db_val, batch_size=1, shuffle=False)
 
@@ -86,6 +93,7 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
         if epoch < 1 / 2 * solver_cfg['num_epochs']:
             return 1
         return 0.001 ** (2 * epoch / solver_cfg['num_epochs'] - 1)
+        # return 0.1 ** (epoch // 30)
         # return 0.9 ** epoch
 
     solver = Solver(
@@ -95,4 +103,4 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
         optim=solver_cfg['optim'],
         optim_args=solver_cfg['optim_args'])
     solver.train(
-        network, db_train, db_val, solver_cfg['num_epochs'], solver_cfg['log_nth'])
+        model, db_train, db_val, solver_cfg['num_epochs'], solver_cfg['log_nth'])
