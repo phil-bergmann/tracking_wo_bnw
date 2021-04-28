@@ -17,7 +17,7 @@ class MOTreID(MOTSequence):
     This class builds samples for training of a simaese net. It returns a tripple of 2 matching and 1 not
     matching image crop of a person. The crops con be precalculated.
 
-    Values for P are normally 18 and K 4
+    Values for P are normally 18 and K 4.
     """
 
     def __init__(self, seq_name, mot_dir, vis_threshold, P, K, max_per_person, crop_H, crop_W,

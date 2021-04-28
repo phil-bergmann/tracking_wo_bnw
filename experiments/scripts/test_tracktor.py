@@ -54,7 +54,7 @@ def add_reid_config(reid_models, obj_detect_models, dataset):
 
 @ex.automain
 def main(module_name, name, seed, obj_detect_models, reid_models,
-         tracker, oracle, dataset, load_results, frame_split, interpolate,
+         tracker, oracle, dataset, load_results, frame_range, interpolate,
          write_images, _config, _log, _run):
     sacred.commands.print_config(_run)
 
@@ -118,6 +118,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
     num_frames = 0
     mot_accums = []
     dataset = Datasets(dataset)
+
     for seq, obj_detect, reid_network in zip(dataset, obj_detects, reid_networks):
         tracker.obj_detect = obj_detect
         tracker.reid_network = reid_network
@@ -125,17 +126,22 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
 
         _log.info(f"Tracking: {seq}")
 
+        start_frame = int(frame_range['start'] * len(seq))
+        end_frame = int(frame_range['end'] * len(seq))
+
+        seq_loader = DataLoader(torch.utils.data.Subset(seq, range(start_frame, end_frame)))
+        num_frames += len(seq_loader)
+
         results = {}
         if load_results:
             results = seq.load_results(output_dir)
         if not results:
             start = time.time()
-            data_loader = DataLoader(seq, batch_size=1, shuffle=False)
-            for i, frame in enumerate(tqdm(data_loader)):
-                if len(seq) * frame_split[0] <= i <= len(seq) * frame_split[1]:
-                    with torch.no_grad():
-                        tracker.step(frame)
-                    num_frames += 1
+
+            for frame_data in tqdm(seq_loader):
+                with torch.no_grad():
+                    tracker.step(frame_data)
+
             results = tracker.get_results()
 
             time_total += time.time() - start
@@ -152,7 +158,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
         if seq.no_gt:
             _log.info("No GT data for evaluation available.")
         else:
-            mot_accums.append(get_mot_accum(results, seq))
+            mot_accums.append(get_mot_accum(results, seq_loader))
 
         if write_images:
             plot_sequence(

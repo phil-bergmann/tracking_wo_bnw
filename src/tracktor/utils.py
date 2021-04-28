@@ -400,10 +400,10 @@ def warp_pos(pos, warp_matrix):
     return torch.cat((p1_n, p2_n), 1).view(1, -1).cuda()
 
 
-def get_mot_accum(results, seq):
+def get_mot_accum(results, seq_loader):
     mot_accum = mm.MOTAccumulator(auto_id=True)
 
-    for i, data in enumerate(seq):
+    for i, data in enumerate(seq_loader):
         gt = data['gt']
         gt_ids = []
         if gt:
