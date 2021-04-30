@@ -410,7 +410,7 @@ def get_mot_accum(results, seq_loader):
             gt_boxes = []
             for gt_id, box in gt.items():
                 gt_ids.append(gt_id)
-                gt_boxes.append(box)
+                gt_boxes.append(box[0])
 
             gt_boxes = np.stack(gt_boxes, axis=0)
             # x1, y1, x2, y2 --> x1, y1, width, height
