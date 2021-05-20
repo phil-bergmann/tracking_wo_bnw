@@ -1,106 +1,147 @@
-import copy
+import argparse
 import os
 import os.path as osp
-import random
+import sys
+import time
 
-import numpy as np
-import sacred
 import torch
-import yaml
-from torch.utils.data import DataLoader
-from tracktor.config import get_output_dir, get_tb_dir
-from tracktor.datasets.factory import Datasets
-from tracktor.reid.resnet import ReIDNetwork_resnet50
-from tracktor.reid.solver import Solver
-
-ex = sacred.Experiment()
-ex.add_config('experiments/cfgs/reid.yaml')
-
-
-@ex.config
-def add_dataset_to_model(model_args, dataset_kwargs):
-    model_args.update({
-        'crop_H': dataset_kwargs['crop_H'],
-        'crop_W': dataset_kwargs['crop_W'],
-        'normalize_mean': dataset_kwargs['normalize_mean'],
-        'normalize_std': dataset_kwargs['normalize_std']})
+import torch.nn as nn
+import torchreid
+from torchreid.data.datasets import __image_datasets
+from torchreid.utils import (Logger, check_isfile, collect_env_info,
+                             compute_model_complexity, load_pretrained_weights,
+                             resume_from_checkpoint, set_random_seed)
+from tracktor.reid.config import (check_cfg, engine_run_kwargs,
+                                  get_default_config, lr_scheduler_kwargs,
+                                  optimizer_kwargs, reset_config)
+from tracktor.reid.datamanager import build_datamanager
+from tracktor.reid.engine import build_engine
+from tracktor.reid.mot_seq_dataset import get_sequence_class
 
 
-@ex.automain
-def main(seed, module_name, name, db_train, db_val, solver_cfg,
-         model_args, dataset_kwargs, _run, _config, _log):
-    # set all seeds
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+def update_datasplits(cfg):
+    assert isinstance(cfg.data.sources, (tuple, list))
+    assert isinstance(cfg.data.sources, (tuple, list))
 
-    sacred.commands.print_config(_run)
+    if isinstance(cfg.data.sources[0], (tuple, list)):
+        assert len(cfg.data.sources) == 1
+        cfg.data.sources = cfg.data.sources[0]
 
-    output_dir = osp.join(get_output_dir(module_name), name)
-    tb_dir = osp.join(get_tb_dir(module_name), name)
+    if isinstance(cfg.data.targets[0], (tuple, list)):
+        assert len(cfg.data.targets) == 1
+        cfg.data.targets = cfg.data.targets[0]
 
-    sacred_config = osp.join(output_dir, 'sacred_config.yaml')
 
-    if not osp.exists(output_dir):
-        os.makedirs(output_dir)
-    with open(sacred_config, 'w') as outfile:
-        yaml.dump(copy.deepcopy(_config), outfile, default_flow_style=False)
+def register_datasets(datasets, cfg):
+    if not isinstance(datasets, (tuple, list)):
+        datasets = [datasets]
 
-    ##########################
-    # Initialize the modules #
-    ##########################
-    _log.info("[*] Building CNN")
-    model = ReIDNetwork_resnet50(
-        pretrained=True, **model_args)
-    model.train()
-    model.cuda()
+    for seq_name in datasets:
+        print("Registering dataset ", seq_name)
+        if seq_name not in __image_datasets:
+            seq_class = get_sequence_class(seq_name, cfg)
+            torchreid.data.register_image_dataset(seq_name, seq_class)
 
-    #########################
-    # Initialize dataloader #
-    #########################
-    _log.info("[*] Initializing Datasets")
 
-    _log.info("[*] Train:")
-    dataset_kwargs = copy.deepcopy(dataset_kwargs)
-    dataset_kwargs['logger'] = _log.info
-    dataset_kwargs['mot_dir'] = db_train['mot_dir']
-    dataset_kwargs['transform'] = db_train['transform']
-    dataset_kwargs['random_triplets'] = db_train['random_triplets']
+def main():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '--config-file', type=str, default='', help='path to config file'
+    )
+    parser.add_argument(
+        '-s',
+        '--sources',
+        type=str,
+        nargs='+',
+        help='source datasets (delimited by space)'
+    )
+    parser.add_argument(
+        '-t',
+        '--targets',
+        type=str,
+        nargs='+',
+        help='target datasets (delimited by space)'
+    )
+    parser.add_argument(
+        '--transforms', type=str, nargs='+', help='data augmentation'
+    )
+    parser.add_argument(
+        '--root', type=str, default='', help='path to data root'
+    )
+    parser.add_argument(
+        '--root-targets', type=str, default='', help='path to data root targets'
+    )
+    parser.add_argument(
+        'opts',
+        default=None,
+        nargs=argparse.REMAINDER,
+        help='Modify config options using the command-line'
+    )
+    args = parser.parse_args()
 
-    db_train = Datasets(db_train['split'], dataset_kwargs)
-    db_train = DataLoader(db_train, batch_size=1, shuffle=True)
+    cfg = get_default_config()
+    cfg.use_gpu = torch.cuda.is_available()
+    if args.config_file:
+        cfg.merge_from_file(args.config_file)
+    reset_config(cfg, args)
+    cfg.merge_from_list(args.opts)
+    set_random_seed(cfg.train.seed)
+    check_cfg(cfg)
 
-    if db_val is not None:
-        _log.info("[*] Val:")
+    log_name = 'test.log' if cfg.test.evaluate else 'train.log'
+    log_name += time.strftime('-%Y-%m-%d-%H-%M-%S')
+    sys.stdout = Logger(osp.join(cfg.data.save_dir, log_name))
 
-        dataset_kwargs['mot_dir'] = db_val['mot_dir']
-        dataset_kwargs['transform'] = db_val['transform']
-        dataset_kwargs['random_triplets'] = db_val['random_triplets']
-        db_val = Datasets(db_val['split'], dataset_kwargs)
-        db_val = DataLoader(db_val, batch_size=1, shuffle=False)
+    print('Show configuration\n{}\n'.format(cfg))
+    print('Collecting env info ...')
+    print('** System info **\n{}\n'.format(collect_env_info()))
 
-    ##################
-    # Begin training #
-    ##################
-    _log.info("[*] Solving ...")
+    if cfg.use_gpu:
+        torch.backends.cudnn.benchmark = True
 
-    # build scheduling like in "In Defense of the Triplet Loss
-    # for Person Re-Identification" from Hermans et al.
-    def lr_scheduler(epoch):
-        if epoch < 1 / 2 * solver_cfg['num_epochs']:
-            return 1
-        return 0.001 ** (2 * epoch / solver_cfg['num_epochs'] - 1)
-        # return 0.1 ** (epoch // 30)
-        # return 0.9 ** epoch
+    update_datasplits(cfg)
+    register_datasets(cfg.data.sources, cfg)
+    register_datasets(cfg.data.targets, cfg)
 
-    solver = Solver(
-        output_dir, tb_dir,
-        lr_scheduler_lambda=lr_scheduler,
-        logger=_log.info,
-        optim=solver_cfg['optim'],
-        optim_args=solver_cfg['optim_args'])
-    solver.train(
-        model, db_train, db_val, solver_cfg['num_epochs'], solver_cfg['log_nth'])
+    datamanager = build_datamanager(cfg)
+
+    print(f'Building model: {cfg.model.name}')
+    model = torchreid.models.build_model(
+        name=cfg.model.name,
+        num_classes=datamanager.num_train_pids,
+        loss=cfg.loss.name,
+        pretrained=cfg.model.pretrained,
+        use_gpu=cfg.use_gpu
+    )
+    num_params, flops = compute_model_complexity(
+        model, (1, 3, cfg.data.height, cfg.data.width)
+    )
+    print('Model complexity: params={:,} flops={:,}'.format(num_params, flops))
+
+    if cfg.model.load_weights and check_isfile(cfg.model.load_weights):
+        load_pretrained_weights(model, cfg.model.load_weights)
+
+    if cfg.use_gpu:
+        model = nn.DataParallel(model).cuda()
+
+    optimizer = torchreid.optim.build_optimizer(model, **optimizer_kwargs(cfg))
+    scheduler = torchreid.optim.build_lr_scheduler(
+        optimizer, **lr_scheduler_kwargs(cfg)
+    )
+
+    if cfg.model.resume and check_isfile(cfg.model.resume):
+        cfg.train.start_epoch = resume_from_checkpoint(
+            cfg.model.resume, model, optimizer=optimizer, scheduler=scheduler
+        )
+
+    print(
+        'Building {}-engine for {}-reid'.format(cfg.loss.name, cfg.data.type)
+    )
+    engine = build_engine(cfg, datamanager, model, optimizer, scheduler)
+    engine.run(**engine_run_kwargs(cfg))
+
+
+if __name__ == '__main__':
+    main()

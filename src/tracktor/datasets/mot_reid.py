@@ -57,24 +57,26 @@ class MOTreID(MOTSequence):
         if self.random_triplets:
             res.append(pos[np.random.choice(pos.shape[0], self.K, replace=False)])
 
-            # exclude idx here
-            neg_indices = np.random.choice([
-                i for i, _ in enumerate(self.data)
-                if i != idx], self.P-1, replace=False)
-            for i in neg_indices:
-                neg = self.data[i]
-                res.append(neg[np.random.choice(neg.shape[0], self.K, replace=False)])
+            if self.P:
+                # exclude idx here
+                neg_indices = np.random.choice([
+                    i for i, _ in enumerate(self.data)
+                    if i != idx], self.P-1, replace=False)
+                for i in neg_indices:
+                    neg = self.data[i]
+                    res.append(neg[np.random.choice(neg.shape[0], self.K, replace=False)])
         else:
             res.append(pos[np.linspace(0, pos.shape[0] - 1, num=self.K, dtype=int)])
 
-            # exclude idx here
-            neg_indices = [i for i, _ in enumerate(self.data) if i != idx]
-            neg_indices_choice = np.linspace(0, len(self.data) - 2, num=self.P-1, dtype=int)
-            neg_indices = np.array(neg_indices)[neg_indices_choice].tolist()
+            if self.P:
+                # exclude idx here
+                neg_indices = [i for i, _ in enumerate(self.data) if i != idx]
+                neg_indices_choice = np.linspace(0, len(self.data) - 2, num=self.P-1, dtype=int)
+                neg_indices = np.array(neg_indices)[neg_indices_choice].tolist()
 
-            for i in neg_indices:
-                neg = self.data[i]
-                res.append(neg[np.linspace(0, neg.shape[0] - 1, num=self.K, dtype=int)])
+                for i in neg_indices:
+                    neg = self.data[i]
+                    res.append(neg[np.linspace(0, neg.shape[0] - 1, num=self.K, dtype=int)])
 
         # concatenate the results
         r = []
@@ -88,13 +90,13 @@ class MOTreID(MOTSequence):
         # construct the labels
         labels = [idx] * self.K
 
-        for l in neg_indices:
-            labels += [l] * self.K
+        if self.P:
+            for l in neg_indices:
+                labels += [l] * self.K
 
         labels = np.array(labels)
 
-        batch = [images, labels]
-
+        batch = {'images': images, 'labels': labels}
         return batch
 
     def build_samples(self):
@@ -147,6 +149,9 @@ class MOTreID(MOTSequence):
 
         im = im[int(gt[1]):int(gt[3]), int(gt[0]):int(gt[2])]
 
-        im = cv2.resize(im, (int(self.crop_W*1.125), int(self.crop_H*1.125)), interpolation=cv2.INTER_LINEAR)
+        im = cv2.resize(
+            im,
+            (int(self.crop_W*1.125), int(self.crop_H*1.125)),
+            interpolation=cv2.INTER_LINEAR)
 
         return im

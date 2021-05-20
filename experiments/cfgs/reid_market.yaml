@@ -1,18 +1,16 @@
 model:
-  name: resnet50_fc512
+  name: 'resnet50_fc512'
   pretrained: True
 
 data:
-  type: image
-  root: data/MOT17_with_MOTS20_GT/train
-  sources: ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-11']
-  targets: ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-11']
+  type: 'image'
+  sources: ['market1501']
+  targets: ['market1501']
   height: 256
   width: 128
   combineall: False
   transforms: ['random_flip']
-  save_dir: 'tensorboard/tracktor/reid/MOT17_with_MOTS20_GT_split_02'
-  workers: 0
+  save_dir: 'log/resnet50_fc512_market1501_softmax'
 
 loss:
   name: 'softmax'
@@ -34,5 +32,5 @@ test:
   dist_metric: 'euclidean'
   normalize_feature: False
   evaluate: False
-  eval_freq: 1
+  eval_freq: -1
   rerank: False

@@ -1,15 +1,16 @@
 from collections import deque
 
+import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.autograd import Variable
 from scipy.optimize import linear_sum_assignment
-import cv2
-
-from .utils import bbox_overlaps, warp_pos, get_center, get_height, get_width, make_pos
-
+from torch.autograd import Variable
+from torchreid import metrics
 from torchvision.ops.boxes import clip_boxes_to_image, nms
+
+from .utils import (bbox_overlaps, get_center, get_height, get_width, make_pos,
+                    warp_pos)
 
 
 class Tracker:
@@ -129,8 +130,7 @@ class Tracker:
         new_det_features = [torch.zeros(0).cuda() for _ in range(len(new_det_pos))]
 
         if self.do_reid:
-            new_det_features = self.reid_network.test_rois(
-                blob['img'], new_det_pos).data
+            new_det_features = self.get_appearances(blob, new_det_pos)
 
             if len(self.inactive_tracks) >= 1:
                 # calculate appearance distances
@@ -147,11 +147,12 @@ class Tracker:
                     pos = pos[0]
 
                 # calculate IoU distances
-                iou = bbox_overlaps(pos, new_det_pos)
-                iou_mask = torch.ge(iou, self.reid_iou_threshold)
-                iou_neg_mask = ~iou_mask
-                # make all impossible assignments to the same add big value
-                dist_mat = dist_mat * iou_mask.float() + iou_neg_mask.float() * 1000
+                if self.reid_iou_threshold:
+                    iou = bbox_overlaps(pos, new_det_pos)
+                    iou_mask = torch.ge(iou, self.reid_iou_threshold)
+                    iou_neg_mask = ~iou_mask
+                    # make all impossible assignments to the same add big value
+                    dist_mat = dist_mat * iou_mask.float() + iou_neg_mask.float() * 1000
                 dist_mat = dist_mat.cpu().numpy()
 
                 row_ind, col_ind = linear_sum_assignment(dist_mat)
@@ -184,9 +185,29 @@ class Tracker:
 
         return new_det_pos, new_det_scores, new_det_features
 
-    def get_appearances(self, blob):
+    def get_appearances(self, blob, pos):
         """Uses the siamese CNN to get the features for all active tracks."""
-        new_features = self.reid_network.test_rois(blob['img'], self.get_pos()).data
+        crops = []
+        for r in pos:
+            x0 = int(r[0])
+            y0 = int(r[1])
+            x1 = int(r[2])
+            y1 = int(r[3])
+            if x0 == x1:
+                if x0 != 0:
+                    x0 -= 1
+                else:
+                    x1 += 1
+            if y0 == y1:
+                if y0 != 0:
+                    y0 -= 1
+                else:
+                    y1 += 1
+            crop = blob['img'][0, :, y0:y1, x0:x1].permute(1, 2, 0)
+            crops.append(crop.mul(255).numpy().astype(np.uint8))
+
+        new_features = self.reid_network(crops)
+
         return new_features
 
     def add_features(self, new_features):
@@ -313,7 +334,7 @@ class Tracker:
                 self.tracks_to_inactive([self.tracks[i] for i in list(range(len(self.tracks))) if i not in keep])
 
                 if keep.nelement() > 0 and self.do_reid:
-                        new_features = self.get_appearances(blob)
+                        new_features = self.get_appearances(blob, self.get_pos())
                         self.add_features(new_features)
 
         #####################
@@ -410,7 +431,8 @@ class Track(object):
         else:
             features = self.features[0]
         features = features.mean(0, keepdim=True)
-        dist = F.pairwise_distance(features, test_features, keepdim=True)
+        dist = metrics.compute_distance_matrix(features, test_features)
+        # dist = F.pairwise_distance(features, test_features, keepdim=True)
         return dist
 
     def reset_last_pos(self):

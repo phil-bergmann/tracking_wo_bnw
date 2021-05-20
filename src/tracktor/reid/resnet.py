@@ -124,10 +124,10 @@ class ReIDNetwork(ResNet):
             H=224, W=112, labels Tensor of size (N)
         """
 
-        inp = batch[0][0]
+        inp = batch['images'][0]
         inp = Variable(inp).cuda()
 
-        labels = batch[1][0]
+        labels = batch['labels'][0]
         labels = labels.cuda()
 
         embeddings = self.forward(inp)
