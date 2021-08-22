@@ -29,6 +29,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--result_dirs_start_with', required=True)
+    parser.add_argument('--result_dirs_end_with', required=False, default='')
     parser.add_argument('--metric', required=True)
     parser.add_argument('--metric_base', action='store_true')
 
@@ -40,7 +41,7 @@ if __name__ == '__main__':
 
     results = {}
     for result_dir in os.listdir(base_dir):
-        if not result_dir.startswith(os.path.basename(args.result_dirs_start_with)):
+        if not (result_dir.startswith(os.path.basename(args.result_dirs_start_with)) and result_dir.endswith(os.path.basename(args.result_dirs_end_with))):
             continue
         print(result_dir)
 

@@ -37,6 +37,14 @@ def get_default_config():
     cfg.cuhk03.labeled_images = False # use labeled images, if False, use detected images
     cfg.cuhk03.classic_split = False # use classic split by Li et al. CVPR14
     cfg.cuhk03.use_metric_cuhk03 = False # use cuhk03's metric for evaluation
+    cfg.mot = CN()
+    cfg.mot.num_per_id_query = 5
+    cfg.mot.num_per_id_gallery = 1
+    cfg.mot.min_vis = 0.0
+    cfg.mot.min_h = 50
+    cfg.mot.min_w = 25
+    cfg.mot.min_samples = 10
+    cfg.mot.sample_nth_frame = 0
 
     # sampler
     cfg.sampler = CN()

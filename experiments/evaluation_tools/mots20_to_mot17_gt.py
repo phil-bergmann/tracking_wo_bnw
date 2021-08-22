@@ -77,9 +77,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # assert os.path.exists(args.mot17_gt_file), \
-    #     f'MOT17 GT file does not exist: {args.mot17_gt_file}'
-
     assert os.path.exists(args.mots20_gt_file), \
         f'MOTS20 GT file does not exist: {args.mots20_gt_file}'
 
@@ -91,23 +88,7 @@ if __name__ == '__main__':
     bounding_boxes = []
     mask_objects_per_frame = load_mots_gt(args.mots20_gt_file)
 
-    dataset = MOTSequence(args.mot17_seq, '/storage/slurm/meinhard/data/MOT17')
-
-    # areas_per_track_id = {}
-    # for frame_id, mask_objects in mask_objects_per_frame.items():
-    #     for mask_object in mask_objects:
-    #         if mask_object.class_id != 2:
-    #             continue
-
-    #         area = rletools.area(mask_object.mask)
-
-    #         if mask_object.track_id not in areas_per_track_id:
-    #             areas_per_track_id[mask_object.track_id] = []
-
-    #         areas_per_track_id[mask_object.track_id].append(area)
-
-    # for track_id, areas in areas_per_track_id.items():
-    #     areas_per_track_id[track_id] = np.mean(areas_per_track_id[track_id])
+    dataset = MOTSequence(args.mot17_seq, 'data/MOT17')
 
     for frame_id, mask_objects in mask_objects_per_frame.items():
         frame_data = dataset.data[frame_id - 1]
@@ -121,42 +102,11 @@ if __name__ == '__main__':
         # x1y1wh to x1y1x2y2
         mots20_boxes[:, 2:] += mots20_boxes[:, :2]
         iou = box_iou(mots20_boxes, mot17_boxes)
-        row_ind, col_ind = linear_sum_assignment(1.0 / (iou + 1e-8))
+        _, col_ind = linear_sum_assignment(1.0 / (iou + 1e-8))
 
-        # print(mots20_boxes.shape, mot17_boxes.shape)
-        # print(row_ind, col_ind)
-        # print(dataset[frame_id]['gt'])
-        # print(dataset[frame_id]['vis'])
-        # exit()
-
-        # for i, mask_object in enumerate(mask_objects):
         for ind in col_ind:
-            # class_id = 1 is car
-            # class_id = 2 is pedestrian
-            # class_id = 10 IGNORE
-            # if mask_object.class_id != 2:
-            #     continue
-
-            # bbox = rletools.toBbox(mask_object.mask)
-            # area = rletools.area(mask_object.mask)
-
-            # if area / areas_per_track_id[mask_object.track_id] < 0.3:
-            #     continue
-
-            # x1, y1, w, h = [int(c) for c in bbox]
 
             x1, y1, x2, y2 = frame_data['gt'][mot17_ids[ind]].astype(int)
-            # bbox = np.array([x1, y1, x1 + w, y1 + h], dtype=np.float32)
-
-            # bb = {}
-
-            # bb['bb_left'] = x1
-            # bb['bb_top'] = y1
-            # bb['bb_width'] = x2 - x1
-            # bb['bb_height'] = y2 - y1
-            # # bb['visibility'] = 1.0
-            # bb['visibility'] = dataset[frame_id]['vis'][mot17_ids[ind]]
-
 
             bounding_boxes.append(
                 [frame_id, mot17_ids[ind], x1, y1, x2 - x1, y2 - y1, 1, 1, frame_data['vis'][mot17_ids[ind]]]

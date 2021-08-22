@@ -90,6 +90,9 @@ def main():
     set_random_seed(cfg.train.seed)
     check_cfg(cfg)
 
+    if cfg.test.deid:
+        assert cfg.test.evaluate, 'De-identifaction must be run with cfg.test.evaluate=True.'
+
     log_name = 'test.log' if cfg.test.evaluate else 'train.log'
     log_name += time.strftime('-%Y-%m-%d-%H-%M-%S')
     sys.stdout = Logger(osp.join(cfg.data.save_dir, log_name))
