@@ -166,7 +166,7 @@ class MOTSeqDataset(ImageDataset):
 class MOTSeqDeIDDataset(MOTSeqDataset):
     def __init__(self, seq_name, cfg, **kwargs):
         self.seq_name = seq_name
-        self.cfg = cfg
+        self.cfg = cfg.mot
 
         print(f"Preparing MOTSeqDeIDDataset dataset {seq_name} with query from {cfg.data.root} and gallery from {cfg.data.root_targets}.")
 

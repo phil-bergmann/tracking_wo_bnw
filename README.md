@@ -16,14 +16,14 @@ In addition to our supplementary document, we provide an illustrative [web-video
 
 2. Install packages for Python 3.7 in [virtualenv](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/):
     1. `pip3 install -r requirements.txt`
-    2. Install PyTorch 1.6 and torchvision 0.7 from [here](https://pytorch.org/get-started/previous-versions/#v160).
+    2. Install PyTorch 1.7 and torchvision 0.8 from [here](https://pytorch.org/get-started/previous-versions/#v160).
     3. Install Tracktor: `pip3 install -e .`
 
 3. MOTChallenge data:
     1. Download [2DMOT2015](https://motchallenge.net/data/2DMOT2015.zip), [MOT16](https://motchallenge.net/data/MOT16.zip), [MOT17Det](https://motchallenge.net/data/MOT17Det.zip), [MOT17](https://motchallenge.net/data/MOT17.zip), [MOT20Det](https://motchallenge.net/data/MOT20Det.zip) and [MOT20](https://motchallenge.net/data/MOT20.zip) and place them in the `data` folder.
     2. Unzip all the data in the `data` directory.
 4. Download model (MOT17 object detector, MOT20 object detector, and re-identification network) and MOTChallenge result files:
-    1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v4.zip).
+    1. Download zip file from [here](https://vision.in.tum.de/webshare/u/meinhard/tracking_wo_bnw-output_v5.zip).
     2. Extract in `output` directory.
 
 ## Evaluate Tracktor

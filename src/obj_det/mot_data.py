@@ -300,7 +300,7 @@ class MOTObjDetect(torch.utils.data.Dataset):
         # avoid divide by zero in case the first detection matches a difficult
         # ground truth (probably not needed in my code but doesn't harm if left)
         prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
-        tmp = np.maximum(tp + fp, np.finfo(np.float64).eps)
+        # tmp = np.maximum(tp + fp, np.finfo(np.float64).eps)
 
         # correct AP calculation
         # first append sentinel values at the end
@@ -318,7 +318,10 @@ class MOTObjDetect(torch.utils.data.Dataset):
         # and sum (\Delta recall) * prec
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
 
-        tp, fp, prec, rec, ap = np.max(tp), np.max(fp), prec[-1], np.max(rec), ap
+        if len(tp):
+            tp, fp, prec, rec, ap = np.max(tp), np.max(fp), prec[-1], np.max(rec), ap
+        else:
+            tp, fp, prec, rec, ap = 0, 0, 0, 0, 0
 
         print(f"AP: {ap:.2f} Prec: {prec:.2f} Rec: {rec:.2f} TP: {tp} FP: {fp}")
 

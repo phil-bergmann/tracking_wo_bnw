@@ -14,8 +14,7 @@ network: fpn
 obj_detect_models: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
 # obj_detect_model: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_20/model_epoch_27.model
 
-reid_models: output/tracktor/reid/res50-mot17-batch_hard/ResNet_iter_25245.pth
-# reid_config: output/tracktor/reid/res50-mot17-batch_hard/sacred_config.yaml
+reid_models: output/tracktor/reid/market1501/model/model-last.pth.tar
 
 interpolate: False
 # [False, 'debug', 'pretty']
@@ -64,8 +63,8 @@ tracker:
   # How many last appearance features are to keep
   max_features_num: 10
   # How similar do image and old track need to be to be considered the same person
-  reid_sim_threshold: 2.0
+  reid_sim_threshold: 200.0
   # How much IoU do track and image need to be considered for matching
-  reid_iou_threshold: 0.2
+  reid_iou_threshold: 0.0
 
 oracle: null

@@ -294,7 +294,7 @@ class Tracker:
             boxes = clip_boxes_to_image(boxes, blob['img'].shape[-2:])
 
             # Filter out tracks that have too low person score
-            inds = torch.gt(scores, self.detection_person_thresh).nonzero().view(-1)
+            inds = torch.gt(scores, self.detection_person_thresh).nonzero(as_tuple=False).view(-1)
         else:
             inds = torch.zeros(0).cuda()
 

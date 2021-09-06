@@ -36,8 +36,8 @@ ex.add_named_config('oracle', 'experiments/cfgs/oracle_tracktor.yaml')
 
 # @ex.config
 def add_reid_config(reid_models, obj_detect_models, dataset):
-    if isinstance(dataset, str):
-        dataset = [dataset]
+    # if isinstance(dataset, str):
+    #     dataset = [dataset]
     if isinstance(reid_models, str):
         reid_models = [reid_models, ] * len(dataset)
 
@@ -74,6 +74,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
     with open(sacred_config, 'w') as outfile:
         yaml.dump(copy.deepcopy(_config), outfile, default_flow_style=False)
 
+    dataset = Datasets(dataset)
     reid_models, obj_detect_models, dataset = add_reid_config(reid_models, obj_detect_models, dataset)
 
     ##########################
@@ -117,7 +118,6 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
     time_total = 0
     num_frames = 0
     mot_accums = []
-    dataset = Datasets(dataset)
 
     for seq, obj_detect, reid_network in zip(dataset, obj_detects, reid_networks):
         tracker.obj_detect = obj_detect
