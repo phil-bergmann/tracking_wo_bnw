@@ -164,7 +164,7 @@ def plot_sequence(tracks, data_loader, output_dir, write_images):
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
 
-    cmap = rand_cmap(len(tracks), type='bright', first_color_black=False, last_color_black=False)
+    cmap = rand_cmap(len(tracks)+1, type='bright', first_color_black=False, last_color_black=False)
 
     for frame_id, frame_data  in enumerate(tqdm.tqdm(data_loader)):
         img_path = frame_data['img_path']

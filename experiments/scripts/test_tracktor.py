@@ -74,6 +74,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
     with open(sacred_config, 'w') as outfile:
         yaml.dump(copy.deepcopy(_config), outfile, default_flow_style=False)
 
+    dataset_name = dataset
     dataset = Datasets(dataset)
     reid_models, obj_detect_models, dataset = add_reid_config(reid_models, obj_detect_models, dataset)
 
@@ -164,7 +165,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
             plot_sequence(
                 results,
                 seq,
-                osp.join(output_dir, str(dataset), str(seq)),
+                osp.join(output_dir, str(dataset_name), str(seq)),
                 write_images)
 
     if time_total:
