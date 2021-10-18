@@ -15,7 +15,7 @@ from torchvision.ops.boxes import box_iou
 from mots20_to_mot17_gt import load_mots_gt
 
 DATA_ROOT = 'data'
-DATASETS = ['MOT17_Anonymous']
+DATASETS = ['MOT17']
 SPLITS=['train']
 MOTS_DIR = 'MOTS20'
 NO_BG = False

@@ -13,6 +13,7 @@ import os
 import os.path as osp
 import random
 import sys
+import copy
 
 import matplotlib.pyplot as plt
 import numpy as np

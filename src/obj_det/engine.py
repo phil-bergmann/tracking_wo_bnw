@@ -23,6 +23,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
 
+    loss_dicts = []
     for images, targets in metric_logger.log_every(data_loader, print_freq, header):
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -51,6 +52,12 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+        loss_dict_reduced = {k: v.cpu() for k, v in loss_dict_reduced.items()}
+        loss_dicts.append(loss_dict_reduced)
+        # tb_writer.add_scalar('TRAIN/LR', lr_scheduler.get_last_lr(), epoch)
+
+    return loss_dicts
 
 
 def _get_iou_types(model):
