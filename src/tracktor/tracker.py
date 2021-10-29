@@ -3,9 +3,7 @@ from collections import deque
 import cv2
 import numpy as np
 import torch
-import torch.nn.functional as F
 from scipy.optimize import linear_sum_assignment
-from torch.autograd import Variable
 from torchreid import metrics
 from torchvision.ops.boxes import clip_boxes_to_image, nms
 
@@ -383,7 +381,9 @@ class Tracker:
         for t in self.tracks:
             if t.id not in self.results.keys():
                 self.results[t.id] = {}
-            self.results[t.id][self.im_index] = np.concatenate([t.pos[0].cpu().numpy(), np.array([t.score])])
+            self.results[t.id][self.im_index] = np.concatenate([
+                t.pos[0].cpu().numpy(),
+                np.array([t.score.cpu()])])
 
         for t in self.inactive_tracks:
             t.count_inactive += 1
