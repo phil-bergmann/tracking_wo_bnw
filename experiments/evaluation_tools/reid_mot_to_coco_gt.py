@@ -61,7 +61,7 @@ def ped_im_from_anno(anno, im_anns):
 
 
 def get_img_id(dataset, seq, fname):
-    return int(f"{dataset[3:5]}{seq.split('-')[-1]}{int(fname.split('.')[0]):06}")
+    return int(f"{dataset[3:5]}{seq.split('-')[1]}{int(fname.split('.')[0]):06}")
 
 
 def read_seqinfo(path):
@@ -80,7 +80,7 @@ def main():
             data_path = osp.join(DATA_ROOT, dataset, split)
             seqs = os.listdir(data_path)
             seqs = [s for s in seqs
-                    if not s.endswith('GT') and not s.startswith('.') and not s.endswith('.json') and not s == 'reid']
+                    if not s.endswith('GT') and not s.startswith('.') and not s.endswith('.json') and not s == 'reid' and 'DPM' not in s and 'SDP' not in s]
             seqs = sorted(seqs)
 
             mots_data_path = osp.join(DATA_ROOT, MOTS_DIR, split)
@@ -114,7 +114,7 @@ def main():
                 mask = np.isin(gt[:, 7], keep_classes)
                 gt = gt[mask]
                 #break
-                anns = [{'ped_id': row[1],
+                anns = [{'ped_id': int(row[1]),
                          'frame_n': row[0],
                          'category_id': 1,
                          'id': f"{get_img_id(dataset, seq, f'{int(row[0]):06}.jpg')}{int(row_i):010}{'_NO_BG' if NO_BG else ''}",
@@ -138,22 +138,13 @@ def main():
                             # frame_data = dataset.data[frame_id - 1]
                             frame_data = [a for a in anns if a['frame_n'] == frame_id]
 
-                            mot17_boxes = torch.from_numpy(np.stack([f['bbox'] for f in frame_data])).float()
+                            for obj_data in frame_data:
+                                mask_object = [
+                                    mask_object
+                                    for mask_object in mask_objects
+                                    if mask_object.track_id % 1000 == obj_data['ped_id']][0]
 
-                            mask_objects = [o for o in mask_objects if o.class_id == 2]
-                            mots20_boxes = torch.from_numpy(np.stack([
-                                rletools.toBbox(mask_object.mask)
-                                for mask_object in mask_objects])).float()
-
-                            # x1y1wh to x1y1x2y2
-                            mot17_boxes[:, 2:] += mot17_boxes[:, :2]
-                            mots20_boxes[:, 2:] += mots20_boxes[:, :2]
-
-                            iou = box_iou(mots20_boxes, mot17_boxes)
-                            row_ind, col_ind = linear_sum_assignment(1.0 / (iou + 1e-8))
-
-                            for r_ind, c_ind in zip(row_ind, col_ind):
-                                frame_data[c_ind]['mask'] = mask_objects[r_ind]
+                                obj_data['mask'] = mask_object
 
                 # Load Image information
                 all_img_ids  =list(set([aa['image_id'] for aa in anns]))
