@@ -69,7 +69,11 @@ def assign_ids(df, night_id=True, attr_indices=None):
 
 def clean_rows(df, min_vis, min_h, min_w, min_samples, sample_nth_frame):
     # Filter by size and occlusion
-    keep = (df['vis'] > min_vis) & (df['height']>=min_h) & (df['width'] >= min_w) & (df['iscrowd']==0)
+    if min_vis == 1.0:
+        keep = (df['vis'] >= min_vis) & (df['height']>=min_h) & (df['width'] >= min_w) & (df['iscrowd']==0)
+    else:
+        keep = (df['vis'] > min_vis) & (df['height']>=min_h) & (df['width'] >= min_w) & (df['iscrowd']==0)
+
     clean_df = df[keep].copy()
 
     if sample_nth_frame:
@@ -171,7 +175,7 @@ class MOTSeqDeIDDataset(MOTSeqDataset):
         print(f"Preparing MOTSeqDeIDDataset dataset {seq_name} with query from {cfg.data.root} and gallery from {cfg.data.root_targets}.")
 
         # we use source and target datasets for de-identification and evaluate
-        # if ids in the target dataset can be identified with the source dataset
+        # if ids in the target dataset can be identified with the source dataset.
         # to this end, we sample the same query/gallery from source as in MOTSeqDataset
         # but add the query frames from target to the gallery. they will be identified
         # if target does not properly de-identify them

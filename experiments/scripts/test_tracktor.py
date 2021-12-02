@@ -62,7 +62,8 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
 
     # set all seeds
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
     np.random.seed(seed)
     torch.backends.cudnn.deterministic = True
 
@@ -87,8 +88,13 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
     obj_detects = []
     for obj_detect_model in obj_detect_models:
         obj_detect = FRCNN_FPN(num_classes=2)
-        obj_detect.load_state_dict(torch.load(obj_detect_model,
-                                map_location=lambda storage, loc: storage))
+
+        obj_detect_state_dict = torch.load(
+            obj_detect_model, map_location=lambda storage, loc: storage)
+        if 'model' in obj_detect_state_dict:
+            obj_detect_state_dict = obj_detect_state_dict['model']
+
+        obj_detect.load_state_dict(obj_detect_state_dict)
         obj_detects.append(obj_detect)
 
         obj_detect.eval()
@@ -100,6 +106,7 @@ def main(module_name, name, seed, obj_detect_models, reid_models,
 
     reid_networks = []
     for reid_model in reid_models:
+        assert os.path.isfile(reid_model)
         reid_network = FeatureExtractor(
             model_name='resnet50_fc512',
             model_path=reid_model,

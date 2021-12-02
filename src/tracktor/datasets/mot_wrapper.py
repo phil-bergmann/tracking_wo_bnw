@@ -26,6 +26,22 @@ class MOT17Wrapper(Dataset):
 			sequences = test_sequences
 		elif "all" == split:
 			sequences = train_sequences + test_sequences
+		elif '3_fold' in split:
+			if '_1' in split and 'train' in split:
+				sequences = ['MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-11']
+			elif '_1' in split and 'val' in split:
+				sequences = ['MOT17-02', 'MOT17-10', 'MOT17-13']
+			elif '_2' in split and 'train' in split:
+				sequences = ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-13']
+			elif '_2' in split and 'val' in split:
+				sequences = ['MOT17-04', 'MOT17-11']
+			elif '_3' in split and 'train' in split:
+				sequences = ['MOT17-02', 'MOT17-04', 'MOT17-10', 'MOT17-11', 'MOT17-13']
+			elif '_3' in split and 'val' in split:
+				sequences = ['MOT17-05', 'MOT17-09']
+			else:
+				raise NotImplementedError("MOT split not available.")
+
 		elif f"MOT17-{split}" in train_sequences + test_sequences:
 			sequences = [f"MOT17-{split}"]
 		else:

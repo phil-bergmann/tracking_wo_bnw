@@ -30,6 +30,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--result_dirs_start_with', required=True)
     parser.add_argument('--result_dirs_end_with', required=False, default='')
+    parser.add_argument('--result_dirs_without', required=False, default='')
+    parser.add_argument('--ignore_with', required=False, default='')
     parser.add_argument('--metric', required=True)
     parser.add_argument('--metric_base', action='store_true')
 
@@ -41,22 +43,35 @@ if __name__ == '__main__':
 
     results = {}
     for result_dir in os.listdir(base_dir):
-        if not (result_dir.startswith(os.path.basename(args.result_dirs_start_with)) and result_dir.endswith(os.path.basename(args.result_dirs_end_with))):
+        if (not (result_dir.startswith(os.path.basename(args.result_dirs_start_with))
+            and result_dir.endswith(os.path.basename(args.result_dirs_end_with)))
+            or (args.result_dirs_without and args.result_dirs_without in result_dir)
+            or (args.ignore_with and args.ignore_with in result_dir)):
             continue
-        print(result_dir)
 
-        even_file = [s for s in os.listdir(os.path.join(base_dir, result_dir)) if s.startswith('events.out')][0]
+        event_files = [s for s in os.listdir(os.path.join(base_dir, result_dir)) if s.startswith('events.out')]
+        assert len(event_files) == 1, f'More or less than one event file in {result_dir}.'
+        event_file = event_files[0]
 
         results_per_exp = {}
-        for e in tf.compat.v1.train.summary_iterator(os.path.join(base_dir, result_dir, even_file)):
+        for e in tf.compat.v1.train.summary_iterator(os.path.join(base_dir, result_dir, event_file)):
             for v in e.summary.value:
+
                 tag = v.tag
+
                 if args.metric_base:
                     tag = os.path.basename(v.tag)
+
+                if args.metric != tag:
+                    continue
 
                 if tag not in results_per_exp:
                     results_per_exp[tag] = []
                 results_per_exp[tag].append(v.simple_value)
+
+                num_entries = len(results_per_exp[tag])
+
+        print(result_dir, f"{num_entries} ENTRIES")
 
         results[result_dir] = results_per_exp
 
@@ -65,4 +80,8 @@ if __name__ == '__main__':
     res_m = np.array([r[:min_length_in_res_m] for r in res_m])
     res_m = np.mean(res_m, axis=0)
 
-    print(f"MEAN: {args.metric} {res_m.max()}")
+    print()
+    for i, r in enumerate(res_m):
+        print(f"MEAN {args.metric} {r:.3f} ENTRY {i}")
+
+    print(f"\nBEST MEAN {args.metric} {res_m.max():.3f} ENTRY {res_m.argmax()}")

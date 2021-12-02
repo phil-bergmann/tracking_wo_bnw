@@ -57,11 +57,11 @@ class ImageSoftmaxEngine(torchreid.engine.ImageSoftmaxEngine):
         self,
         save_dir='log',
         max_epoch=0,
-        start_epoch=0,
+        start_epoch=1,
         print_freq=10,
         fixbase_epoch=0,
         open_layers=None,
-        start_eval=0,
+        start_eval=1,
         eval_freq=-1,
         test_only=False,
         dist_metric='euclidean',
@@ -109,38 +109,39 @@ class ImageSoftmaxEngine(torchreid.engine.ImageSoftmaxEngine):
                 'visrank can be set to True only if test_only=True'
             )
 
-        if test_only:
-            self.test(
-                dist_metric=dist_metric,
-                normalize_feature=normalize_feature,
-                visrank=visrank,
-                visrank_topk=visrank_topk,
-                save_dir=save_dir,
-                use_metric_cuhk03=use_metric_cuhk03,
-                ranks=ranks,
-                rerank=rerank
-            )
-            return
-
-        if self.writer is None:
+        if self.writer is None and not test_only:
             self.writer = SummaryWriter(log_dir=save_dir)
+
+        self.epoch = 0
+        self.test(
+            dist_metric=dist_metric,
+            normalize_feature=normalize_feature,
+            visrank=visrank,
+            visrank_topk=visrank_topk,
+            save_dir=save_dir,
+            use_metric_cuhk03=use_metric_cuhk03,
+            ranks=ranks,
+            rerank=rerank
+        )
+        if test_only:
+            return
 
         time_start = time.time()
         rank1_best = 0
         self.start_epoch = start_epoch
         self.max_epoch = max_epoch
         print('=> Start training')
-        for self.epoch in range(self.start_epoch, self.max_epoch):
+        for self.epoch in range(self.start_epoch, self.max_epoch + 1):
             self.train(
                 print_freq=print_freq,
                 fixbase_epoch=fixbase_epoch,
                 open_layers=open_layers
             )
 
-            if (self.epoch + 1) >= start_eval \
+            if (self.epoch) >= start_eval \
                and eval_freq > 0 \
-               and (self.epoch+1) % eval_freq == 0 \
-               and (self.epoch + 1) != self.max_epoch:
+               and (self.epoch) % eval_freq == 0 \
+               and (self.epoch) != self.max_epoch:
                 rank1 = self.test(
                     dist_metric=dist_metric,
                     normalize_feature=normalize_feature,
@@ -247,6 +248,8 @@ class ImageSoftmaxEngine(torchreid.engine.ImageSoftmaxEngine):
             rank1_list.append(rank1)
 
         print(f'##### MEAN targets Rank-1: {np.mean(rank1_list):.1%} #####')
+        if self.writer is not None:
+            self.writer.add_scalar(f'Test/MEAN_rank1', np.mean(rank1_list), self.epoch)
 
         return rank1
 

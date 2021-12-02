@@ -308,8 +308,6 @@ class Tracker:
         # Predict tracks #
         ##################
 
-        num_tracks = 0
-        nms_inp_reg = torch.zeros(0).cuda()
         if len(self.tracks):
             # align
             if self.do_align:

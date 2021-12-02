@@ -154,7 +154,7 @@ class MOTSequence(Dataset):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        with open(osp.join(output_dir, self._seq_name), "w") as of:
+        with open(osp.join(output_dir, f"{self._seq_name}.txt"), "w") as of:
             writer = csv.writer(of, delimiter=',')
             for i, track in all_tracks.items():
                 for frame, bb in track.items():
