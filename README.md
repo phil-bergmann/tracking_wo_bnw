@@ -84,7 +84,9 @@ Rcll  Prcn|  FAR     GT     TP     FP     FN| MODA  MODP
 
 1. The training config file is located at `experiments/cfgs/reid.yaml`.
 
-2. Start training by executing `python experiments/scripts/train_reid.py`.
+2. Create reID data `python experiments/evaluation_tools/reid_mot_to_coco_gt.py --dataset MOT17 --data_root data`
+
+3. Start training by executing `python experiments/scripts/train_reid.py`.
 
 ## Publication
  If you use this software in your research, please cite our publication:
