@@ -11,7 +11,7 @@ network: fpn
 # obj_detect_config: output/frcnn/res101/mot_2017_train/180k/sacred_config.yaml
 
 # fpn
-obj_detect_models: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
+obj_detect_models: output/faster_rcnn_fpn_training_mot_17/model_epoch_27.model
 # obj_detect_model: output/faster_rcnn_fpn/faster_rcnn_fpn_training_mot_20/model_epoch_27.model
 
 reid_models: output/tracktor/reid/market1501/model/model-last.pth.tar
