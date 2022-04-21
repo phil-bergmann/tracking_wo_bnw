@@ -139,7 +139,6 @@ toml==0.10.2
 torchreid @ https://github.com/KaiyangZhou/deep-person-reid/archive/master.zip
 tornado==6.0.4
 tqdm==4.38.0
--e git+ssh://git@github.com/phil-bergmann/tracking_wo_BnW@b47f66d20cfa1042c8d8a753f03eb26904489421#egg=tracktor
 traitlets==4.3.3
 typed-ast==1.4.1
 typing-extensions==3.10.0.2
