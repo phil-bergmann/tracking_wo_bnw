@@ -186,22 +186,27 @@ class MOTSeqDeIDDataset(MOTSeqDataset):
         train = to_tuple_list(df_sources)
 
         np.random.seed(0)
-        query_per_reid_id = sample_random_per_reid_id(df_sources, cfg.mot.num_per_id_query)
-        query_df = df_sources.loc[query_per_reid_id.values].copy()
-        df_sources = df_sources.drop(query_per_reid_id).copy()
+        # query_per_reid_id = sample_random_per_reid_id(df_sources, cfg.mot.num_per_id_query)
+        # query_df = df_sources.loc[query_per_reid_id.values].copy()
+        # df_sources = df_sources.drop(query_per_reid_id).copy()
 
-        gallery_per_reid_id = sample_random_per_reid_id(df_sources, cfg.mot.num_per_id_gallery)
-        gallery_df = df_sources.loc[gallery_per_reid_id.values].copy()
-        # gallery_df = gallery_df.append(df_sources.loc[gallery_per_reid_id.values].copy(), ignore_index=True)
-        # gallery_df = gallery_df.append(query_df.copy(), ignore_index=True)
-        # gallery_df = query_df.copy()
+        # # gallery_per_reid_id = sample_random_per_reid_id(df_sources, cfg.mot.num_per_id_gallery)
+        # # gallery_df = df_sources.loc[gallery_per_reid_id.values].copy()
+        # gallery_df = df_sources
 
-        # Add query frames per id from targets to gallery
-        # query_per_reid_id = sample_random_per_reid_id(df_targets)
-        gallery_df_targets = df_targets.loc[query_per_reid_id.values].copy()
-        # set to new range of reid_ids to punish identification
-        gallery_df_targets.loc[:,'reid_id'] += df_targets['reid_id'].nunique()
-        gallery_df = gallery_df.append(gallery_df_targets, ignore_index=True)
+        # # gallery_df = gallery_df.append(df_sources.loc[gallery_per_reid_id.values].copy(), ignore_index=True)
+        # # gallery_df = gallery_df.append(query_df.copy(), ignore_index=True)
+        # # gallery_df = query_df.copy()
+
+        # # Add query frames per id from targets to gallery
+        # # query_per_reid_id = sample_random_per_reid_id(df_targets)
+        # gallery_df_targets = df_targets.loc[query_per_reid_id.values].copy()
+        # # set to new range of reid_ids to punish identification
+        # gallery_df_targets.loc[:,'reid_id'] += df_targets['reid_id'].nunique()
+        # gallery_df = gallery_df.append(gallery_df_targets, ignore_index=True)
+
+        query_df = df_targets
+        gallery_df = df_sources
 
         gallery_df['cam_id'] = 1
 

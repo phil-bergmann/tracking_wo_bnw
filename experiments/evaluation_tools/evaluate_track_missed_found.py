@@ -15,7 +15,7 @@ import seaborn as sns
 sns.set_palette('deep')
 sns.set(font_scale=1.5, rc={'text.usetex' : True})
 
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment as linear_assignment
 from easydict import EasyDict as edict
 from mot_evaluation.io import read_txt_to_struct, read_seqmaps, extract_valid_gt_data, print_metrics
 from mot_evaluation.bbox import bbox_overlap
@@ -278,7 +278,7 @@ def my_main(_config):
 
     #tracker = ["FRCNN_Base", "HAM_SADF17", "MOTDT17", "EDMT17", "IOU17", "MHT_bLSTM", "FWT_17", "jCC", "MHT_DAM_17"]
     tracker = ["Tracktor", "Tracktor++", "FWT", "jCC", "MOTDT17", "MHT_DAM"]
-    #tracker = tracker[:2]
+    tracker = tracker[2:]
     # "PHD_GSDL17" does not work, error
     #tracker = tracker[-4:]
 
@@ -304,7 +304,7 @@ def my_main(_config):
 
             gt_file = osp.join("data/MOT17Labels", "train", s, "gt", "gt.txt")
             # det_file = osp.join("../data/MOT17Labels", "train", s, "det", "det.txt")
-            res_file = osp.join("output/tracker/MOT17", t, s+".txt")
+            res_file = osp.join(results_dir, t, s+".txt")
 
             # gt_file = osp.join("MOT17Labels", "train", s, "gt", "gt.txt")
             # #det_file = osp.join(cfg.DATA_DIR, "MOT17Labels", "train", s, "det", "det.txt")
@@ -334,10 +334,12 @@ def my_main(_config):
                     gt_vis.append(vis)
                 gt_temp = gtDB_unf[gtDB_unf[:,8]>=0.9]
                 heights = gt_temp[:,5] - gt_temp[:,3]
+                widths = gt_temp[:,4] - gt_temp[:,2]
                 if "-05-" in s:
                     heights *= 2.25
-                for h in heights:
+                for h, w in zip(heights, widths):
                     gt_h.append(h)
+                    # gt_h.append(h * w)
 
             gt_frames = np.unique(gtDB[:, 0])
             st_ids = np.unique(stDB[:, 1])
@@ -657,7 +659,7 @@ def my_main(_config):
     bar_width = (0.7*h_step) / len(tracker)
     for i in range(len(tracker)):
         dis = (i - (len(tracker)-1)/2) * bar_width
-        ax1.bar(h_bins + h_step/2 + dis, heights_results[i], bar_width, align='center', label=tracker[i].replace('_', '\_'))
+        # ax1.bar(h_bins + h_step/2 + dis, heights_results[i], bar_width, align='center', label=tracker[i].replace('_', '\_'))
     ax1.set_ylim((0, 1.0))
     ax1.set_xlim((np.min(gt_h),h_max))
     #if "DPM" in detections:
@@ -669,7 +671,7 @@ def my_main(_config):
         color='white'
     if "SDP" in detections:
         color='white'
-    ax1.set_xlabel('Object height (pixels)', fontsize=fontsize, color=color)
+    ax1.set_xlabel('Object area (pixels)', fontsize=fontsize, color=color)
     color='black'
     if "FRCNN" in detections:
         color='white'

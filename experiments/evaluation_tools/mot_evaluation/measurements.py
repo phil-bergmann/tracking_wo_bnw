@@ -14,7 +14,7 @@ This file lists the matching algorithms.
 
 
 usage:
-python evaluate_tracking.py 
+python evaluate_tracking.py
     --bm                       Whether to evaluate multiple files(benchmarks)
     --seqmap [filename]        List of sequences to be evaluated
     --track  [dirname]         Tracking results directory: default path -- [dirname]/[seqname]/res.txt
@@ -23,7 +23,7 @@ python evaluate_tracking.py
 """
 
 import numpy as np
-from sklearn.utils.linear_assignment_ import linear_assignment
+from scipy.optimize import linear_sum_assignment as linear_assignment
 from .bbox import bbox_overlap
 from easydict import EasyDict as edict
 VERBOSE = False
@@ -36,9 +36,9 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
     gt_frames = np.unique(gtDB[:, 0])
     st_ids = np.unique(stDB[:, 1])
     gt_ids = np.unique(gtDB[:, 1])
-    #f_gt = int(max(max(st_frames), max(gt_frames)))  
-    #n_gt = int(max(gt_ids)) 
-    #n_st = int(max(st_ids)) 
+    #f_gt = int(max(max(st_frames), max(gt_frames)))
+    #n_gt = int(max(gt_ids))
+    #n_st = int(max(st_ids))
     f_gt = len(gt_frames)
     n_gt = len(gt_ids)
     n_st = len(st_ids)
@@ -47,15 +47,15 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
     c = np.zeros((f_gt, ), dtype=float)            # matches found in each frame
     fp = np.zeros((f_gt, ), dtype=float)           # false positives in each frame
     missed = np.zeros((f_gt, ), dtype=float)       # missed gts in each frame
-    
+
     g = np.zeros((f_gt, ), dtype=float)            # gt count in each frame
     d = np.zeros((f_gt, n_gt), dtype=float)         # overlap matrix
     allfps = np.zeros((f_gt, n_st), dtype=float)
-    
+
     gt_inds = [{} for i in range(f_gt)]
     st_inds = [{} for i in range(f_gt)]
-    M = [{} for i in range(f_gt)]                  # matched pairs hashing gid to sid in each frame 
-    
+    M = [{} for i in range(f_gt)]                  # matched pairs hashing gid to sid in each frame
+
     switches = {i:{} for i in gt_frames}
 
     # hash the indices to speed up indexing
@@ -72,8 +72,8 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
         st_inds[frame][sid] = i
 
     for t in range(f_gt):
-        g[t] = len(gt_inds[t].keys()) 
-        
+        g[t] = len(gt_inds[t].keys())
+
         # preserving original mapping if box of this trajectory has large enough iou in avoid of ID switch
         if t > 0:
             mappings = list(M[t - 1].keys())
@@ -91,7 +91,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
         unmapped_gt, unmapped_st  = [], []
         unmapped_gt = [key for key in gt_inds[t].keys() if key not in M[t].keys()]
         unmapped_st = [key for key in st_inds[t].keys() if key not in M[t].values()]
-        if len(unmapped_gt) > 0 and len(unmapped_st) > 0: 
+        if len(unmapped_gt) > 0 and len(unmapped_st) > 0:
             overlaps = np.zeros((n_gt, n_st), dtype=float)
             for i in range(len(unmapped_gt)):
                 row_gt = gt_inds[t][unmapped_gt[i]]
@@ -101,7 +101,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
                     if dist[0] >= threshold:
                         overlaps[i][j] = dist[0]
             matched_indices = linear_assignment(1 - overlaps)
-            
+
             for matched in matched_indices:
                 if overlaps[matched[0], matched[1]] == 0:
                     continue
@@ -112,7 +112,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
         # compute statistics
         cur_tracked = list(M[t].keys())
         st_tracked = M[t].values()
-        fps = [key for key in st_inds[t].keys() if key not in M[t].values()] 
+        fps = [key for key in st_inds[t].keys() if key not in M[t].values()]
         for k in range(len(fps)):
             allfps[t][fps[k]] = fps[k]
         # check miss match errors
@@ -141,13 +141,13 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
                         row_old = st_inds[last_non_empty][mlastnonemptyct]
                         id_new = int(stDB[row_new, 1])
                         id_old = int(stDB[row_old, 1])
-                        
+
                         # extract height and visibility at dissapearing point
                         gt_row = gt_inds[last_non_empty][ct]
                         gt_id = int(gtDB[gt_row, 1])
                         gt_height = float(gtDB[gt_row, 5]) - float(gtDB[gt_row, 3])
                         gt_vis = float(gtDB[gt_row, 8])
-                        
+
                         switches[int(gt_frames[t])][id_new] = [id_old, int(gt_frames[last_non_empty]), gt_id, gt_height, gt_vis]
 
         c[t] = len(cur_tracked)
@@ -212,7 +212,7 @@ def idmeasures(gtDB, stDB, threshold):
     cost = np.zeros((n_gt + n_st, n_st + n_gt), dtype=float)
     cost[n_gt:, :n_st] = float('inf')
     cost[:n_gt, n_st:] = float('inf')
-    
+
     fp = np.zeros(cost.shape)
     fn = np.zeros(cost.shape)
     # cost matrix of all trajectory pairs
@@ -226,18 +226,18 @@ def idmeasures(gtDB, stDB, threshold):
     for i in range(n_st):
         cost[i + n_gt, i] = prediction[i].shape[0]
         fp[i + n_gt, i] = prediction[i].shape[0]
-    
+
     # groundtruth trajectory match no computed trajectory, FN
     for i in range(n_gt):
         cost[i, i + n_st] = groundtruth[i].shape[0]
         fn[i, i + n_st] = groundtruth[i].shape[0]
-    
-    
+
+
     matched_indices = linear_assignment(cost)
 
     nbox_gt = sum([groundtruth[i].shape[0] for i in range(n_gt)])
     nbox_st = sum([prediction[i].shape[0] for i in range(n_st)])
-    
+
     IDFP = 0
     IDFN = 0
     for matched in matched_indices:
@@ -308,7 +308,7 @@ def cost_between_trajectories(traj1, traj2, threshold):
         fn = npoints1
         fp = npoints2
         return fp, fn
-    
+
     # gt trajectory mapping to st, check gt missed
     matched_pos1 = corresponding_frame(traj1[:, 0], npoints1, traj2[:, 0], npoints2)
     # st trajectory mapping to gt, check computed one false alarms
@@ -316,9 +316,9 @@ def cost_between_trajectories(traj1, traj2, threshold):
     dist1 = compute_distance(traj1, traj2, matched_pos1)
     dist2 = compute_distance(traj2, traj1, matched_pos2)
     # FN
-    fn = sum([1 for i in range(npoints1) if dist1[i] < threshold]) 
+    fn = sum([1 for i in range(npoints1) if dist1[i] < threshold])
     # FP
-    fp = sum([1 for i in range(npoints2) if dist2[i] < threshold]) 
+    fp = sum([1 for i in range(npoints2) if dist2[i] < threshold])
     return fp, fn
 
 def cost_between_gt_pred(groundtruth, prediction, threshold):

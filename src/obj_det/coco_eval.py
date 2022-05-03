@@ -7,7 +7,7 @@ import time
 import torch
 import torch._six
 
-from pycocotools.cocoeval import COCOeval
+from pycocotools.cocoeval import COCOeval, Params
 from pycocotools.coco import COCO
 import pycocotools.mask as mask_util
 
@@ -26,6 +26,15 @@ class CocoEvaluator(object):
         self.coco_eval = {}
         for iou_type in iou_types:
             self.coco_eval[iou_type] = COCOeval(coco_gt, iouType=iou_type)
+            # self.coco_eval[iou_type].params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 32 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
+
+            # self.coco_eval[iou_type].params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 96 ** 2], [96 ** 2, 192 ** 2], [192 ** 2, 1e5 ** 2]]
+            # scale_factor = (1920 / 1300) ** 2
+            # self.coco_eval[iou_type].params.areaRng = \
+            #     [[0 ** 2 * scale_factor, 1e5 ** 2 * scale_factor],
+            #      [0 ** 2 * scale_factor, 32 ** 2 * scale_factor],
+            #      [32 ** 2 * scale_factor, 96 ** 2 * scale_factor],
+            #      [96 ** 2 * scale_factor, 1e5 ** 2 * scale_factor]]
 
         self.img_ids = []
         self.eval_imgs = {k: [] for k in iou_types}

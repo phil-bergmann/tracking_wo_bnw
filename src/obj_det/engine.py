@@ -99,7 +99,24 @@ def evaluate(model, data_loader, device, iou_types=None):
 
         torch.cuda.synchronize()
         model_time = time.time()
-        outputs = model(image)
+
+        if hasattr(model, 'load_image'):
+            model.load_image(image)
+            outputs = model.predict_boxes([t['boxes'] for t in targets])
+            for target, output in zip(targets, outputs):
+                output['track_ids'] = target['track_ids']
+        else:
+            outputs = model(image)
+
+            # hacky val loss
+            model.train()
+            loss_dict = model(image, targets)
+
+            loss_dict_reduced = utils.reduce_dict(loss_dict)
+            loss_dict_reduced = {k: v.cpu() for k, v in loss_dict_reduced.items()}
+            loss_dicts.append(loss_dict_reduced)
+
+            model.eval()
 
         outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
         model_time = time.time() - model_time

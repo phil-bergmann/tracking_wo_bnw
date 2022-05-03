@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--ignore_with', required=False, default='')
     parser.add_argument('--metric', required=True)
     parser.add_argument('--metric_base', action='store_true')
+    parser.add_argument('--ignore_result_dirs_with', default=None, type=float)
 
     args = parser.parse_args()
 
@@ -54,6 +55,7 @@ if __name__ == '__main__':
         event_file = event_files[0]
 
         results_per_exp = {}
+        num_entries = 0
         for e in tf.compat.v1.train.summary_iterator(os.path.join(base_dir, result_dir, event_file)):
             for v in e.summary.value:
 
@@ -71,11 +73,25 @@ if __name__ == '__main__':
 
                 num_entries = len(results_per_exp[tag])
 
-        print(result_dir, f"{num_entries} ENTRIES")
 
+        assert num_entries
+
+        if args.ignore_result_dirs_with is not None:
+            ignore = False
+            for k, v in results_per_exp.items():
+                if args.ignore_result_dirs_with in v:
+                    ignore = True
+                    break
+
+            if ignore:
+                print(f'{result_dir} IGNORED')
+                continue
+
+        print(result_dir, f"{num_entries} ENTRIES")
         results[result_dir] = results_per_exp
 
     res_m = [res[args.metric] for res in results.values()]
+
     min_length_in_res_m = min([len(r) for r in res_m])
     res_m = np.array([r[:min_length_in_res_m] for r in res_m])
     res_m = np.mean(res_m, axis=0)

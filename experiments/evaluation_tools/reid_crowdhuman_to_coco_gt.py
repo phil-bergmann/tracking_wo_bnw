@@ -88,17 +88,13 @@ def main():
     print(f'DATASET: {args.dataset}')
     print(f'NO_BG: {args.no_bg}')
 
+    data_path = osp.join(args.data_root, args.dataset)
+
+    # generate reid data
+    reid_imgs_path = osp.join(data_path, 'reid')
+    os.makedirs(reid_imgs_path, exist_ok=True)
+
     for split in SPLITS:
-        data_path = osp.join(args.data_root, args.dataset)
-        # seqs = os.listdir(data_path)
-        # seqs = [s for s in seqs
-        #         if not s.endswith('GT') and not s.startswith('.') and not s.endswith('.json') and not s == 'reid' and 'DPM' not in s and 'SDP' not in s]
-        # seqs = sorted(seqs)
-
-        # generate reid data
-        reid_imgs_path = osp.join(data_path, 'reid')
-        os.makedirs(reid_imgs_path, exist_ok=True)
-
         print(f"Processing sequence {split} in dataset {args.dataset}")
 
         seq_path = osp.join(data_path, split)
@@ -108,39 +104,19 @@ def main():
             datalist = anno_file.readlines()
         im_dir = seq_path
 
-        data = {'info': {'sequence': split,
-                         'dataset': args.dataset,
-                         'split': split,
-                         'creation_date': datetime.datetime.today().strftime('%Y-%m-%d-%H-%M'),},
-                'images': [],
-                'annotations': [],
-                'categories': [{'id': 1, 'name': 'person', 'supercategory': 'person'}]}
-
-        # Load Bounding Box annotations
-        # gt = np.loadtxt(gt_path, dtype=np.float32, delimiter=',')
-        # keep_classes = [1, 2, 7, 8, 12]
-        # keep_classes = [1]
-        # mask = np.isin(gt[:, 7], keep_classes)
-        # gt = gt[mask]
-        #break
-        # anns = [{'ped_id': int(row[1]),
-        #             'frame_n': row[0],
-        #             'category_id': 1,
-        #             'id': f"{get_img_id(args.dataset, seq, f'{int(row[0]):06}.jpg')}{int(row_i):010}{'_NO_BG' if args.no_bg else ''}",
-        #             'image_id': get_img_id(args.dataset, seq, f'{int(row[0]):06}.jpg'),
-        #             'bbox': row[2:6].tolist(),
-        #             'area': row[4]*row[5],
-        #             'vis': row[8],
-        #             'iscrowd': 1 - row[6],
-        #             'mask': None}
-        #         for row_i, row in enumerate(gt.astype(float))]
-
+        images = []
         imgs_list_dir = os.listdir(im_dir)
         for i, img in tqdm.tqdm(enumerate(sorted(imgs_list_dir))):
             im = cv2.imread(os.path.join(im_dir, img))
             h, w, _ = im.shape
 
-            data['images'].append({
+            # data['images'].append({
+            #     "file_name": img,
+            #     "height": h,
+            #     "width": w,
+            #     "id": i, })
+
+            images.append({
                 "file_name": img,
                 "height": h,
                 "width": w,
@@ -150,8 +126,10 @@ def main():
         frame_n = 0
         img_file_name_to_id = {
             os.path.splitext(img_dict['file_name'])[0]: img_dict['id']
-            for img_dict in data['images']}
+            for img_dict in images}
+            # for img_dict in data['images']}
 
+        annotations = []
         ignores = 0
         for da in tqdm.tqdm(datalist):
             json_data = json.loads(da)
@@ -176,7 +154,7 @@ def main():
                     annotation = {
                         "ped_id": annotation_id,
                         "frame_n": frame_n,
-                        "category_id": data['categories'][0]['id'],
+                        "category_id": 1,
                         "id": annotation_id,
                         "image_id": img_file_name_to_id[json_data['ID']],
                         "bbox": bbox,
@@ -187,61 +165,14 @@ def main():
 
                     annotation_id += 1
                     frame_n += 1
-                    data['annotations'].append(annotation)
+                    # data['annotations'].append(annotation)
+                    annotations.append(annotation)
 
-
-        # if args.no_bg:
-        #     # mots_data_path = osp.join(args.data_root, MOTS_DIR, split)
-        #     # mots_seq_gt_path = osp.join(mots_data_path, seq.replace('MOT17', 'MOTS20'), 'gt/gt.txt')
-        #     mots_seq_gt_path = osp.join(args.mask_dir, f'{seq}.txt')
-
-        #     if not os.path.isfile(mots_seq_gt_path):
-        #         print(f"No mask information at {mots_seq_gt_path} to remove background for {seq}.")
-        #     else:
-        #         mask_objects_per_frame = load_mots_gt(mots_seq_gt_path)
-
-        #         for frame_id, mask_objects in mask_objects_per_frame.items():
-        #             # frame_data = args.dataset.data[frame_id - 1]
-        #             frame_data = [a for a in anns if a['frame_n'] == frame_id]
-
-        #             for obj_data in frame_data:
-        #                 mask_object = [
-        #                     mask_object
-        #                     for mask_object in mask_objects
-        #                     if mask_object.track_id % 1000 == obj_data['ped_id']]
-
-        #                 if len(mask_object):
-        #                     obj_data['mask'] = mask_object[0]
-        #                 else:
-        #                     obj_data['iscrowd'] = 1
-
-        # Load Image information
-        # all_img_ids  =list(set([aa['image_id'] for aa in data['annotations']]))
-        # imgs = [{'file_name': osp.join(args.dataset, split, split, 'img1', fname),
-        #             'height': seqinfo['height'],
-        #             'width': seqinfo['width'],
-        #             'id': get_img_id(args.dataset, split, fname)}
-        #         for fname in os.listdir(im_dir) if get_img_id(args.dataset, split, fname) in all_img_ids]
-        # assert len(set([im['id'] for im in imgs]))  == len(imgs)
-        # data['images'].extend(imgs)
-
-        # assert len(str(data['images'][0]['id'])) == len(str(data['annotations'][0]['image_id']))
-
-        # data['annotations'].extend(anns)
-
-        # generate reid data
-        # im_anns = get_im_anns_dict(data)
-
-        # for anno in tqdm.tqdm(data['annotations']):
-        #     box_im = ped_im_from_anno(im_dir, anno, im_anns)
-        #     box_path = osp.join(reid_imgs_path, f"{anno['id']}.png")
-        #     box_im.save(box_path)
-
-        for img in tqdm.tqdm(data['images']):
+        for img in tqdm.tqdm(images):
             im_path = osp.join(im_dir, img['file_name'])
             im = Image.open(im_path)
 
-            annos = [anno for anno in data['annotations'] if anno['image_id'] == img['id']]
+            annos = [anno for anno in annotations if anno['image_id'] == img['id']]
             for anno in annos:
                 if anno['mask'] is not None:
                     mask = rletools.decode(anno['mask'].mask)
@@ -260,16 +191,31 @@ def main():
             os.makedirs(ann_dir)
         os.makedirs(ann_dir, exist_ok=True)
 
-        ann_file = osp.join(ann_dir, f"{split}.json")
-        if args.no_bg:
-            ann_file = osp.join(ann_dir, f"{split}_NO_BG.json")
+        # remove mask before saving
+        for i in range(len(annotations)):
+            annotations[i]['mask'] = None
 
-            # remove mask before saving
-            for i in range(len(data['annotations'])):
-                data['annotations'][i]['mask'] = None
+        for img in images:
+            img_name = os.path.splitext(img['file_name'])[0]
 
-        save_json(data, ann_file)
-        print(f"Saving annotation file in {ann_file}.\n")
+            data = {'info': {'sequence': img_name,
+                     'dataset': args.dataset,
+                     'split': split,
+                     'creation_date': datetime.datetime.today().strftime('%Y-%m-%d-%H-%M'),},
+                'images': [img],
+                'annotations': [anno for anno in annotations if anno['image_id'] == img['id']],
+                'categories': [{'id': 1, 'name': 'person', 'supercategory': 'person'}]}
+
+            ann_file = osp.join(ann_dir, f"{img_name}.json")
+            if args.no_bg:
+                ann_file = osp.join(ann_dir, f"{img_name}_NO_BG.json")
+
+                # remove mask before saving
+                # for i in range(len(data['annotations'])):
+                #     data['annotations'][i]['mask'] = None
+
+            save_json(data, ann_file)
+            print(f"Saving annotation file in {ann_file}.")
 
 
 if __name__ == '__main__':

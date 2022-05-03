@@ -112,7 +112,7 @@ class ImageSoftmaxEngine(torchreid.engine.ImageSoftmaxEngine):
         if self.writer is None and not test_only:
             self.writer = SummaryWriter(log_dir=save_dir)
 
-        self.epoch = 0
+        self.epoch = start_epoch - 1
         self.test(
             dist_metric=dist_metric,
             normalize_feature=normalize_feature,

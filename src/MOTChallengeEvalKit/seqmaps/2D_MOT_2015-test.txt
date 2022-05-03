@@ -1,0 +1,12 @@
+name
+TUD-Crossing
+PETS09-S2L2
+ETH-Jelmoli
+ETH-Linthescher
+ETH-Crossing
+AVG-TownCentre
+ADL-Rundle-1
+ADL-Rundle-3
+KITTI-16
+KITTI-19
+Venice-1

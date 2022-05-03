@@ -723,3 +723,93 @@ def fasterrcnn_resnet50_fpn(pretrained=False, progress=True,
         model.load_state_dict(state_dict)
         overwrite_eps(model, 0.0)
     return model
+
+
+def maskrcnn_tracktor_resnet50_fpn(pretrained=False, progress=True,
+                            num_classes=91, pretrained_backbone=True, trainable_backbone_layers=3, **kwargs):
+    """
+    Arguments:
+        pretrained (bool): If True, returns a model pre-trained on COCO train2017
+        progress (bool): If True, displays a progress bar of the download to stderr
+        pretrained_backbone (bool): If True, returns a model with backbone pre-trained on Imagenet
+        num_classes (int): number of output classes of the model (including the background)
+        trainable_backbone_layers (int): number of trainable (not frozen) resnet layers starting from final block.
+            Valid values are between 0 and 5, with 5 meaning all backbone layers are trainable.
+    """
+    trainable_backbone_layers = _validate_trainable_layers(
+        pretrained or pretrained_backbone, trainable_backbone_layers, 5, 3)
+
+    print(f'trainable_backbone_layers: {trainable_backbone_layers}')
+
+    if pretrained:
+        # no need to download the backbone if pretrained is set
+        pretrained_backbone = False
+    backbone = resnet_fpn_backbone('resnet50', pretrained_backbone, trainable_layers=trainable_backbone_layers)
+    # model = MaskRCNN(backbone, num_classes, **kwargs)
+    model = MaskRCNNTracktor(backbone, num_classes, **kwargs)
+    print('Initialize MaskRCNNTracktor.')
+    if pretrained:
+        state_dict = load_state_dict_from_url(model_urls['maskrcnn_resnet50_fpn_coco'],
+                                              progress=progress)
+
+        if num_classes == 2:
+            print('Load person weights from COCO.')
+
+            state_dict['roi_heads.box_predictor.cls_score.weight'] = state_dict['roi_heads.box_predictor.cls_score.weight'][[0, 1]]
+            state_dict['roi_heads.box_predictor.cls_score.bias'] = state_dict['roi_heads.box_predictor.cls_score.bias'][[0, 1]]
+
+            state_dict['roi_heads.box_predictor.bbox_pred.weight'] = state_dict['roi_heads.box_predictor.bbox_pred.weight'][[0, 1, 2, 3, 4, 5, 6, 7]]
+            state_dict['roi_heads.box_predictor.bbox_pred.bias'] = state_dict['roi_heads.box_predictor.bbox_pred.bias'][[0, 1, 2, 3, 4, 5, 6, 7]]
+
+            state_dict['roi_heads.mask_predictor.mask_fcn_logits.weight'] = state_dict['roi_heads.mask_predictor.mask_fcn_logits.weight'][[0, 1]]
+            state_dict['roi_heads.mask_predictor.mask_fcn_logits.bias'] = state_dict['roi_heads.mask_predictor.mask_fcn_logits.bias'][[0, 1]]
+
+        model.load_state_dict(state_dict)
+        overwrite_eps(model, 0.0)
+
+    return model
+
+
+def keypointrcnn_tracktor_resnet50_fpn(pretrained=False, progress=True,
+                            num_classes=91, pretrained_backbone=True, trainable_backbone_layers=3, **kwargs):
+    """
+    Arguments:
+        pretrained (bool): If True, returns a model pre-trained on COCO train2017
+        progress (bool): If True, displays a progress bar of the download to stderr
+        pretrained_backbone (bool): If True, returns a model with backbone pre-trained on Imagenet
+        num_classes (int): number of output classes of the model (including the background)
+        trainable_backbone_layers (int): number of trainable (not frozen) resnet layers starting from final block.
+            Valid values are between 0 and 5, with 5 meaning all backbone layers are trainable.
+    """
+    trainable_backbone_layers = _validate_trainable_layers(
+        pretrained or pretrained_backbone, trainable_backbone_layers, 5, 3)
+
+    print(f'trainable_backbone_layers: {trainable_backbone_layers}')
+
+    if pretrained:
+        # no need to download the backbone if pretrained is set
+        pretrained_backbone = False
+    backbone = resnet_fpn_backbone('resnet50', pretrained_backbone, trainable_layers=trainable_backbone_layers)
+    # model = MaskRCNN(backbone, num_classes, **kwargs)
+    model = KeypointRCNNTracktor(backbone, num_classes, **kwargs)
+    print('Initialize KeypointRCNNTracktor.')
+    if pretrained:
+        state_dict = load_state_dict_from_url(model_urls['keypointrcnn_resnet50_fpn_coco'],
+                                              progress=progress)
+
+        # if num_classes == 2:
+        #     print('Load person weights from COCO.')
+
+        #     state_dict['roi_heads.box_predictor.cls_score.weight'] = state_dict['roi_heads.box_predictor.cls_score.weight'][[0, 1]]
+        #     state_dict['roi_heads.box_predictor.cls_score.bias'] = state_dict['roi_heads.box_predictor.cls_score.bias'][[0, 1]]
+
+        #     state_dict['roi_heads.box_predictor.bbox_pred.weight'] = state_dict['roi_heads.box_predictor.bbox_pred.weight'][[0, 1, 2, 3, 4, 5, 6, 7]]
+        #     state_dict['roi_heads.box_predictor.bbox_pred.bias'] = state_dict['roi_heads.box_predictor.bbox_pred.bias'][[0, 1, 2, 3, 4, 5, 6, 7]]
+
+            # state_dict['roi_heads.mask_predictor.mask_fcn_logits.weight'] = state_dict['roi_heads.mask_predictor.mask_fcn_logits.weight'][[0, 1]]
+            # state_dict['roi_heads.mask_predictor.mask_fcn_logits.bias'] = state_dict['roi_heads.mask_predictor.mask_fcn_logits.bias'][[0, 1]]
+
+        model.load_state_dict(state_dict)
+        overwrite_eps(model, 0.0)
+
+    return model

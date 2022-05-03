@@ -1,0 +1,1 @@
+find(strcmp(labels,'occluder'))

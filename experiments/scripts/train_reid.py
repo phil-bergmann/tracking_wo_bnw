@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+#SBATCH --job-name=tracktor_train_reid
+#SBATCH --nodes=1
+#SBATCH --cpus-per-gpu=2
+#SBATCH --mem=50GB
+#SBATCH --output=output/%j.out
+#SBATCH --time=1080
+#SBATCH --exclude=node11,node12,node13,node14
+#SBATCH --gres=gpu:1
+
 import argparse
 import os
 import os.path as osp
@@ -90,6 +100,21 @@ def main():
     set_random_seed(cfg.train.seed)
     check_cfg(cfg)
 
+    if 'all_seqs' in cfg.data.sources:
+        print(f'Set sources to all seqs in {cfg.data.root}')
+
+        cfg.data.sources = [
+            os.path.splitext(file)[0]
+            for file in os.listdir(cfg.data.root) if file.endswith(".json")]
+
+    if 'all_seqs' in cfg.data.targets:
+        print(f'Set targets to all seqs in {cfg.data.root_targets}')
+
+        cfg.data.targets = [
+            os.path.splitext(file)[0]
+            for file in os.listdir(cfg.data.root_targets) if file.endswith(".json")]
+
+
     if cfg.test.deid:
         assert cfg.test.evaluate, 'De-identifaction must be run with cfg.test.evaluate=True.'
 
@@ -105,8 +130,7 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     update_datasplits(cfg)
-    register_datasets(cfg.data.sources, cfg)
-    register_datasets(cfg.data.targets, cfg)
+    register_datasets(list(set(cfg.data.sources + cfg.data.targets)), cfg)
 
     datamanager = build_datamanager(cfg)
 

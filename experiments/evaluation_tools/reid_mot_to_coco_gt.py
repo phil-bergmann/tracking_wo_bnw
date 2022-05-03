@@ -129,7 +129,7 @@ def main():
                         'id': f"{get_img_id(args.dataset, seq, f'{int(row[0]):06}.jpg')}{int(row_i):010}{'_NO_BG' if args.no_bg else ''}",
                         'image_id': get_img_id(args.dataset, seq, f'{int(row[0]):06}.jpg'),
                         'bbox': row[2:6].tolist(),
-                        'area': row[4]*row[5],
+                        'area': row[4] * row[5],
                         'vis': row[8],
                         'iscrowd': 1 - row[6],
                         'mask': None}

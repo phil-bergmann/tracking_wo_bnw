@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-#SBATCH --job-name=tracktor
+#SBATCH --job-name=tracktor_train_detection
 #SBATCH --nodes=1
 #SBATCH --cpus-per-gpu=2
 #SBATCH --mem=50GB
 #SBATCH --output=output/%j.out
-#SBATCH --time=4320
-#SBATCH --exclude=node2
+#SBATCH --time=1080
+#SBATCH --exclude=node11,node12,node13,node14,node5
 #SBATCH --gres=gpu:1
 
 import argparse
@@ -24,6 +24,9 @@ from PIL import Image
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.abspath('src/obj_det'))
+sys.path.insert(0, os.path.abspath('src/MOTChallengeEvalKit'))
+
+from DET.evalDET import DET_evaluator
 
 import transforms as T
 import utils
@@ -100,24 +103,43 @@ if '3_fold' in args.split:
         test_split_seqs = ['MOT17-05', 'MOT17-09']
     else:
         raise NotImplementedError
-else:
-    # train_split_seqs = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
-    train_split_seqs = ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-11']
+elif 'ALL' == args.split:
+    train_split_seqs = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
+    test_split_seqs = train_split_seqs
+    if args.test_mot_set == 'test':
+        test_split_seqs = ['MOT17-01', 'MOT17-03', 'MOT17-06', 'MOT17-07', 'MOT17-08', 'MOT17-12', 'MOT17-14']
+elif 'ALL_without_04' == args.split:
+    train_split_seqs = ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
+    test_split_seqs = train_split_seqs
+    if args.test_mot_set == 'test':
+        test_split_seqs = ['MOT17-01', 'MOT17-03', 'MOT17-06', 'MOT17-07', 'MOT17-08', 'MOT17-12', 'MOT17-14']
+elif '7_fold' in args.split:
+    train_split_seqs = ['MOT17-02', 'MOT17-04', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
     # train_split_seqs = [
     #     s for s in os.listdir(train_data_dir)
     #     if 'MOT17' in s and os.path.isdir(os.path.join(train_data_dir, s))]
+    train_split_seqs.remove(f'MOT17-{args.split[-2:]}')
+    test_split_seqs = [f'MOT17-{args.split[-2:]}']
+elif '6_fold_without_04' in args.split:
+    train_split_seqs = ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-10', 'MOT17-11', 'MOT17-13']
+    # train_split_seqs = [
+    #     s for s in os.listdir(train_data_dir)
+    #     if 'MOT17' in s and os.path.isdir(os.path.join(train_data_dir, s))]
+    train_split_seqs.remove(f'MOT17-{args.split[-2:]}')
+    test_split_seqs = [f'MOT17-{args.split[-2:]}']
+elif 'MOTS20' in train_data_dir and '4_fold' in args.split:
+    train_split_seqs = ['MOT17-02', 'MOT17-05', 'MOT17-09', 'MOT17-11']
+
+    train_split_seqs.remove(f'MOT17-{args.split[-2:]}')
+    test_split_seqs = [f'MOT17-{args.split[-2:]}']
+else:
+    raise NotImplementedError
 
 if 'MOT20' in train_data_dir:
     train_split_seqs = ['MOT20-01', 'MOT20-02', 'MOT20-03', 'MOT20-05']
 if 'MOT20' in test_data_dir:
     test_split_seqs = ['MOT20-01', 'MOT20-02', 'MOT20-03', 'MOT20-05']
 
-# dataset = MOTObjDetect(test_data_dir, split_seqs=test_split_seqs)
-# dataset = MOTObjDetect(train_data_dir, split_seqs=train_split_seqs)
-# img, target = dataset[247]
-# img, target = T.ToTensor()(img, target)
-# plot(img, target['boxes'])
-# exit()
 
 #
 # DATASETS
@@ -233,7 +255,11 @@ def evaluate_and_write_result_files(model, data_loader):
     # if args.arch == 'keypointrcnn_resnet50_fpn':
     #     iou_types.append("keypoints")
     coco_eval, results, loss_dicts = evaluate(model, data_loader, device, iou_types)
-    evaluation_metrics = {'AP': coco_eval.coco_eval['bbox'].stats[0]}
+    evaluation_metrics = {
+        'AP': coco_eval.coco_eval['bbox'].stats[0],
+        'AP_small': coco_eval.coco_eval['bbox'].stats[3],
+        'AP_medium': coco_eval.coco_eval['bbox'].stats[4],
+        'AP_large': coco_eval.coco_eval['bbox'].stats[5],}
 
     # MOT17Det eval
     # if args.write_result_files:
@@ -243,20 +269,20 @@ def evaluate_and_write_result_files(model, data_loader):
 
     data_loader.dataset.write_results_files(results, output_dir)
 
-    # if 'MOT17' in args.test_mot_dir and args.test_mot_set == 'train':
-    #     evaluator = DET_evaluator()
-    #     overall_results, _ = evaluator.run(
-    #         benchmark_name='MOT17Det',
-    #         gt_dir=osp.join(args.data_root, args.test_mot_dir),
-    #         res_dir=output_dir,
-    #         eval_mode='train',
-    #         seqmaps_dir='src/MOTChallengeEvalKit/seqmaps')
+    if 'MOT17' in args.test_mot_dir and args.test_mot_set == 'train':
+        evaluator = DET_evaluator()
+        overall_results, _ = evaluator.run(
+            benchmark_name='MOT17Det',
+            gt_dir=osp.join(args.data_root, args.test_mot_dir),
+            res_dir=output_dir,
+            eval_mode='train',
+            seqmaps_dir='src/MOTChallengeEvalKit/seqmaps')
 
-    #     evaluation_metrics['AP_MOT17Det'] = 0.0
-    #     evaluation_metrics['MODA_MOT17Det'] = 0.0
-    #     if overall_results is not None:
-    #         evaluation_metrics['AP_MOT17Det'] = overall_results.AP
-    #         evaluation_metrics['MODA_MOT17Det'] = overall_results.MODA
+        evaluation_metrics['AP_MOT17Det'] = 0.0
+        evaluation_metrics['MODA_MOT17Det'] = 0.0
+        if overall_results is not None:
+            evaluation_metrics['AP_MOT17Det'] = overall_results.AP
+            evaluation_metrics['MODA_MOT17Det'] = overall_results.MODA
 
     return evaluation_metrics, loss_dicts
 
