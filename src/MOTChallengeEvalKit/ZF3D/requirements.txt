@@ -5,7 +5,7 @@ importlib-metadata==1.7.0
 mccabe==0.6.1
 more-itertools==8.4.0
 motmetrics==1.2.0
-numpy==1.19.0
+numpy==1.22.0
 opencv-python==4.2.0.34
 opencv-python==4.2.0.34
 packaging==20.4
