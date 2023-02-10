@@ -94,7 +94,7 @@ Rcll  Prcn|  FAR     GT     TP     FP     FN| MODA  MODP
 ```
   @InProceedings{tracktor_2019_ICCV,
   author = {Bergmann, Philipp and Meinhardt, Tim and Leal{-}Taix{\'{e}}, Laura},
-  title = {Tracking Without Bells and Whistles},
+  title = {Tracking without bells and whistles},
   booktitle = {The IEEE International Conference on Computer Vision (ICCV)},
   month = {October},
   year = {2019}}
