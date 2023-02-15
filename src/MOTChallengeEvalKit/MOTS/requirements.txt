@@ -5,7 +5,7 @@ matplotlib==3.2.2
 numpy==1.19.0
 opencv-python==4.2.0.34
 pandas==1.0.5
-Pillow==7.1.2
+Pillow==9.3.0
 pycocotools==2.0.1
 pyparsing==2.4.7
 python-dateutil==2.8.1
