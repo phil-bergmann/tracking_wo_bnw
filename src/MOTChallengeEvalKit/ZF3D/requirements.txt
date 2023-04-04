@@ -11,7 +11,7 @@ opencv-python==4.2.0.34
 packaging==20.4
 pandas==1.0.5
 pluggy==0.13.1
-py==1.9.0
+py==1.11.0
 py-cpuinfo==6.0.0
 pycodestyle==2.6.0
 pyflakes==2.2.0
